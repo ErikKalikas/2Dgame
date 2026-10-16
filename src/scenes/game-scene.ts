@@ -109,6 +109,9 @@ class IntroOverlay implements Scene {
   }
 }
 
+/** Секунды → «м:сс» */
+const clock = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+
 class PauseOverlay implements Scene {
   private menu: Menu;
   private sub: Scene | null = null;
@@ -139,7 +142,13 @@ class PauseOverlay implements Scene {
     r.panel(VIEW_W / 2 - 90, 50, 180, 112);
     r.text(tr(S.paused), VIEW_W / 2, 60, { size: 10, color: C.red, align: 'center' });
     this.menu.render(r, VIEW_W / 2, 82, 15, 160);
-    r.text(`${tr(S.seed)}: ${this.gs.game.seed}`, VIEW_W / 2, 168, { size: 5, color: C.steelL, align: 'center' });
+    const g = this.gs.game;
+    r.text(`${tr(S.seed)}: ${g.seed}`, VIEW_W / 2, 168, { size: 5, color: C.steelL, align: 'center' });
+    // время по уровням (для плейтеста: под цель «забег 1–2 часа»)
+    const cur = clock(g.levelTimes[g.floorNum - 1] ?? 0);
+    r.text(`${tr({ ru: 'Забег', en: 'Run' })} ${clock(g.playTime)} · ${tr({ ru: 'уровень', en: 'level' })} ${g.floorNum}: ${cur}`, VIEW_W / 2, 34, { size: 5, color: C.steelL, align: 'center' });
+    const past = g.levelTimes.slice(0, g.floorNum - 1).map((t, i) => `${i + 1}·${clock(t ?? 0)}`).join(' ');
+    if (past) r.text(past, VIEW_W / 2, 42, { size: 4, color: C.steel, align: 'center' });
     r.text(tr(S.controls), VIEW_W / 2, 200, { size: 4, color: C.steel, align: 'center' });
   }
 }

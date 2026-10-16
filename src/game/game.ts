@@ -102,6 +102,8 @@ export class Game {
   /** Текст подсказки о предмете рядом с игроком */
   nearPickup: Pickup | null = null;
   playTime = 0;
+  /** Время на каждом уровне (с), индекс — номер уровня − 1. Для плейтеста: видно в паузе */
+  levelTimes: number[] = [];
   /** Замедление времени (хроно-ускоритель): враги и их пули двигаются медленнее */
   slowmo = 0;
   /** Лог Диспетчера (левый нижний угол) */
@@ -280,6 +282,7 @@ export class Game {
     }
 
     this.playTime += dt;
+    this.levelTimes[this.floorNum - 1] = (this.levelTimes[this.floorNum - 1] ?? 0) + dt;
     this.bossIntro = Math.max(0, this.bossIntro - dt);
     this.electroT = (this.electroT + dt) % 3.2;
     p.update(this, dt);

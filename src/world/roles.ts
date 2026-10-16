@@ -45,7 +45,11 @@ export const ROLES: Record<Role, RoleDef> = {
 /** Боевые роли: в них отряды и препятствия */
 export const BATTLE: ReadonlySet<Role> = new Set<Role>(['combat', 'ambush', 'elite', 'miniboss']);
 
-/** Параметры уровня по ярусу. Числа подобраны под забег 1–2 часа и правятся после плейтеста */
+/**
+ * Параметры уровня по ярусу. Цель — забег 1–2 часа (решение Эрика). Оценка по генератору: при этих числах
+ * ~85 боевых комнат за забег (~65 клеток площади версии 1), бои ~45–55 мин + боссы, особые комнаты и коридоры;
+ * Чистильщики (14б) добавят ещё. Уточняется плейтестом: время уровней видно в паузе
+ */
 export interface TierGen {
   /** Сколько комнат на уровне (всего, вместе с особыми) */
   rooms: [number, number];
@@ -58,11 +62,11 @@ export interface TierGen {
 }
 
 export const TIER_GEN: Record<Tier, TierGen> = {
-  sump: { rooms: [8, 10], minFill: 3, fill: { combat: 4, ambush: 1 }, loops: [1, 1] },
-  foundry: { rooms: [10, 13], minFill: 4, fill: { combat: 4, ambush: 1 }, loops: [1, 2] },
-  hab: { rooms: [12, 15], minFill: 5, fill: { combat: 3, ambush: 2 }, loops: [1, 2] },
-  transit: { rooms: [14, 18], minFill: 6, fill: { combat: 4, ambush: 1.5 }, loops: [1, 2] },
-  spire: { rooms: [6, 8], minFill: 3, fill: { combat: 4, ambush: 1 }, loops: [1, 1] },
+  sump: { rooms: [10, 12], minFill: 4, fill: { combat: 4, ambush: 1 }, loops: [1, 1] },
+  foundry: { rooms: [13, 16], minFill: 6, fill: { combat: 4, ambush: 1 }, loops: [1, 2] },
+  hab: { rooms: [16, 19], minFill: 8, fill: { combat: 3, ambush: 2 }, loops: [1, 2] },
+  transit: { rooms: [19, 23], minFill: 10, fill: { combat: 4, ambush: 1.5 }, loops: [1, 2] },
+  spire: { rooms: [9, 11], minFill: 4, fill: { combat: 4, ambush: 1 }, loops: [1, 1] },
 };
 
 /** Шанс мини-босса на локации (с 2-го уровня). Эрик: «по весам» — подстраивается здесь */
