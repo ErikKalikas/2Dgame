@@ -23,10 +23,10 @@ for (const id of ids) {
     const g = window.__game.scene.game;
     window.__game.scene.overlay = null;
     g.player.invuln = 999;
-    if (!g.enemies.length) {
-      const normal = g.plan.rooms.find((r) => r.type === 'normal' && !r.cleared) ?? g.plan.rooms.find((r) => r.type === 'normal');
+    if (!g.enemies.some((e) => g.zone && e.home === g.zone.id)) {
+      const normal = g.plan.rooms.find((r) => r.role === 'combat' && !r.cleared) ?? g.plan.rooms.find((r) => r.role === 'combat');
       normal.cleared = false; normal.visited = false;
-      g.enterRoom(normal, null);
+      g.enterRoom(normal);
     }
     const it = items.item(id);
     const p = g.player;

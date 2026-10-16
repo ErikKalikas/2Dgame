@@ -27,7 +27,7 @@ const start = await ev(() => {
   const g = window.__game.scene.game;
   const p = g.player;
   p.invuln = 9999;
-  return { sk: p.skeleton, bp: p.backpack.length, size: p.backpackSize, surgery: g.plan.rooms.filter((r) => r.type === 'surgery').length };
+  return { sk: p.skeleton, bp: p.backpack.length, size: p.backpackSize, surgery: g.plan.rooms.filter((r) => r.role === 'surgery').length };
 });
 check('старт: рабочий скелет, пустой рюкзак на 3', start.sk === 'skWorker' && start.bp === 0 && start.size === 3, JSON.stringify(start));
 check('на уровне есть операционная', start.surgery === 1);
@@ -147,8 +147,8 @@ const sys = await ev(() => {
   g.enemies.length = 0;
   g.startFloor(2);
   g.player.invuln = 9999;
-  const boss = g.plan.rooms[g.plan.bossId];
-  g.enterRoom(boss, null);
+  const boss = g.plan.rooms[g.plan.exitId];
+  g.enterRoom(boss);
   for (const e of g.enemies) { e.spawn = 0; g.killEnemy(e, true); }
   return null;
 });
@@ -156,30 +156,32 @@ await page.waitForTimeout(400);
 const sys2 = await ev(() => [...window.__game.scene.game.player.systems]);
 check('босс 2-го уровня открывает кровеносную систему', sys2.includes('blood'), JSON.stringify(sys2));
 
-// запертая сокровищница: взлом удержанием R
+// петля: гермодверь открывается терминалом (удержание R) в дальней комнате петли
 const hack = await ev(() => {
   const g = window.__game.scene.game;
-  const room = g.plan.rooms.find((r) => r.doors.some((d) => d.locked));
-  if (!room) return { skip: true };
-  g.enterRoom(room, null);
+  const room = g.plan.rooms[g.plan.loops[0].terminalRoom];
+  g.enterRoom(room);
   g.enemies.length = 0;
   room.cleared = true;
-  const d = g.room.doors.find((d) => d.locked);
-  const T = 16;
-  g.player.x = (d.tx + (d.dir === 'n' || d.dir === 's' ? 1 : 0.5)) * T + (d.dir === 'w' ? 18 : d.dir === 'e' ? -18 : 0);
-  g.player.y = (d.ty + (d.dir === 'w' || d.dir === 'e' ? 1 : 0.5)) * T + (d.dir === 'n' ? 18 : d.dir === 's' ? -18 : 0);
+  const k = g.pickups.find((k) => k.kind === 'terminal' && k.loop === 0);
+  g.player.x = g.player.safeX = k.x;
+  g.player.y = g.player.safeY = k.y + 10;
   g.snapCamera();
-  return { dir: d.dir };
+  const d = g.plan.doors[g.plan.loops[0].gateDoor];
+  return { closed: d.locked && g.room.get(d.tx, d.ty) === 6 };
 });
-if (!hack.skip) {
-  await page.keyboard.down('KeyR');
-  await page.waitForTimeout(800);
-  await page.screenshot({ path: `${out}/hack.png` });
-  await page.waitForTimeout(1500);
-  await page.keyboard.up('KeyR');
-  const opened = await ev(() => !window.__game.scene.game.room.doors.some((d) => d.locked));
-  check('взлом двери удержанием R', opened);
-} else console.log('SKIP взлом: нет запертой двери');
+check('гермодверь петли закрыта до терминала', hack.closed);
+await page.keyboard.down('KeyR');
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${out}/hack.png` });
+await page.waitForTimeout(1200);
+await page.keyboard.up('KeyR');
+const opened = await ev(() => {
+  const g = window.__game.scene.game;
+  const d = g.plan.doors[g.plan.loops[0].gateDoor];
+  return !d.locked && g.room.get(d.tx, d.ty) === 0;
+});
+check('терминал открывает гермодверь удержанием R', opened);
 
 console.log('errors', JSON.stringify(errors.slice(0, 5)), errors.length);
 await browser.close();

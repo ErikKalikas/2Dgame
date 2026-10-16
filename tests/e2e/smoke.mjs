@@ -30,7 +30,7 @@ await hold(['KeyW', 'ArrowUp'], 700);
 await page.screenshot({ path: `${out}/03-move.png` });
 const info = await page.evaluate(() => {
   const g = window.__game.scene.game;
-  return g ? { room: g.room.info.type, rooms: g.plan.rooms.length, x: g.player.x, y: g.player.y, lives: g.player.lives } : null;
+  return g ? { room: g.zone?.role ?? 'corridor', rooms: g.plan.rooms.length, x: g.player.x, y: g.player.y, lives: g.player.lives } : null;
 });
 console.log('state', JSON.stringify(info));
 console.log('errors', JSON.stringify(errors));

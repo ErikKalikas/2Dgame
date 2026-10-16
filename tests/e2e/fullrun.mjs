@@ -19,9 +19,9 @@ for (let floor = 1; floor <= 9; floor++) {
   await page.evaluate(() => {
     const g = window.__game.scene.game;
     g.player.invuln = 9999;
-    const boss = g.plan.rooms[g.plan.bossId];
-    g.enterRoom(boss, null);
-    const c = g.room.centerPoint();
+    const boss = g.plan.rooms[g.plan.exitId];
+    g.enterRoom(boss);
+    const c = g.room.roomCenter(boss);
     g.player.x = c.x; g.player.y = c.y + 60;
     g.snapCamera();
   });

@@ -1,4 +1,4 @@
-import { nearestWalkable } from '../world/room';
+import { nearestWalkable } from '../world/level';
 import type { Enemy, EnemyDef } from './enemy';
 import type { Game } from './game';
 import { ITEMS } from './items';

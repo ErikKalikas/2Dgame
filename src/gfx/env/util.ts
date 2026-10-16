@@ -1,7 +1,7 @@
 // Общие инструменты художника окружения: детерминированный шум, контекст тайла, мелкие примитивы.
 import { TILE } from '../../config';
 import type { FloorTheme } from '../../content/floors';
-import type { RoomMap } from '../../world/room';
+import type { LevelMap } from '../../world/level';
 import { T } from '../../world/tiles';
 import { C } from '../palette';
 
@@ -30,7 +30,7 @@ export function vnoise(x: number, y: number, s = 0): number {
 /** Всё, что нужно кисти для одного тайла */
 export interface P {
   x: CanvasRenderingContext2D;
-  room: RoomMap;
+  room: LevelMap;
   th: FloorTheme;
   tx: number;
   ty: number;
@@ -39,14 +39,14 @@ export interface P {
   decor: number;
   /** Вариант уровня внутри яруса (0/1) */
   v: number;
-  /** Соль комнаты для хешей */
+  /** Соль уровня для хешей */
   s: number;
 }
 
-export function makeP(x: CanvasRenderingContext2D, room: RoomMap, th: FloorTheme, tx: number, ty: number): P {
+export function makeP(x: CanvasRenderingContext2D, room: LevelMap, th: FloorTheme, tx: number, ty: number): P {
   return {
     x, room, th, tx, ty, px: tx * TILE, py: ty * TILE,
-    decor: room.decor[ty * room.tw + tx], v: th.variant, s: room.info.id * 31 + 7,
+    decor: room.decor[ty * room.tw + tx], v: th.variant, s: room.salt * 31 + 7,
   };
 }
 
@@ -75,9 +75,9 @@ export function speckle(p: P, n: number, c: string, a: number, salt: number, x0 
 }
 
 // --- соседи ---
-export const isWall = (t: number) => t === T.Wall;
+export const isWall = (t: number) => t === T.Wall || t === T.Void;
 export const isPit = (t: number) => t === T.Pit || t === T.Bridge;
-export const isSolid = (t: number) => t === T.Wall || t === T.Block || t === T.Crate;
+export const isSolid = (t: number) => t === T.Wall || t === T.Void || t === T.Block || t === T.Crate;
 export const isObstacle = (t: number) => t === T.Block || t === T.Crate;
 export const nb = (p: P, dx: number, dy: number) => p.room.get(p.tx + dx, p.ty + dy);
 

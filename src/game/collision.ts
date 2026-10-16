@@ -1,5 +1,5 @@
 import { TILE } from '../config';
-import type { RoomMap } from '../world/room';
+import type { LevelMap } from '../world/level';
 import { blocksShots } from '../world/tiles';
 
 export type SolidFn = (tile: number, tx: number, ty: number) => boolean;
@@ -15,7 +15,7 @@ export interface Body {
  * Перемещение тела (квадрат 2r×2r) с раздельным разрешением по осям.
  * Возвращает, было ли столкновение по X и по Y.
  */
-export function moveBody(room: RoomMap, b: Body, dx: number, dy: number, solid: SolidFn): { hx: boolean; hy: boolean } {
+export function moveBody(room: LevelMap, b: Body, dx: number, dy: number, solid: SolidFn): { hx: boolean; hy: boolean } {
   let hx = false, hy = false;
   // большие смещения дробим, чтобы не проскакивать сквозь тайлы
   const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) / (TILE / 2)));
@@ -44,7 +44,7 @@ export function moveBody(room: RoomMap, b: Body, dx: number, dy: number, solid: 
   return { hx, hy };
 }
 
-export function overlaps(room: RoomMap, b: Body, solid: SolidFn): boolean {
+export function overlaps(room: LevelMap, b: Body, solid: SolidFn): boolean {
   const x0 = Math.floor((b.x - b.r) / TILE), x1 = Math.floor((b.x + b.r - 0.001) / TILE);
   const y0 = Math.floor((b.y - b.r) / TILE), y1 = Math.floor((b.y + b.r - 0.001) / TILE);
   for (let ty = y0; ty <= y1; ty++) {
@@ -56,7 +56,7 @@ export function overlaps(room: RoomMap, b: Body, solid: SolidFn): boolean {
 }
 
 /** Расстояние до первого препятствия для пуль вдоль луча (не больше maxDist) */
-export function raycast(room: RoomMap, x: number, y: number, angle: number, maxDist: number): number {
+export function raycast(room: LevelMap, x: number, y: number, angle: number, maxDist: number): number {
   const ca = Math.cos(angle), sa = Math.sin(angle);
   for (let d = 0; d < maxDist; d += 3) {
     if (blocksShots(room.at(x + ca * d, y + sa * d))) return d;
@@ -65,7 +65,7 @@ export function raycast(room: RoomMap, x: number, y: number, angle: number, maxD
 }
 
 /** Есть ли прямая видимость между точками */
-export function lineOfSight(room: RoomMap, x1: number, y1: number, x2: number, y2: number): boolean {
+export function lineOfSight(room: LevelMap, x1: number, y1: number, x2: number, y2: number): boolean {
   const d = Math.hypot(x2 - x1, y2 - y1);
   return raycast(room, x1, y1, Math.atan2(y2 - y1, x2 - x1), d) >= d - 1;
 }

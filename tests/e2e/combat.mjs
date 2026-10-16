@@ -15,13 +15,10 @@ await page.waitForTimeout(500);
 await page.waitForTimeout(400);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(200);
-// телепортируемся в проём двери
+// переходим в обычную боевую комнату (в особых врагов нет)
 await page.evaluate(() => {
   const g = window.__game.scene.game;
-  // дверь в обычную комнату (в особых врагов нет)
-  const d = g.room.doors.find((x) => g.plan.rooms[x.to].type === 'normal') ?? g.room.doors[0];
-  g.player.x = (d.tx + 0.5) * 16 + (d.dir === 'n' || d.dir === 's' ? 8 : 0);
-  g.player.y = (d.ty + 0.5) * 16 + (d.dir === 'w' || d.dir === 'e' ? 8 : 0);
+  g.enterRoom(g.plan.rooms.find((r) => r.role === 'combat'));
 });
 await page.waitForTimeout(1500);
 await page.screenshot({ path: `${out}/04-room.png` });
@@ -36,7 +33,7 @@ await page.keyboard.up('ArrowUp');
 await page.keyboard.up('ShiftLeft');
 const info = await page.evaluate(() => {
   const g = window.__game.scene.game;
-  return { type: g.room.info.type, enemies: g.enemies.length, eb: g.ebullets.length, lives: g.player.lives, kills: g.player.kills, xp: g.player.xp };
+  return { type: g.zone?.role ?? 'corridor', enemies: g.enemies.length, eb: g.ebullets.length, lives: g.player.lives, kills: g.player.kills, xp: g.player.xp };
 });
 console.log('state', JSON.stringify(info));
 console.log('errors', JSON.stringify(errors));

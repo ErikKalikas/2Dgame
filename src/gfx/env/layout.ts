@@ -3,7 +3,7 @@
 // рисовании статичного слоя (roomrender), и в освещении (render.ts), поэтому они всегда совпадают.
 import { CELL_H, CELL_W, TILE } from '../../config';
 import type { FloorTheme, Tier } from '../../content/floors';
-import type { RoomMap } from '../../world/room';
+import type { LevelMap } from '../../world/level';
 import { T } from '../../world/tiles';
 import { hash, rnd } from './util';
 
@@ -62,9 +62,15 @@ export interface EnvLayout {
   blinks: Emitter[];
   /** Светодиоды на разрушаемых стойках (проверяются по тайлу) */
   rackLeds: Emitter[];
-  /** Рельсы магистралей: строки (горизонтальные пути) или столбцы (вертикальные) */
-  trackRows: number[];
-  trackCols: number[];
+  /** Рельсы магистралей: отрезки строк (горизонтальные пути) или столбцов (вертикальные), k — строка/столбец, a..b — тайлы */
+  trackRows: Track[];
+  trackCols: Track[];
+}
+
+export interface Track {
+  k: number;
+  a: number;
+  b: number;
 }
 
 interface TierCfg {
@@ -84,34 +90,41 @@ const CFG: Record<Tier, TierCfg> = {
   spire: { face: 5, side: 5, bottom: 6, lampR: 70, emit: 0.32, det: 0.45 },
 };
 
-const cache = new WeakMap<RoomMap, EnvLayout>();
+const cache = new WeakMap<LevelMap, EnvLayout>();
 
-/** Путь (рельсы) проходит через эту строку/столбец? Возвращает 0 — нет, 1 — первая колея, 2 — вторая */
-export function trackAt(th: FloorTheme, tx: number, ty: number): number {
+/**
+ * Путь (рельсы) проходит через этот тайл? 0 — нет, 1 — первая колея, 2 — вторая.
+ * Рельсы есть только в комнатах (отсчёт от угла комнаты), в коридорах их нет.
+ */
+export function trackAt(map: LevelMap, th: FloorTheme, tx: number, ty: number): number {
   if (th.tier !== 'transit') return 0;
+  const r = map.roomAt(tx, ty);
+  if (!r || tx <= r.x || ty <= r.y || tx >= r.x + r.w - 1 || ty >= r.y + r.h - 1) return 0;
   if (th.variant === 0) {
-    const m = ty % CELL_H;
+    const m = (ty - r.y) % CELL_H;
     return m === 4 || m === 12 ? 1 : m === 5 || m === 13 ? 2 : 0;
   }
-  const m = tx % CELL_W;
+  const m = (tx - r.x) % CELL_W;
   return m === 6 || m === 22 ? 1 : m === 7 || m === 23 ? 2 : 0;
 }
 
-export function envLayout(room: RoomMap, th: FloorTheme): EnvLayout {
+export function envLayout(room: LevelMap, th: FloorTheme): EnvLayout {
   let L = cache.get(room);
   if (L) return L;
   const { tw, th: rh } = room;
   const cfg = CFG[th.tier];
-  const salt = room.info.id * 131 + th.variant * 7;
+  const salt = room.salt * 131 + th.variant * 7;
   L = {
     fix: new Uint8Array(tw * rh), side: new Uint8Array(tw * rh), lights: [], electro: [],
     drips: [], steam: [], sparks: [], blinks: [], rackLeds: [], trackRows: [], trackCols: [],
   };
   const lampRgb = th.lamp;
-  const inner = (x: number, y: number) => room.inside(x, y) && room.get(x, y) !== T.Wall;
+  const inner = (x: number, y: number) => room.inside(x, y) && room.get(x, y) !== T.Wall && room.get(x, y) !== T.Void;
+  // у проёма (открытого или закрытого) арматуры нет
+  const isDoor = (x: number, y: number) => room.doorAt(x, y) !== null;
   const nearDoor = (x: number, y: number) => {
     for (let d = -1; d <= 1; d++) {
-      if (room.get(x + d, y) === T.Door || room.get(x, y + d) === T.Door) return true;
+      if (isDoor(x + d, y) || isDoor(x, y + d)) return true;
     }
     return false;
   };
@@ -120,8 +133,9 @@ export function envLayout(room: RoomMap, th: FloorTheme): EnvLayout {
     L!.lights.push({ x, y, r, a, rgb: lampRgb, flick, blink: 0, kind: 'lamp', tile: -1, tt: 0 });
   };
 
-  let signDone = false;
-  const wantSign = th.tier === 'hab' && (th.variant === 1 || rnd(room.info.id, 3, 77) < 0.35);
+  // вывеска (Жилые соты): не больше одной на комнату
+  const signDone = new Set<number>();
+  const wantSign = (id: number) => th.tier === 'hab' && (th.variant === 1 || rnd(id, 3, 77) < 0.35) && !signDone.has(id);
 
   for (let ty = 0; ty < rh; ty++) {
     for (let tx = 0; tx < tw; tx++) {
@@ -137,7 +151,7 @@ export function envLayout(room: RoomMap, th: FloorTheme): EnvLayout {
       if (t === T.Floor && room.decor[i] === 1 && (th.tier === 'sump' || th.tier === 'foundry')) {
         if (rnd(tx, ty, salt + 9) < 0.6) L.steam.push({ x: tx * TILE + 8, y: ty * TILE + 8, seed: hash(tx, ty, salt) % 1000, k: 0 });
       }
-      if (t !== T.Wall || nearDoor(tx, ty)) continue;
+      if (t !== T.Wall || isDoor(tx, ty) || nearDoor(tx, ty)) continue;
       const px = tx * TILE, py = ty * TILE;
       if (inner(tx, ty + 1)) {
         // фасад стены, обращённый к камере
@@ -149,9 +163,10 @@ export function envLayout(room: RoomMap, th: FloorTheme): EnvLayout {
           const r = rnd(tx, ty, salt + 1);
           if (r < cfg.emit) f = FX.Emit;
           else if (r < cfg.emit + cfg.det) f = rnd(tx, ty, salt + 2) < 0.5 ? FX.DetA : FX.DetB;
-          if (wantSign && !signDone && f !== FX.Emit && (tx + 3) % cfg.face === Math.floor(cfg.face / 2) && tx > 4) {
+          const rid = room.roomIdx[i];
+          if (rid >= 0 && wantSign(rid) && f !== FX.Emit && (tx + 3) % cfg.face === Math.floor(cfg.face / 2) && tx > room.rooms[rid].x + 4) {
             f = FX.Sign;
-            signDone = true;
+            signDone.add(rid);
           }
         }
         L.fix[i] = f;
@@ -174,24 +189,33 @@ export function envLayout(room: RoomMap, th: FloorTheme): EnvLayout {
     }
   }
 
-  // «потолочные» пятна света: источник над камерой, видно только световое пятно на полу
-  for (let cy = 0; cy < room.info.h; cy++) {
-    for (let cx = 0; cx < room.info.w; cx++) {
-      for (let k = 0; k < th.pools; k++) {
-        const h = hash(cx, cy, salt + 40 + k);
-        const tx = cx * CELL_W + 4 + (h % (CELL_W - 8));
-        const ty = cy * CELL_H + 4 + ((h >>> 10) % (CELL_H - 8));
-        const flick = rnd(tx, ty, salt + 41) < th.flicker ? 1 + (h % 991) : 0;
-        L.lights.push({ x: tx * TILE + 8, y: ty * TILE + 8, r: 74, a: 0.45, rgb: lampRgb, flick, blink: 0, kind: 'pool', tile: -1, tt: 0 });
-      }
+  // «потолочные» пятна света: источник над камерой, видно только световое пятно на полу.
+  // В комнате — th.pools на площадь клетки 30×18, в коридоре — пятно примерно через 14 тайлов
+  const pool = (tx: number, ty: number, h: number) => {
+    const flick = rnd(tx, ty, salt + 41) < th.flicker ? 1 + (h % 991) : 0;
+    L!.lights.push({ x: tx * TILE + 8, y: ty * TILE + 8, r: 74, a: 0.45, rgb: lampRgb, flick, blink: 0, kind: 'pool', tile: -1, tt: 0 });
+  };
+  for (const r of room.rooms) {
+    const n = Math.max(1, Math.round((th.pools * r.w * r.h) / (CELL_W * CELL_H)));
+    for (let k = 0; k < n; k++) {
+      const h = hash(r.id, k, salt + 40);
+      pool(r.x + 3 + (h % Math.max(1, r.w - 6)), r.y + 3 + ((h >>> 10) % Math.max(1, r.h - 6)), h);
+    }
+  }
+  for (const c of room.plan.corridors) {
+    for (let k = 7; k < c.path.length - 4; k += 14) {
+      const i = c.path[k];
+      pool(i % tw, (i / tw) | 0, hash(c.id, k, salt + 42));
     }
   }
 
   if (th.tier === 'transit') {
-    if (th.variant === 0) {
-      for (let ty = 0; ty < rh; ty++) if (trackAt(th, 0, ty) === 1) L.trackRows.push(ty);
-    } else {
-      for (let tx = 0; tx < tw; tx++) if (trackAt(th, tx, 0) === 1) L.trackCols.push(tx);
+    for (const r of room.rooms) {
+      if (th.variant === 0) {
+        for (let ty = r.y + 1; ty < r.y + r.h - 1; ty++) if (trackAt(room, th, r.x + 1, ty) === 1) L.trackRows.push({ k: ty, a: r.x + 1, b: r.x + r.w - 2 });
+      } else {
+        for (let tx = r.x + 1; tx < r.x + r.w - 1; tx++) if (trackAt(room, th, tx, r.y + 1) === 1) L.trackCols.push({ k: tx, a: r.y + 1, b: r.y + r.h - 2 });
+      }
     }
   }
   cache.set(room, L);

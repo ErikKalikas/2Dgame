@@ -39,6 +39,7 @@ export const LOG = {
   }),
   unstableDouble: { ru: 'Сбой совместимости: каналы огня сдвоены.', en: 'Compatibility fault: fire channels doubled.' } as L,
   unstableCharge: { ru: 'Сбой совместимости: скачок заряда.', en: 'Compatibility fault: charge surge.' } as L,
+  gateOpen: { ru: 'Гермодверь открыта с терминала. Доступ не санкционирован.', en: 'Blast door opened from a terminal. Access unauthorized.' } as L,
 };
 
 /** Заставка в начале забега: как у Т-417 сгорел поводок */

@@ -119,11 +119,11 @@ export function renderAmbient(g: Game, ctx: CanvasRenderingContext2D, cx: number
         if (room.at(b.x, b.y) !== T.Crate) continue;
         if (ledOn(b.seed, t, 0.7)) px(b.x, b.y, 1, 1, b.k === 0 ? C.redL : C.amber, 0.95);
       }
-      // сканирующая линия Диспетчера: раз в несколько секунд проходит сверху вниз
+      // сканирующая линия Диспетчера: раз в несколько секунд проходит по экрану сверху вниз
       const period = 7;
       const ph = (t % period) / period;
       if (ph < 0.45) {
-        const y = (ph / 0.45) * room.pxH;
+        const y = cy + (ph / 0.45) * VIEW_H;
         if (y > y0 && y < y1) {
           px(cx, y, VIEW_W, 1, C.red, 0.22);
           px(cx, y - 3, VIEW_W, 3, C.redD, 0.08);

@@ -3,13 +3,14 @@
 // Сохраняет <outdir>/tier-L<n>-room.png и tier-L<n>-boss.png (кадр мира 384×216, увеличенный ×3)
 // и, если передан флаг --full, весь статичный слой комнаты: tier-L<n>-static.png.
 import { chromium } from 'playwright';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const url = process.argv[2] ?? 'http://localhost:5173';
 const out = process.argv[3] ?? '.';
 const levels = (process.argv[4] && !process.argv[4].startsWith('--') ? process.argv[4] : '1,2,3,4,5,6,7,8,9')
   .split(',').map(Number);
 const full = process.argv.includes('--full');
+mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1152, height: 648 } });
 const errors = [];
@@ -44,21 +45,24 @@ for (const n of levels) {
       const g = window.__game.scene.game;
       g.startFloor(n);
       let r;
-      if (kind === 'boss') r = g.plan.rooms[g.plan.bossId];
+      const kindsIn = (q) => {
+        const s = new Set();
+        for (let y = q.y; y < q.y + q.h; y++) for (let x = q.x; x < q.x + q.w; x++) s.add(g.room.get(x, y));
+        return s;
+      };
+      if (kind === 'boss') r = g.plan.rooms[g.plan.exitId];
       else {
-        // комната с самым разнообразным набором тайлов
+        // боевая комната с самым разнообразным набором тайлов
         let best = -1;
-        for (const ri of g.plan.rooms.filter((q) => q.type === 'normal')) {
-          const m = g.mapFor(ri);
-          const kinds = new Set(m.tiles);
-          const score = kinds.size * 10 + (ri.w * ri.h > 1 ? 3 : 0);
+        for (const ri of g.plan.rooms.filter((q) => q.role === 'combat')) {
+          const score = kindsIn(ri).size * 10 + ri.w * ri.h / 100;
           if (score > best) { best = score; r = ri; }
         }
       }
-      g.enterRoom(r, null);
+      g.enterRoom(r);
       g.player.invuln = 999;
       // обычная комната — у верхней стены (видны фасад, лампы и препятствия), босс — в центре
-      const c = kind === 'boss' ? g.room.centerPoint() : { x: Math.min(g.room.pxW / 2, 15 * 16), y: 5 * 16 };
+      const c = kind === 'boss' ? g.room.roomCenter(r) : { x: (r.x + Math.min(r.w / 2, 15)) * 16, y: (r.y + 5) * 16 };
       // ближайшая проходимая точка у центра
       const tx0 = Math.floor(c.x / 16), ty0 = Math.floor(c.y / 16);
       outer: for (let rad = 0; rad < 12; rad++) {
@@ -70,7 +74,7 @@ for (const n of levels) {
       g.player.x = c.x;
       g.player.y = c.y;
       g.snapCamera();
-      return { floor: n, room: r.type, size: `${r.w}x${r.h}`, tiles: [...new Set(g.room.tiles)].sort().join('') };
+      return { floor: n, room: r.role, size: `${r.w}x${r.h}`, tiles: [...kindsIn(r)].sort().join('') };
     }, { n, kind });
     await page.waitForTimeout(kind === 'boss' ? 2200 : 1500);
     await page.evaluate(() => { const g = window.__game.scene.game; g.player.invuln = 999; });
@@ -83,13 +87,16 @@ for (const n of levels) {
     }
     if (full && kind === 'room') {
       save(`tier-L${n}-static.png`, await page.evaluate(() => {
-        const s = window.__game.scene.game.roomCanvasFor();
+        // статичный слой текущей комнаты, ×2
+        const g = window.__game.scene.game;
+        const r = g.zone;
         const c = document.createElement('canvas');
-        c.width = s.width * 2;
-        c.height = s.height * 2;
+        c.width = r.w * 32;
+        c.height = r.h * 32;
         const x = c.getContext('2d');
         x.imageSmoothingEnabled = false;
-        x.drawImage(s, 0, 0, c.width, c.height);
+        x.scale(2, 2);
+        g.gfx.draw(x, r.x * 16, r.y * 16, r.w * 16, r.h * 16);
         return c.toDataURL('image/png');
       }));
     }

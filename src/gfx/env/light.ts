@@ -2,7 +2,7 @@
 // Всё детерминировано по времени игры и зерну источника — без состояния.
 import { TILE, VIEW_H, VIEW_W } from '../../config';
 import type { Game } from '../../game/game';
-import type { RoomMap } from '../../world/room';
+import type { LevelMap } from '../../world/level';
 import { canvas, type Sprite } from '../sprite';
 import { envLayout, type Light } from './layout';
 import { rnd } from './util';
@@ -39,7 +39,7 @@ export function lightLevel(l: Light, t: number): number {
 }
 
 /** Действует ли источник (стойка могла быть разрушена) */
-export const lightValid = (l: Light, room: RoomMap) => l.tile < 0 || room.tiles[l.tile] === l.tt;
+export const lightValid = (l: Light, room: LevelMap) => l.tile < 0 || room.tiles[l.tile] === l.tt;
 
 const glowCache = new Map<string, Sprite>();
 /** Цветное свечение с мягким спадом (для режима 'lighter') */
@@ -104,19 +104,19 @@ export function transitSweep(g: Game): { x: number; y: number }[] | null {
   if (th.tier !== 'transit') return null;
   const L = envLayout(g.room, th);
   const out: { x: number; y: number }[] = [];
-  const t = g.time, room = g.room;
-  for (const row of L.trackRows) {
+  const t = g.time;
+  for (const { k: row, a, b } of L.trackRows) {
     const period = 9 + (row % 4);
     const ph = ((t + row * 1.7) % period) / period;
     if (ph > 0.4) continue;
-    const x = -60 + (ph / 0.4) * (room.pxW + 120);
+    const x = a * TILE - 60 + (ph / 0.4) * ((b - a + 1) * TILE + 120);
     out.push({ x, y: (row + 1) * TILE }, { x: x - 40, y: (row + 1) * TILE });
   }
-  for (const col of L.trackCols) {
+  for (const { k: col, a, b } of L.trackCols) {
     const period = 8 + (col % 5);
     const ph = ((t + col * 1.3) % period) / period;
     if (ph > 0.4) continue;
-    const y = -60 + (ph / 0.4) * (room.pxH + 120);
+    const y = a * TILE - 60 + (ph / 0.4) * ((b - a + 1) * TILE + 120);
     out.push({ x: (col + 1) * TILE, y }, { x: (col + 1) * TILE, y: y - 40 });
   }
   return out.length ? out : null;

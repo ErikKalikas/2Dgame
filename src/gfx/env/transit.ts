@@ -47,29 +47,29 @@ function floor(p: P) {
     for (let y = 2; y < 15; y += 4) for (let x = 2; x < 15; x += 4) R(p, x, y, 2, 2, C.black, 0.85);
     R(p, 1, 1, 15, 1, th.floorHi, 0.6);
   }
-  const part = trackAt(th, p.tx, p.ty);
+  const part = trackAt(p.room, th, p.tx, p.ty);
   if (part) {
     track(p, part, vertical);
     return;
   }
   // край платформы у пути
   if (!vertical) {
-    if (trackAt(th, p.tx, p.ty + 1) === 1) {
+    if (trackAt(p.room, th, p.tx, p.ty + 1) === 1) {
       hazard(p, 0, 12, 16, 3, 0.55);
       R(p, 0, 15, 16, 1, C.black);
     }
-    if (trackAt(th, p.tx, p.ty - 1) === 2) {
+    if (trackAt(p.room, th, p.tx, p.ty - 1) === 2) {
       R(p, 0, 0, 16, 1, C.black);
       hazard(p, 0, 1, 16, 3, 0.55);
     }
   } else {
     // направляющие шахт: стальной бортик с тонкой жёлтой линией
-    if (trackAt(th, p.tx + 1, p.ty) === 1) {
+    if (trackAt(p.room, th, p.tx + 1, p.ty) === 1) {
       R(p, 13, 0, 2, 16, C.metal);
       R(p, 12, 0, 1, 16, C.amber, 0.35);
       R(p, 15, 0, 1, 16, C.black);
     }
-    if (trackAt(th, p.tx - 1, p.ty) === 2) {
+    if (trackAt(p.room, th, p.tx - 1, p.ty) === 2) {
       R(p, 0, 0, 1, 16, C.black);
       R(p, 1, 0, 2, 16, C.metal);
       R(p, 3, 0, 1, 16, C.amber, 0.35);
@@ -82,7 +82,7 @@ function floor(p: P) {
 
 function decal(p: P) {
   const th = p.th;
-  if (trackAt(th, p.tx, p.ty)) return;
+  if (trackAt(p.room, th, p.tx, p.ty)) return;
   switch (p.decor) {
     case 1:
       R(p, 3, 4, 10, 8, C.black);

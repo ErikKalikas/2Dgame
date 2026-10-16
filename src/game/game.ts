@@ -4,10 +4,11 @@ import { angleDiff, clamp, dist2 } from '../core/math';
 import { RNG } from '../core/rng';
 import type { Difficulty } from '../core/storage';
 import { C } from '../gfx/palette';
-import { redrawTile, renderRoomCanvas } from '../gfx/roomrender';
+import { LevelCanvas } from '../gfx/roomrender';
 import { input } from '../core/input';
-import { DIRS, generateFloor, OPPOSITE, type FloorPlan, type RoomInfo } from '../world/floorgen';
-import { buildRoom, nearestWalkable, type DoorPlace, type RoomMap } from '../world/room';
+import { generateLevel, type LevelPlan, type LevelRoom } from '../world/levelgen';
+import { buildLevel, nearestWalkable, type LevelMap } from '../world/level';
+import { BATTLE, ROLES } from '../world/roles';
 import { T, walkable } from '../world/tiles';
 import { updateEBullets, updatePBullets, type EBullet, type PBullet } from './bullets';
 import { collidePlayerShots, damageEnemy, explode, fireWeapon, spawnShot } from './combat';
@@ -37,10 +38,12 @@ const DIFFS: Record<Difficulty, DiffParams> = {
   hard: { speed: 1, density: 1, aim: 0.03, cooldown: 1 },
 };
 
-export type GameState = 'play' | 'transition' | 'dying' | 'dead' | 'won' | 'floorFade';
+export type GameState = 'play' | 'dying' | 'dead' | 'won' | 'floorFade';
 
-/** Сколько держать R, чтобы взломать запертую дверь (с) */
-export const HACK_TIME = 2;
+/** Сколько держать R у терминала, чтобы открыть гермодверь петли (с) */
+export const TERMINAL_TIME = 1.5;
+/** Дальше этого (px) от игрока обычные враги не действуют */
+const SLEEP_R = 420;
 
 /** Какой босс (номер уровня) открывает систему тела */
 const SYSTEM_BY_FLOOR: Record<number, Slot> = { 2: 'blood', 4: 'tentacles', 6: 'nervous', 8: 'reactor' };
@@ -61,12 +64,18 @@ export class Game {
   readonly diff: DiffParams;
   readonly hard: boolean;
   floorNum = 1;
-  plan!: FloorPlan;
+  plan!: LevelPlan;
   theme!: FloorTheme;
-  private maps = new Map<number, RoomMap>();
-  private roomPickups = new Map<number, Pickup[]>();
-  private roomCanvas = new Map<number, HTMLCanvasElement>();
-  room!: RoomMap;
+  /** Карта всего уровня. Имя осталось с тех пор, как уровень был набором комнат: им пользуются ИИ, пули, оружие */
+  room!: LevelMap;
+  /** Статичный слой уровня (куски холста) */
+  gfx!: LevelCanvas;
+  /** Комната, в которой стоит игрок; null — коридор */
+  zone: LevelRoom | null = null;
+  /** Комната, двери которой закрыты на время боя (засада, элита, мини-босс, босс) */
+  lockedRoom: LevelRoom | null = null;
+  /** Сколько схронов открыто на уровне (первый на 1-м уровне — со скелетом класса 2) */
+  cachesOpened = 0;
   flow!: FlowField;
   player: Player;
   enemies: Enemy[] = [];
@@ -79,14 +88,12 @@ export class Game {
   time = 0;
   state: GameState = 'play';
   stateT = 0;
-  /** Переход между комнатами: затемнение */
+  /** Затемнение при переходе между уровнями */
   fade = 1;
-  private nextDoor: DoorPlace | null = null;
   pendingLevelUps = 0;
   seenItems = new Set<string>();
-  /** Комната, за зачистку которой гарантированно выпадет ключ */
-  /** Взлом запертой двери: какая дверь рядом и сколько уже держим R */
-  hackDoor: DoorPlace | null = null;
+  /** Взлом терминала петли: какой терминал рядом и сколько уже держим R */
+  hackTarget: Pickup | null = null;
   hackT = 0;
   bossIntro = 0;
   electroT = 0;
@@ -143,17 +150,21 @@ export class Game {
   startFloor(n: number) {
     this.floorNum = n;
     this.theme = FLOOR_THEMES[n - 1];
-    const frng = new RNG(this.seed + ':floor:' + n);
-    this.plan = generateFloor(n, frng);
-    this.maps.clear();
-    this.roomPickups.clear();
-    this.roomCanvas.clear();
-    const start = this.plan.rooms[this.plan.startId];
-    this.enterRoom(start, null);
-    const c = nearestWalkable(this.room, this.room.pxW / 2, this.room.pxH / 2);
-    this.player.x = this.player.safeX = c.x;
-    this.player.y = this.player.safeY = c.y;
-    this.snapCamera();
+    this.plan = generateLevel(n, new RNG(this.seed + ':floor:' + n), this.theme.tier);
+    this.room = buildLevel(this.plan, this.seed);
+    this.gfx = new LevelCanvas(this.room, this.theme);
+    this.flow = new FlowField(this.room);
+    this.enemies = [];
+    this.ebullets = [];
+    this.pbullets = [];
+    this.pickups = [];
+    this.barriers = [];
+    this.fx.list = [];
+    this.zone = this.lockedRoom = null;
+    this.hackTarget = null;
+    this.cachesOpened = 0;
+    this.placeTerminals();
+    this.enterRoom(this.plan.rooms[this.plan.startId]);
     // сбой полностью заряжен в начале каждого уровня
     this.player.glitch = 1;
     onFloorStart(this);
@@ -166,54 +177,79 @@ export class Game {
     while (this.logLines.length > LOG_MAX) this.logLines.shift();
   }
 
-  private mapFor(info: RoomInfo): RoomMap {
-    let m = this.maps.get(info.id);
-    if (!m) {
-      m = buildRoom(info, new RNG(this.seed + ':room:' + this.floorNum + ':' + info.id));
-      this.maps.set(info.id, m);
-    }
-    return m;
+  /** Терминалы петель — в дальних комнатах петель, у верхней стены */
+  private placeTerminals() {
+    this.plan.loops.forEach((l, i) => {
+      const r = this.plan.rooms[l.terminalRoom];
+      const pos = nearestWalkable(this.room, this.room.roomCenter(r).x, (r.y + 2.5) * TILE);
+      this.pickups.push(makePickup('terminal', pos.x, pos.y, { loop: i }));
+    });
   }
 
-  roomCanvasFor(): HTMLCanvasElement {
-    let c = this.roomCanvas.get(this.room.info.id);
-    if (!c || this.room.dirty) {
-      c = renderRoomCanvas(this.room, this.theme, c);
-      this.roomCanvas.set(this.room.info.id, c);
-    }
-    return c;
+  /** Перенести игрока в комнату (в центр, у арены босса — ниже центра). Для старта уровня и тестов */
+  enterRoom(r: LevelRoom) {
+    const c = this.room.roomCenter(r);
+    const pos = nearestWalkable(this.room, c.x, c.y + (r.role === 'exit' ? 40 : 0));
+    this.player.x = this.player.safeX = pos.x;
+    this.player.y = this.player.safeY = pos.y;
+    this.updateZone();
+    this.flow.update(pos.x, pos.y);
+    this.snapCamera();
   }
 
-  /** Войти в комнату через дверь (или в стартовую при door = null) */
-  enterRoom(info: RoomInfo, from: DoorPlace | null) {
-    if (this.room) this.roomPickups.set(this.room.info.id, this.pickups);
-    const firstVisit = !info.visited;
-    info.visited = true;
-    info.seen = true;
-    for (const d of info.doors) this.plan.rooms[d.to].seen = true;
-    this.room = this.mapFor(info);
-    this.flow = new FlowField(this.room);
-    this.enemies = [];
-    this.ebullets = [];
-    this.pbullets = [];
-    this.barriers = [];
-    this.pickups = this.roomPickups.get(info.id) ?? [];
-    this.fx.list = [];
-    if (from) {
-      // дверь обратно находится в соседней клетке с противоположной стороны
-      const [dx, dy] = DIRS[from.dir];
-      const back = this.room.doors.find((d) => d.cx === from.cx + dx && d.cy === from.cy + dy && d.dir === OPPOSITE[from.dir]);
-      const p = this.room.doorEntry(back ?? this.room.doors[0]);
-      this.player.x = this.player.safeX = p.x;
-      this.player.y = this.player.safeY = p.y;
+  /** В какой комнате игрок. Комната засчитывается, когда игрок зашёл внутрь хотя бы на 6 px от стен */
+  private updateZone() {
+    const p = this.player;
+    const r = this.room.roomOfPoint(p.x, p.y, 6);
+    if (r) {
+      if (r !== this.zone) {
+        this.zone = r;
+        this.enterZone(r);
+      }
+    } else if (this.zone && this.room.roomAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE)) !== this.zone) {
+      this.zone = null;
     }
-    if (firstVisit) {
-      furnishRoom(this);
-      populateRoom(this);
+  }
+
+  private enterZone(r: LevelRoom) {
+    const first = !r.visited;
+    r.visited = r.seen = true;
+    // соседние комнаты (через коридоры) видны на мини-карте
+    for (const di of r.doors) {
+      const c = this.plan.corridors[this.plan.doors[di].corridor];
+      this.plan.rooms[c.a].seen = this.plan.rooms[c.b].seen = true;
     }
-    this.player.shieldLeft = this.player.stats.shield;
+    if (first) {
+      if (!BATTLE.has(r.role) && r.role !== 'exit') r.cleared = true;
+      furnishRoom(this, r);
+      populateRoom(this, r);
+    }
+    // щит заряжается на комнату: при первом входе или в зачищенной (выйти из боя в коридор и вернуться — не заряжает)
+    if (first || r.cleared) this.player.shieldLeft = this.player.stats.shield;
     this.player.emit('onRoomEnter', this);
-    this.flow.update(this.player.x, this.player.y);
+  }
+
+  /** Двери комнаты закрываются, пока в ней бой (только у ролей с locks) */
+  private updateLocks() {
+    const z = this.zone;
+    const want = z && ROLES[z.role].locks && !z.cleared && this.enemies.some((e) => e.home === z.id) ? z : null;
+    if (want === this.lockedRoom) return;
+    if (this.lockedRoom) for (const di of this.lockedRoom.doors) this.room.setDoor(this.plan.doors[di], this.plan.doors[di].locked);
+    if (want) for (const di of want.doors) this.room.setDoor(this.plan.doors[di], true);
+    this.lockedRoom = want;
+    this.flow.reset();
+  }
+
+  /** Двери текущей комнаты закрыты на время боя */
+  get locked(): boolean {
+    return this.lockedRoom !== null;
+  }
+
+  /** Арена текущей комнаты (px, вместе со стенами): по ней боссы считают позиции и узоры */
+  get arena(): { x: number; y: number; w: number; h: number; cx: number; cy: number } {
+    const r = this.zone ?? this.plan.rooms[this.plan.exitId];
+    const x = r.x * TILE, y = r.y * TILE, w = r.w * TILE, h = r.h * TILE;
+    return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
   }
 
   // ---------------------------------------------------------------- игровой цикл
@@ -223,17 +259,6 @@ export class Game {
     this.stateT += dt;
     const p = this.player;
 
-    if (this.state === 'transition') {
-      this.fade = Math.max(0, this.fade - dt * 7);
-      if (this.fade <= 0 && this.nextDoor) {
-        const d = this.nextDoor;
-        this.nextDoor = null;
-        this.enterRoom(this.plan.rooms[d.to], d);
-        this.snapCamera();
-        this.state = 'play';
-      }
-      return;
-    }
     if (this.state === 'floorFade') {
       this.fade = Math.max(0, this.fade - dt * 2);
       if (this.fade <= 0) {
@@ -258,6 +283,7 @@ export class Game {
     this.bossIntro = Math.max(0, this.bossIntro - dt);
     this.electroT = (this.electroT + dt) % 3.2;
     p.update(this, dt);
+    this.updateZone();
     p.emit('tick', this, dt);
     updateInstability(this, dt);
     this.updateDrones(dt);
@@ -276,7 +302,8 @@ export class Game {
     updateEBullets(this, edt);
     this.updatePickups(dt);
     this.checkPlayerHits();
-    this.checkDoors(dt);
+    this.updateLocks();
+    this.updateHack(dt);
     this.fx.update(dt);
     for (let i = this.lightFlashes.length - 1; i >= 0; i--) {
       this.lightFlashes[i].t -= dt;
@@ -284,94 +311,68 @@ export class Game {
     }
     this.updateCamera(dt);
 
-    // зачистка комнаты
-    if (!this.room.info.cleared && this.enemies.length === 0 && this.room.info.type !== 'start') {
-      this.room.info.cleared = true;
-      if (this.room.info.type === 'boss') this.onBossDefeated();
+    // зачистка комнаты: в ней не осталось её врагов
+    const z = this.zone;
+    if (z && !z.cleared && !this.enemies.some((e) => e.home === z.id)) {
+      z.cleared = true;
+      if (z.role === 'exit') this.onBossDefeated();
       else roomClearReward(this);
       p.emit('onRoomClear', this);
       this.fx.ring(p.x, p.y, C.redD, 60, 0.5);
     }
   }
 
-  get locked(): boolean {
-    return !this.room.info.cleared && this.enemies.length > 0;
-  }
-
-  /** Непроходимые для игрока тайлы. Рывок позволяет перепрыгивать ямы (но не стены) */
-  playerSolid(t: number, tx: number, ty: number, dashing: boolean): boolean {
-    if (t === T.Door) {
-      const d = this.doorAt(tx, ty);
-      return !d || d.locked || this.locked;
-    }
+  /** Непроходимые для игрока тайлы. Рывок позволяет перепрыгивать ямы (но не стены). Закрытая дверь — T.Door */
+  playerSolid(t: number, _tx: number, _ty: number, dashing: boolean): boolean {
     if (t === T.Pit) return !dashing;
     return !walkable(t);
   }
 
-  doorAt(tx: number, ty: number): DoorPlace | undefined {
-    return this.room.doors.find((d) =>
-      d.dir === 'n' || d.dir === 's' ? ty === d.ty && (tx === d.tx || tx === d.tx + 1) : tx === d.tx && (ty === d.ty || ty === d.ty + 1),
-    );
-  }
-
-  private checkDoors(dt: number) {
+  /** Терминал петли открывается удержанием R рядом с ним (не во время боя) */
+  private updateHack(dt: number) {
     const p = this.player;
-    // игрок стоит в проёме двери → переход
-    const tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
-    if (this.room.get(tx, ty) === T.Door && !this.locked) {
-      const d = this.doorAt(tx, ty);
-      if (d && !d.locked) {
-        this.nextDoor = d;
-        this.state = 'transition';
-        return;
-      }
-    }
-    // запертая дверь взламывается удержанием R рядом с ней
-    this.hackDoor = null;
-    if (this.locked) {
+    let near: Pickup | null = null;
+    for (const k of this.pickups) if (k.kind === 'terminal' && !k.done && dist2(p.x, p.y, k.x, k.y) < 22 * 22) near = k;
+    this.hackTarget = near;
+    if (!near || this.locked) {
       this.hackT = 0;
       return;
     }
-    let near: DoorPlace | null = null;
-    for (const d of this.room.doors) {
-      if (!d.locked) continue;
-      const cx = (d.tx + (d.dir === 'n' || d.dir === 's' ? 1 : 0.5)) * TILE;
-      const cy = (d.ty + (d.dir === 'w' || d.dir === 'e' ? 1 : 0.5)) * TILE;
-      if (dist2(p.x, p.y, cx, cy) < 30 * 30) near = d;
-    }
-    if (!near) {
-      this.hackT = 0;
-      return;
-    }
-    this.hackDoor = near;
     if (!input.isDown('interact')) {
       this.hackT = Math.max(0, this.hackT - dt * 2);
       return;
     }
     this.hackT += dt;
-    const cx = (near.tx + (near.dir === 'n' || near.dir === 's' ? 1 : 0.5)) * TILE;
-    const cy = (near.ty + (near.dir === 'w' || near.dir === 'e' ? 1 : 0.5)) * TILE;
-    if (Math.random() < dt * 20) this.fx.add({ kind: 'spark', x: cx + (Math.random() - 0.5) * 16, y: cy + (Math.random() - 0.5) * 16, vx: (Math.random() - 0.5) * 60, vy: -30, color: C.yellow, life: 0.25, glow: true });
-    if (this.hackT >= HACK_TIME) {
+    if (Math.random() < dt * 20) this.fx.add({ kind: 'spark', x: near.x + (Math.random() - 0.5) * 12, y: near.y - 8, vx: (Math.random() - 0.5) * 60, vy: -30, color: C.yellow, life: 0.25, glow: true });
+    if (this.hackT >= TERMINAL_TIME) {
       this.hackT = 0;
-      this.unlockDoor(near);
-      this.fx.burst(cx, cy, C.yellow, 12, 60, 0.4, 1, true);
+      near.done = true;
+      this.openGate(near.loop ?? 0);
+      this.fx.burst(near.x, near.y - 8, C.yellow, 12, 60, 0.4, 1, true);
     }
   }
 
-  private unlockDoor(d: DoorPlace) {
+  /** Открыть гермодверь петли */
+  openGate(loop: number) {
+    const d = this.plan.doors[this.plan.loops[loop].gateDoor];
     d.locked = false;
-    const info = this.room.info;
-    for (const di of info.doors) if (di.to === d.to) di.locked = false;
-    const other = this.plan.rooms[d.to];
-    for (const di of other.doors) if (di.to === info.id) di.locked = false;
-    const om = this.maps.get(other.id);
-    if (om) for (const dp of om.doors) if (dp.to === info.id) dp.locked = false;
+    if (this.lockedRoom?.id !== d.room) this.room.setDoor(d, false);
+    this.flow.reset();
+    this.log(LOG.gateOpen);
   }
 
   private updateEnemies(dt: number) {
+    const p = this.player;
     for (const e of this.enemies) {
       if (e.dead) continue;
+      // своя комната врага: для призванных — та, где появились
+      if (e.home === -1) e.home = this.room.roomOfPoint(e.x, e.y)?.id ?? -2;
+      const far = dist2(e.x, e.y, p.x, p.y) > SLEEP_R * SLEEP_R;
+      // агрессия (для нестабильности «пока идёт бой»): враг не покидает свою комнату, поэтому он в бою,
+      // пока игрок в его комнате; враг из коридора — пока рядом. Преследование — этап 13.4
+      e.aggro = e.home >= 0 ? e.home === this.zone?.id : !far;
+      // дальние враги спят
+      if (!e.def.boss && far) continue;
       e.t += dt;
       e.flash = Math.max(0, e.flash - dt);
       if (e.mem.invuln > 0) e.mem.invuln -= dt;
@@ -422,6 +423,13 @@ export class Game {
       if (!e.def.flying && !e.airborne && this.electroActive && this.room.at(e.x, e.y) === T.Electro) {
         e.hp -= 10 * dt;
         if (e.hp <= 0) this.killEnemy(e, true);
+      }
+      // враг не покидает свою комнату (преследование по коридорам — этап 13.4)
+      if (e.home >= 0) {
+        const h = this.plan.rooms[e.home];
+        const m = Math.min(e.r, 8);
+        e.x = clamp(e.x, (h.x + 1) * TILE + m, (h.x + h.w - 1) * TILE - m);
+        e.y = clamp(e.y, (h.y + 1) * TILE + m, (h.y + h.h - 1) * TILE - m);
       }
       // наземный враг оказался в яме (после прыжка) — вытаскиваем
       if (!e.def.flying && !e.airborne && !walkable(this.room.at(e.x, e.y))) {
@@ -507,6 +515,7 @@ export class Game {
         k.vy *= Math.max(0, 1 - dt * 4);
         if (Math.abs(k.vx) < 2 && Math.abs(k.vy) < 2) k.vx = k.vy = 0;
       }
+      if (k.kind === 'terminal') continue;
       const d2 = dist2(p.x, p.y, k.x, k.y);
       // монеты притягиваются
       if (k.kind === 'coin' && !k.price && d2 < p.stats.magnet ** 2 && !this.locked) {
@@ -694,11 +703,9 @@ export class Game {
     }
     this.room.crateHp.delete(i);
     this.room.set(tx, ty, T.Floor);
-    const c = this.roomCanvas.get(this.room.info.id);
-    if (c) redrawTile(c, this.room, this.theme, tx, ty);
+    this.gfx.redrawTile(tx, ty);
     this.fx.burst((tx + 0.5) * TILE, (ty + 0.5) * TILE, C.amberD, 10, 70, 0.4, 2);
-    this.flow = new FlowField(this.room);
-    this.flow.update(this.player.x, this.player.y);
+    this.flow.reset();
     if (this.rng.chance(0.15)) dropLoot(this, 'coin', (tx + 0.5) * TILE, (ty + 0.5) * TILE, 1);
     return true;
   }
@@ -947,11 +954,8 @@ export class Game {
   // ---------------------------------------------------------------- камера
 
   private cameraTarget(): [number, number] {
-    const p = this.player;
-    const r = this.room;
-    const tx = r.pxW <= VIEW_W ? (r.pxW - VIEW_W) / 2 : clamp(p.x - VIEW_W / 2, 0, r.pxW - VIEW_W);
-    const ty = r.pxH <= VIEW_H - 16 ? (r.pxH - VIEW_H) / 2 : clamp(p.y - VIEW_H / 2 - 8, -16, r.pxH - VIEW_H);
-    return [tx, ty];
+    const p = this.player, r = this.room;
+    return [clamp(p.x - VIEW_W / 2, 0, r.pxW - VIEW_W), clamp(p.y - VIEW_H / 2 - 8, -16, r.pxH - VIEW_H)];
   }
 
   private updateCamera(dt: number) {

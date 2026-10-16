@@ -42,6 +42,9 @@ export const ROLES: Record<Role, RoleDef> = {
   miniboss: { id: 'miniboss', w: [30, 30], h: [18, 18], leaf: true, locks: true },
 };
 
+/** Боевые роли: в них отряды и препятствия */
+export const BATTLE: ReadonlySet<Role> = new Set<Role>(['combat', 'ambush', 'elite', 'miniboss']);
+
 /** Параметры уровня по ярусу. Числа подобраны под забег 1–2 часа и правятся после плейтеста */
 export interface TierGen {
   /** Сколько комнат на уровне (всего, вместе с особыми) */

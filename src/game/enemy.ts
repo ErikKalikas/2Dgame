@@ -77,6 +77,8 @@ export class Enemy {
   hidden = false;
   phase = 0;
   phaseT = 0;
+  /** Комната уровня, к которой привязан враг (-1 — ещё не определена, -2 — коридор) */
+  home = -1;
   // статусы
   burnT = 0;
   burnDps = 0;

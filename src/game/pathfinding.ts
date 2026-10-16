@@ -1,6 +1,9 @@
 import { TILE } from '../config';
-import type { RoomMap } from '../world/room';
+import type { LevelMap } from '../world/level';
 import { walkable } from '../world/tiles';
+
+/** Дальше этого (тайлы) поле путей не считается: уровень большой, а враги далеко не ходят */
+const FLOW_MAX = 64;
 
 /**
  * Поле расстояний до игрока (BFS по тайлам). Наземные враги идут "вниз по склону",
@@ -12,7 +15,7 @@ export class FlowField {
   private pty = -1;
   private queue: Int32Array;
 
-  constructor(private room: RoomMap) {
+  constructor(private room: LevelMap) {
     this.dist = new Int16Array(room.tw * room.th);
     this.queue = new Int32Array(room.tw * room.th);
   }
@@ -33,6 +36,7 @@ export class FlowField {
       const i = this.queue[head++];
       const x = i % tw, y = (i / tw) | 0;
       const d = dist[i] + 1;
+      if (d > FLOW_MAX) continue;
       for (let k = 0; k < 4; k++) {
         const nx = x + (k === 0 ? 1 : k === 1 ? -1 : 0);
         const ny = y + (k === 2 ? 1 : k === 3 ? -1 : 0);
@@ -43,6 +47,11 @@ export class FlowField {
         this.queue[tail++] = ni;
       }
     }
+  }
+
+  /** Пересчитать при следующем update (изменились тайлы: дверь, ящик) */
+  reset() {
+    this.ptx = this.pty = -1;
   }
 
   /** Направление (единичный вектор) к игроку из точки, либо null если путь не найден */

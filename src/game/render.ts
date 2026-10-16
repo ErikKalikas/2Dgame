@@ -7,7 +7,10 @@ import { canvas, ctx2d, flipH, silhouette, softCircle, type Sprite } from '../gf
 import { SPR, flashOf } from '../gfx/sprites';
 import { cutOf, envLayout, glowOf, lightLevel, lightValid, renderAmbient, signalPhase, transitSweep, vignetteOf, type Light } from '../gfx/env';
 import type { FloorTheme } from '../content/floors';
-import type { RoomMap } from '../world/room';
+import type { LevelMap } from '../world/level';
+import type { LevelDoor } from '../world/levelgen';
+import type { Role } from '../world/roles';
+import { T } from '../world/tiles';
 import { renderEBullets, renderPBullets } from './bullets';
 import { raycast } from './collision';
 import type { Enemy } from './enemy';
@@ -16,6 +19,11 @@ import { item } from './items';
 
 const QUALITY_COLOR = ['', C.grey, C.amber, C.red, C.violet];
 export const qualityColor = (q: number) => QUALITY_COLOR[q];
+
+/** Цвет метки роли комнаты: рамка двери и метка на мини-карте */
+export const ROLE_MARK: Partial<Record<Role, string>> = {
+  exit: C.red, miniboss: C.redD, cache: C.yellow, market: C.amber, surgery: C.violet, shaft: C.steelL,
+};
 
 let lightCanvas: HTMLCanvasElement | null = null;
 let lightSprite: Sprite | null = null;
@@ -43,7 +51,7 @@ function flipOf(s: Sprite): Sprite {
  * Источники света комнаты: лампы на стенах (ровно там, где их рисует roomrender), потолочные пятна
  * и светящиеся элементы яруса. Раскладка общая — src/gfx/env/layout.ts, кэшируется по комнате.
  */
-function lamps(room: RoomMap, theme: FloorTheme): Light[] {
+function lamps(room: LevelMap, theme: FloorTheme): Light[] {
   return envLayout(room, theme).lights;
 }
 
@@ -52,8 +60,9 @@ export function renderGame(g: Game, r: Renderer) {
   const cx = Math.round(g.camX), cy = Math.round(g.camY);
   const room = g.room;
 
-  // 1. статичный слой комнаты
-  ctx.drawImage(g.roomCanvasFor(), -cx, -cy);
+  // 1. статичный слой уровня (видимые куски); в остаток кадра — постройка следующих кусков
+  g.gfx.draw(ctx, cx, cy, VIEW_W, VIEW_H);
+  g.gfx.prerender(2);
 
   // 2. анимированные детали окружения (электропол, капли, искры, огоньки)
   renderAmbient(g, ctx, cx, cy);
@@ -204,7 +213,10 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
   const sweep = transitSweep(g);
   if (sweep) for (const s of sweep) light(s.x, s.y, 46, 0.5);
   for (const f of g.lightFlashes) light(f.x, f.y, f.r, Math.min(1, f.t * 6));
-  for (const k of g.pickups) if (k.kind === 'item' || k.kind === 'teleporter') light(k.x, k.y, 40, 0.7);
+  for (const k of g.pickups) {
+    if (k.kind === 'item' || k.kind === 'teleporter') light(k.x, k.y, 40, 0.7);
+    else if (k.kind === 'terminal') light(k.x, k.y - 8, 26, 0.6);
+  }
   for (const e of g.enemies) if (e.def.boss) light(e.x, e.y, 80, 0.6);
   lc.globalAlpha = 1;
   lc.globalCompositeOperation = 'source-over';
@@ -265,14 +277,15 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
   ctx.globalCompositeOperation = 'source-over';
 }
 
-function renderDoor(g: Game, ctx: CanvasRenderingContext2D, d: RoomMap['doors'][number], cx: number, cy: number) {
+/** Проём двери: столбы цвета комнаты; закрытая дверь — створки (с замком у гермодвери петли) */
+function renderDoor(g: Game, ctx: CanvasRenderingContext2D, d: LevelDoor, cx: number, cy: number) {
   const horiz = d.dir === 'n' || d.dir === 's';
-  const x = d.tx * TILE - cx, y = d.ty * TILE - cy;
-  const w = horiz ? TILE * 2 : TILE, h = horiz ? TILE : TILE * 2;
-  const target = g.plan.rooms[d.to];
-  const accent = target.type === 'boss' ? C.red : target.type === 'treasure' ? C.yellow : target.type === 'shop' ? C.amber : target.type === 'surgery' ? C.violet : g.theme.wallTop;
-  const closed = d.locked || g.locked;
-  // рамка
+  const x = (horiz ? d.tx - 1 : d.tx) * TILE - cx, y = (horiz ? d.ty : d.ty - 1) * TILE - cy;
+  const w = horiz ? TILE * 3 : TILE, h = horiz ? TILE : TILE * 3;
+  if (x + w < -4 || y + h < -4 || x > VIEW_W + 4 || y > VIEW_H + 4) return;
+  const accent = d.gate ? C.yellow : ROLE_MARK[g.plan.rooms[d.room].role] ?? g.theme.wallTop;
+  const closed = g.room.get(d.tx, d.ty) === T.Door;
+  // столбы
   ctx.fillStyle = accent;
   if (horiz) {
     ctx.fillRect(x - 2, y, 2, h);
@@ -281,11 +294,7 @@ function renderDoor(g: Game, ctx: CanvasRenderingContext2D, d: RoomMap['doors'][
     ctx.fillRect(x, y - 2, w, 2);
     ctx.fillRect(x, y + h, w, 2);
   }
-  if (!closed) {
-    ctx.fillStyle = C.void;
-    ctx.fillRect(x, y, w, h);
-    return;
-  }
+  if (!closed) return;
   // створки
   ctx.fillStyle = C.steel;
   ctx.fillRect(x, y, w, h);
@@ -296,7 +305,10 @@ function renderDoor(g: Game, ctx: CanvasRenderingContext2D, d: RoomMap['doors'][
   if (horiz) ctx.fillRect(x + w / 2, y, 1, h);
   else ctx.fillRect(x, y + h / 2, w, 1);
   if (d.locked) {
-    // замок
+    // гермодверь петли: жёлто-чёрные полосы и замок
+    ctx.fillStyle = C.yellow;
+    if (horiz) for (let i = 1; i < w; i += 6) ctx.fillRect(x + i, y + 1, 3, 2);
+    else for (let i = 1; i < h; i += 6) ctx.fillRect(x + 1, y + i, 2, 3);
     const lx = x + w / 2 - 3, ly = y + h / 2 - 3;
     ctx.fillStyle = C.void;
     ctx.fillRect(lx - 1, ly - 1, 8, 8);
@@ -334,6 +346,22 @@ function renderPickups(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: n
       case 'teleporter': {
         const fr = SPR.teleporter[Math.floor(g.time * 8) % 4];
         ctx.drawImage(fr, x - 12, y - 8);
+        break;
+      }
+      case 'terminal': {
+        // терминал петли: пульт с экраном (мигает, пока не взломан)
+        ctx.drawImage(sh, x - 6, y + 2, 12, 3);
+        ctx.fillStyle = C.black;
+        ctx.fillRect(x - 6, y - 13, 12, 16);
+        ctx.fillStyle = C.metal;
+        ctx.fillRect(x - 5, y - 12, 10, 14);
+        ctx.fillStyle = C.void;
+        ctx.fillRect(x - 4, y - 11, 8, 6);
+        ctx.fillStyle = k.done ? C.violet : Math.floor(g.time * 3) % 2 ? C.yellow : C.amber;
+        ctx.fillRect(x - 3, y - 10, 6, 1);
+        ctx.fillRect(x - 3, y - 8, 4, 1);
+        ctx.fillStyle = C.steelL;
+        for (let i = 0; i < 3; i++) ctx.fillRect(x - 4 + i * 3, y - 2, 2, 1);
         break;
       }
       case 'surgery': {

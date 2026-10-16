@@ -14,13 +14,13 @@ import { ENEMY_BY_ID } from './enemies';
 // Боссы — по одному на этаж. У каждого несколько фаз (как спелл-карты в Touhou):
 // при переходе фазы экран очищается от пуль, и босс меняет рисунок атаки.
 
-/** Плавное перемещение босса между случайными точками верхней части комнаты */
+/** Плавное перемещение босса между случайными точками верхней части арены */
 function drift(e: Enemy, g: Game, dt: number, speed = 40, area = 0.55) {
-  const room = g.room;
+  const A = g.arena;
   if (!e.mem.goal || e.mem.goalT <= 0 || Math.hypot(e.mem.goal.x - e.x, e.mem.goal.y - e.y) < 6) {
     e.mem.goal = {
-      x: 64 + Math.random() * (room.pxW - 128),
-      y: 56 + Math.random() * (room.pxH * area - 56),
+      x: A.x + 64 + Math.random() * (A.w - 128),
+      y: A.y + 56 + Math.random() * (A.h * area - 56),
     };
     e.mem.goalT = 2.5;
   }
@@ -96,9 +96,10 @@ export const BOSSES: EnemyDef[] = [
           if (every(e, g, 'a', 1.7, dt)) {
             // ряд пуль поперёк комнаты с проходом возле игрока
             const gap = g.player.x + (Math.random() - 0.5) * 60;
-            for (let x = 24; x < g.room.pxW - 24; x += g.hard ? 14 : 18) {
+            const A = g.arena;
+            for (let x = A.x + 24; x < A.x + A.w - 24; x += g.hard ? 14 : 18) {
               if (Math.abs(x - gap) < 26) continue;
-              shoot(g, x, 40, Math.PI / 2, 75, { skin: 'rice', color: 'red' });
+              shoot(g, x, A.y + 40, Math.PI / 2, 75, { skin: 'rice', color: 'red' });
             }
           }
           if (every(e, g, 'b', 2.3, dt)) ring(g, e.x, e.y, 18, 85, Math.random(), { skin: 'orb', color: 'amber' });
@@ -169,8 +170,9 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Заградительный огонь', en: 'Suppressing Fire' }, until: 0.66,
         update(e, g, dt) {
           e.mem.dir = e.mem.dir ?? 1;
-          const r = move(e, g, e.mem.dir * 70 * dt, (60 - e.y) * dt);
-          if (r.hx || e.x < 50 || e.x > g.room.pxW - 50) e.mem.dir *= -1;
+          const A = g.arena;
+          const r = move(e, g, e.mem.dir * 70 * dt, (A.y + 60 - e.y) * dt);
+          if (r.hx || e.x < A.x + 50 || e.x > A.x + A.w - 50) e.mem.dir *= -1;
           if (every(e, g, 'a', 0.16, dt)) {
             e.mem.side = -(e.mem.side ?? 1);
             shoot(g, e.x + e.mem.side * 12, e.y + 6, aim(g, e.x, e.y, 0.1), 140, { skin: 'rice' });
@@ -375,8 +377,9 @@ export const BOSSES: EnemyDef[] = [
         update: armed((e, g, dt) => {
           hang(e, g, dt, 15);
           if (every(e, g, 'a', 0.07, dt)) {
-            const x = 20 + Math.random() * (g.room.pxW - 40);
-            shoot(g, x, 24, Math.PI / 2 + (Math.random() - 0.5) * 0.2, 70 + Math.random() * 40, { skin: 'rice', color: Math.random() < 0.2 ? 'violet' : 'red' });
+            const A = g.arena;
+            const x = A.x + 20 + Math.random() * (A.w - 40);
+            shoot(g, x, A.y + 24, Math.PI / 2 + (Math.random() - 0.5) * 0.2, 70 + Math.random() * 40, { skin: 'rice', color: Math.random() < 0.2 ? 'violet' : 'red' });
           }
           // бросок наряда: рука заводится к противоположному боку и выбрасывается наружу
           const t = cue(e, 'b', dt, 0.55, 0.3);
@@ -396,8 +399,8 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Сетка маршрутов', en: 'Route Grid' }, until: 0.6,
         update: armed((e, g, dt) => {
           // к центру зала, руки разведены, ладони чертят круги: две спирали навстречу друг другу
-          const c = g.room.centerPoint();
-          move(e, g, (c.x - e.x) * Math.min(1, dt * 1.5), 0);
+          const c = g.arena;
+          move(e, g, (c.cx - e.x) * Math.min(1, dt * 1.5), 0);
           e.mem.a = (e.mem.a ?? 0) + dt * 0.9;
           for (const s of [0, 1]) reach(e, s, e.x + (s ? 92 : -92) + Math.cos(e.mem.a * 3) * 5, e.y - 10 + Math.sin(e.mem.a * 3 + s * Math.PI) * 6);
           if (every(e, g, 'a', 0.16, dt)) {
@@ -449,7 +452,8 @@ export const BOSSES: EnemyDef[] = [
           if (volley(e, g, 'c', 3, dt)) {
             palm(e, g, 0);
             const gap = g.player.y + (Math.random() - 0.5) * 50;
-            for (let y = 30; y < g.room.pxH - 30; y += 16) if (Math.abs(y - gap) > 26) shoot(g, 24, y, 0, 70, { skin: 'rice' });
+            const A = g.arena;
+            for (let y = A.y + 30; y < A.y + A.h - 30; y += 16) if (Math.abs(y - gap) > 26) shoot(g, A.x + 24, y, 0, 70, { skin: 'rice' });
           }
         }),
       },
@@ -517,10 +521,10 @@ function cue(e: Enemy, key: string, dt: number, lead: number, hold: number): num
  * и медленно смещается, оставляя запас под руки
  */
 function hang(e: Enemy, g: Game, dt: number, speed: number) {
-  const room = g.room;
-  const m = Math.min(130, room.pxW / 2 - 10);
+  const A = g.arena;
+  const m = Math.min(130, A.w / 2 - 10);
   if (!e.mem.goal || e.mem.goalT <= 0 || Math.hypot(e.mem.goal.x - e.x, e.mem.goal.y - e.y) < 6) {
-    e.mem.goal = { x: m + Math.random() * Math.max(0, room.pxW - 2 * m), y: room.pxH * 0.48 + Math.random() * 8 };
+    e.mem.goal = { x: A.x + m + Math.random() * Math.max(0, A.w - 2 * m), y: A.y + A.h * 0.48 + Math.random() * 8 };
     e.mem.goalT = 2.5;
   }
   e.mem.goalT -= dt;
@@ -541,10 +545,10 @@ function palm(e: Enemy, g: Game, side?: number) {
 }
 
 function twinOrbit(e: Enemy, g: Game, dt: number) {
-  const c = g.room.centerPoint();
+  const c = g.arena;
   e.mem.orb = (e.mem.orb ?? (e.mem.twin < 0 ? Math.PI : 0)) + dt * 0.5;
-  const tx = c.x + Math.cos(e.mem.orb) * 110;
-  const ty = c.y - 20 + Math.sin(e.mem.orb) * 50;
+  const tx = c.cx + Math.cos(e.mem.orb) * 110;
+  const ty = c.cy - 20 + Math.sin(e.mem.orb) * 50;
   move(e, g, (tx - e.x) * Math.min(1, dt * 2), (ty - e.y) * Math.min(1, dt * 2));
   e.anim += dt * 3;
 }

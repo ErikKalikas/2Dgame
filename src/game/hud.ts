@@ -1,13 +1,13 @@
-import { FLOORS, VIEW_H, VIEW_W } from '../config';
+import { FLOORS, TILE, VIEW_H, VIEW_W } from '../config';
 import { S, tr } from '../core/i18n';
 import { icon } from '../gfx/icons';
 import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import { SPR } from '../gfx/sprites';
 import { xpNeed, type Game } from './game';
-import { HACK_TIME } from './game';
+import { TERMINAL_TIME } from './game';
 import { SLOT_NAME, item, type ItemDef } from './items';
-import { qualityColor } from './render';
+import { ROLE_MARK, qualityColor } from './render';
 import { settings } from '../core/storage';
 import { SCANNER, hasOpenSet } from './drops';
 import { playerUnstableLevel } from './instability';
@@ -88,31 +88,49 @@ export function renderHud(g: Game, r: Renderer) {
   }
 }
 
+/**
+ * Мини-карта уровня: видимые комнаты (посещённые и соседние с ними), коридоры у посещённых комнат,
+ * закрытые гермодвери, метки ролей и точка игрока. Масштаб подбирается под разведанную часть.
+ */
 function renderMinimap(g: Game, r: Renderer) {
-  const plan = g.plan;
-  const cw = 6, ch = 4;
-  // границы известной части карты
-  let minX = 99, minY = 99, maxX = -1, maxY = -1;
+  const plan = g.plan, tw = plan.tw;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const room of plan.rooms) {
     if (!room.seen) continue;
     minX = Math.min(minX, room.x);
     minY = Math.min(minY, room.y);
-    maxX = Math.max(maxX, room.x + room.w - 1);
-    maxY = Math.max(maxY, room.y + room.h - 1);
+    maxX = Math.max(maxX, room.x + room.w);
+    maxY = Math.max(maxY, room.y + room.h);
   }
-  const w = (maxX - minX + 1) * cw, h = (maxY - minY + 1) * ch;
+  if (minX === Infinity) return;
+  const k = Math.min(0.5, 84 / (maxX - minX), 54 / (maxY - minY));
+  const w = Math.ceil((maxX - minX) * k), h = Math.ceil((maxY - minY) * k);
   const ox = VIEW_W - w - 5, oy = 21;
+  const mx = (tx: number) => ox + Math.floor((tx - minX) * k);
+  const my = (ty: number) => oy + Math.floor((ty - minY) * k);
   r.rect(ox - 2, oy - 2, w + 4, h + 4, C.void, 0.6);
+  for (const c of plan.corridors) {
+    if (!plan.rooms[c.a].visited && !plan.rooms[c.b].visited) continue;
+    for (let i = 0; i < c.path.length; i += 2) {
+      const t = c.path[i], x = t % tw, y = (t / tw) | 0;
+      if (x < minX || y < minY || x > maxX || y > maxY) continue;
+      r.rect(mx(x), my(y), 1, 1, C.metal);
+    }
+  }
   for (const room of plan.rooms) {
     if (!room.seen) continue;
-    const x = ox + (room.x - minX) * cw, y = oy + (room.y - minY) * ch;
-    const cur = room.id === g.room.info.id;
-    const col = cur ? C.bone : room.visited ? C.steel : C.metal;
-    r.rect(x, y, room.w * cw - 1, room.h * ch - 1, col);
-    const mark = room.type === 'boss' ? C.red : room.type === 'treasure' ? C.yellow : room.type === 'shop' ? C.amber : room.type === 'surgery' ? C.violet : null;
-    if (mark) r.rect(x + Math.floor((room.w * cw) / 2) - 1, y + Math.floor((room.h * ch) / 2) - 1, 2, 2, mark);
+    const x = mx(room.x), y = my(room.y);
+    const rw = Math.max(2, Math.floor(room.w * k)), rh = Math.max(2, Math.floor(room.h * k));
+    const col = room === g.zone ? C.bone : room.visited ? C.steel : C.metal;
+    r.rect(x, y, rw, rh, col);
+    const mark = ROLE_MARK[room.role];
+    if (mark) r.rect(x + Math.floor(rw / 2) - 1, y + Math.floor(rh / 2) - 1, 2, 2, mark);
   }
-
+  for (const d of plan.doors) {
+    if (!d.locked || !plan.rooms[d.room].visited) continue;
+    r.rect(mx(d.tx) - 1, my(d.ty) - 1, 2, 2, C.yellow);
+  }
+  if (Math.floor(g.time * 3) % 2) r.rect(mx(g.player.x / TILE) - 1, my(g.player.y / TILE) - 1, 2, 2, C.red);
 }
 
 function renderLoadout(g: Game, r: Renderer) {
@@ -143,15 +161,19 @@ function renderLoadout(g: Game, r: Renderer) {
   } else r.text(p.twoHanded ? 'E×' : 'E', 20, y + 11, { size: 5, color: p.twoHanded ? C.redD : p.shoveCd > 0 ? C.metal : C.steelL, align: 'right' });
 }
 
-/** Взлом запертой двери: подсказка и полоса удержания R */
+/** Терминал петли рядом: подсказка и полоса удержания R */
 function renderHack(g: Game, r: Renderer) {
-  const d = g.hackDoor;
-  if (!d || g.state !== 'play') return;
+  const k = g.hackTarget;
+  if (!k || g.state !== 'play') return;
   const x = VIEW_W / 2, y = VIEW_H - 52;
-  r.text(tr({ ru: '[R держать] взлом', en: '[R hold] hack' }), x, y, { size: 5, color: C.yellow, align: 'center' });
+  if (g.locked) {
+    r.text(tr({ ru: 'терминал недоступен в бою', en: 'terminal locked during combat' }), x, y, { size: 5, color: C.redL, align: 'center' });
+    return;
+  }
+  r.text(tr({ ru: '[R держать] терминал гермодвери', en: '[R hold] blast door terminal' }), x, y, { size: 5, color: C.yellow, align: 'center' });
   const w = 60;
   r.rect(x - w / 2, y + 8, w, 3, C.black);
-  r.rect(x - w / 2, y + 8, Math.round((w * g.hackT) / HACK_TIME), 3, C.yellow);
+  r.rect(x - w / 2, y + 8, Math.round((w * g.hackT) / TERMINAL_TIME), 3, C.yellow);
 }
 
 /** Лог Диспетчера: 1–2 строки терминала над снаряжением, гаснут через несколько секунд */

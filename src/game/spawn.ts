@@ -1,12 +1,14 @@
 import { FLOORS, TILE } from '../config';
 import { ENEMIES } from '../content/enemies';
 import { BOSSES } from '../content/bosses';
-import { nearestWalkable } from '../world/room';
+import { nearestWalkable } from '../world/level';
+import type { LevelRoom } from '../world/levelgen';
+import { BATTLE } from '../world/roles';
 import { Enemy, type EnemyDef } from './enemy';
 import type { Game } from './game';
 import { SYSTEM_SLOTS, item, itemPrice, rollItem, type ItemDef, type ItemKind } from './items';
 
-export type PickupKind = 'coin' | 'medkit' | 'glitch' | 'item' | 'teleporter' | 'surgery';
+export type PickupKind = 'coin' | 'medkit' | 'glitch' | 'item' | 'teleporter' | 'surgery' | 'terminal';
 
 export interface Pickup {
   kind: PickupKind;
@@ -21,6 +23,10 @@ export interface Pickup {
   group?: number;
   value?: number;
   dead?: boolean;
+  /** Терминал: номер петли, гермодверь которой он открывает */
+  loop?: number;
+  /** Терминал уже взломан */
+  done?: boolean;
 }
 
 let GROUP = 1;
@@ -44,12 +50,11 @@ function enemyPool(floor: number): EnemyDef[] {
 }
 
 /** Заполнить комнату врагами при первом входе */
-export function populateRoom(g: Game) {
-  const info = g.room.info;
-  if (info.cleared) return;
-  if (info.type === 'boss') {
+export function populateRoom(g: Game, r: LevelRoom) {
+  if (r.cleared) return;
+  if (r.role === 'exit') {
     const def = BOSSES.find((b) => b.id === g.theme.boss) ?? BOSSES[0];
-    const c = g.room.centerPoint();
+    const c = g.room.roomCenter(r);
     const p = nearestWalkable(g.room, c.x, c.y - (def.id === 'dispatcher' ? 8 : 30));
     const hpMult = g.hpMult * (g.hard ? 1.15 : 1);
     if (def.id === 'twins') {
@@ -57,22 +62,27 @@ export function populateRoom(g: Game) {
       for (const s of [-1, 1]) {
         const e = new Enemy(def, p.x + s * 60, p.y, hpMult * 0.55);
         e.mem.twin = s;
+        e.home = r.id;
         e.spawn = 1.2;
         g.enemies.push(e);
       }
     } else {
       const e = new Enemy(def, p.x, p.y, hpMult);
       e.spawn = 1.2;
+      e.home = r.id;
       g.enemies.push(e);
     }
     g.bossIntro = 1.5;
     return;
   }
-  if (info.type !== 'normal') return;
+  if (!BATTLE.has(r.role)) return;
 
+  // засада, элита и мини-босс на локации пока — обычный отряд (элита и мини-босс — побольше);
+  // свои правила у них появятся в 13.4 и 14а
   const rng = g.rng;
-  const cells = info.w * info.h;
-  let budget = (3.5 + g.floorNum * 1.4) * Math.pow(cells, 0.75) * (g.hard ? 1.2 : 1);
+  const cells = (r.w * r.h) / (30 * 18);
+  const strong = r.role === 'elite' || r.role === 'miniboss' ? 1.5 : 1;
+  let budget = (3.5 + g.floorNum * 1.4) * Math.pow(cells, 0.75) * (g.hard ? 1.2 : 1) * strong;
   const pool = enemyPool(g.floorNum);
   const spawned: Enemy[] = [];
   let guard = 0;
@@ -81,14 +91,20 @@ export function populateRoom(g: Game) {
     if (def.cost > budget + 1) continue;
     const [gmin, gmax] = def.group ?? [1, 1];
     const count = rng.int(gmin, gmax);
-    const at = g.room.randomFloorPoint(rng, g.player.x, g.player.y, 110, def.flying);
+    const at = g.room.randomFloorPoint(rng, g.player.x, g.player.y, 110, def.flying, r);
     for (let i = 0; i < count; i++) {
       const pos = i === 0 ? at : { x: at.x + rng.float(-14, 14), y: at.y + rng.float(-14, 14) };
       const e = new Enemy(def, pos.x, pos.y, g.hpMult);
+      e.home = r.id;
       e.spawn = 0.6 + i * 0.08 + spawned.length * 0.05;
       spawned.push(e);
     }
     budget -= def.cost * (count > 1 ? 0.6 * count : 1);
+  }
+  // элита: самый ценный враг отряда гарантированно роняет предмет своего набора (этап 12); свой отряд — 13.4
+  if (r.role === 'elite' && spawned.length) {
+    const best = spawned.reduce((a, b) => ((b.def.value ?? 1) * b.def.cost > (a.def.value ?? 1) * a.def.cost ? b : a));
+    best.elite = true;
   }
   g.enemies.push(...spawned);
 }
@@ -138,23 +154,25 @@ function class2(g: Game): Slotted {
 }
 
 /**
- * Содержимое особых комнат при первом посещении. Скелеты: класс 2 гарантированно на уровнях 1–2
- * (сокровищница 1-го, магазин 2-го), класс 3 — в магазине 4-го, класс 4 — редкий выбор с 5-го.
- * Рюкзаки продаются в магазинах 3-го и 6-го уровней.
+ * Содержимое особых комнат при первом посещении. Скелеты: класс 2 — в первом схроне 1-го уровня
+ * и на барахолке 2-го, класс 3 — на барахолке 4-го, класс 4 — редкий выбор в схроне с 5-го.
+ * Рюкзаки продаются на барахолке 3-го и 6-го уровней.
+ * Пока (13.1б) схрон работает как бывшая сокровищница, барахолка — как бывший магазин;
+ * взлом схрона, бартер и перегрузка — этап 13.5, сервисная шахта — тоже 13.5.
  */
-export function furnishRoom(g: Game) {
-  const info = g.room.info;
-  const c = g.room.centerPoint();
+export function furnishRoom(g: Game, r: LevelRoom) {
+  const c = g.room.roomCenter(r);
   const n = g.floorNum;
-  if (info.type === 'treasure') {
+  if (r.role === 'cache') {
     let second: Slotted = g.rng.chance(0.5) ? 'weapon' : 'implant';
-    if (n === 1) second = class2(g);
+    if (n === 1 && g.cachesOpened === 0) second = class2(g);
     else if (n >= 5 && g.rng.chance(0.2)) {
       const sk = rollItem(g.rng, 'skeleton', g.seenItems, 0, n, (it) => (it.skeletonClass ?? 1) >= 3);
       if (sk) second = { id: sk.id };
     }
+    g.cachesOpened++;
     placeItems(g, ['implant', second], c.x, c.y, { choice: true });
-  } else if (info.type === 'shop') {
+  } else if (r.role === 'market') {
     const middle: Slotted = n === 2 ? class2(g) : n === 4 && !g.seenItems.has('skLoader') ? { id: 'skLoader' } : 'weapon';
     placeItems(g, ['implant', middle, 'implant'], c.x, c.y - 24, { price: true });
     const row = c.y + 28;
@@ -166,7 +184,7 @@ export function furnishRoom(g: Game) {
       g.pickups.push(makePickup(kind, pos.x, pos.y, { price: Math.round(price * g.priceMult) }));
     });
     if (pack) placeItems(g, [{ id: pack }], c.x + ((cols - 1) / 2) * 40, row, { price: true });
-  } else if (info.type === 'surgery') {
+  } else if (r.role === 'surgery') {
     // кресло с роботом-хирургом в центре
     const pos = nearestWalkable(g.room, c.x, c.y - 8);
     g.pickups.push(makePickup('surgery', pos.x, pos.y));
@@ -175,7 +193,7 @@ export function furnishRoom(g: Game) {
 
 /** После победы над боссом: выбор из двух предметов, аптечка и телепорт */
 export function bossReward(g: Game) {
-  const c = g.room.centerPoint();
+  const c = g.room.roomCenter(g.plan.rooms[g.plan.exitId]);
   if (g.floorNum >= FLOORS) return;
   placeItems(g, ['implant', g.rng.chance(0.5) ? 'weapon' : 'implant'], c.x, c.y - 30, { choice: true });
   const m = nearestWalkable(g.room, c.x, c.y + 40);
