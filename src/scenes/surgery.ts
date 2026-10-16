@@ -31,6 +31,14 @@ const BODY_PT: Record<BodyKey, [number, number]> = {
 };
 
 const SKELETON_NAME: L = { ru: 'Скелет', en: 'Frame' };
+/** Короткие подписи под ячейками схемы */
+const SHORT: Partial<Record<Slot, L>> = {
+  armL: { ru: 'Левая', en: 'Left' },
+  armR: { ru: 'Правая', en: 'Right' },
+  blood: { ru: 'Кровь', en: 'Blood' },
+  tentacles: { ru: 'Щупальца', en: 'Tentacle' },
+  nervous: { ru: 'Нервы', en: 'Nerves' },
+};
 
 export class SurgeryOverlay implements Scene {
   /** 0 — тело, 1 — рюкзак */
@@ -139,8 +147,8 @@ export class SurgeryOverlay implements Scene {
       r.frame(x, y, 17, 17, sel ? C.yellow : id ? qualityColor(item(id).quality) : locked ? C.blood : C.metal);
       if (id) r.sprite(icon(item(id).icon), x + 2, y + 2);
       else if (locked) r.text('×', x + 9, y + 6, { size: 6, color: C.redD, align: 'center' });
-      const name = key === 'skeleton' ? SKELETON_NAME : SLOT_NAME[key];
-      r.text(tr(name).split(' ')[0], x + 9, y + 19, { size: 4, color: sel ? C.yellow : C.steel, align: 'center' });
+      const name = key === 'skeleton' ? SKELETON_NAME : SHORT[key] ?? SLOT_NAME[key];
+      r.text(tr(name), x + 9, y + 19, { size: 4, color: sel ? C.yellow : C.steel, align: 'center' });
     });
 
     // рюкзак
