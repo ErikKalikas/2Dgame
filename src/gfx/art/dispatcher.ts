@@ -6,18 +6,22 @@ import {
 
 // ДИСПЕТЧЕР — финальный босс. Огромный робот-торс, подвешенный на пилонах над серверным залом:
 // голова-сенсор с тремя объективами, плечи — серверные стойки, на груди экран с картой маршрутов,
-// ниже пояса вместо ног пучок кабелей-поводков. Руки — отдельные спрайты (плечо и предплечье
-// с клешнёй), заранее нарисованные под 64 угла: так они поворачиваются без размытия пикселей.
+// ниже пояса вместо ног длинный пучок кабелей-поводков. Руки — отдельные спрайты (плечо
+// и предплечье с пятипалой кистью), заранее нарисованные под 64 угла: так они поворачиваются
+// без размытия пикселей.
 // Два настроения: спокойный (стерильно-белый) и злой (больше красного, для поздних фаз).
 
 export const DW = 112;
-export const DH = 104;
+/** Высота кадра (с длинными кабелями) */
+export const DH = 124;
+/** Высота «корпуса» без свисающих кабелей: центр врага — середина этой части */
+export const DA = 104;
 /** Плечевые шарниры в координатах спрайта корпуса (левый; правый — зеркально) */
 export const SHOULDER_X = 14;
 export const SHOULDER_Y = 42;
 /** Длина плеча и расстояние от локтя до центра ладони */
-export const ARM_UPPER = 24;
-export const ARM_FORE = 23;
+export const ARM_UPPER = 30;
+export const ARM_FORE = 28;
 /** Число углов, под которые нарисованы руки */
 export const ARM_STEPS = 64;
 
@@ -68,17 +72,17 @@ function pauldronLights(g: Grid, side: number, f: number, A: boolean) {
 export function dispatcherBody(A: boolean): Sprite[] {
   // кабели-поводки: x у пояса, длина, материал, толщина, наконечник (0 штекер, 1 зажим, 2 оголённый, 3 ошейник)
   const cables: [x: number, len: number, mat: Mat, t: number, end: number][] = [
-    [40, 11, DARK, 2, 0], [43, 15, GREY, 1.5, 3], [46, 12, METAL, 2, 2], [49, 16, DARK, 2.5, 1],
-    [52, 13, PLATE, 1.5, 0], [55, 17, A ? [9, 10, 8, 1] : DARK, 2, 2], [58, 12, DARK, 2.5, 3],
-    [61, 16, A ? [9, 10, 8, 1] : GREY, 1.5, 1], [64, 13, PLATE, 1.5, 2], [67, 15, DARK, 2, 0],
-    [70, 12, METAL, 2, 3], [73, 14, GREY, 1.5, 1],
+    [40, 24, DARK, 2, 0], [43, 30, GREY, 1.5, 3], [46, 26, METAL, 2, 2], [49, 33, DARK, 2.5, 1],
+    [52, 27, PLATE, 1.5, 0], [55, 34, A ? [9, 10, 8, 1] : DARK, 2, 2], [58, 25, DARK, 2.5, 3],
+    [61, 32, A ? [9, 10, 8, 1] : GREY, 1.5, 1], [64, 28, PLATE, 1.5, 2], [67, 31, DARK, 2, 0],
+    [70, 24, METAL, 2, 3], [73, 29, GREY, 1.5, 1],
   ];
   return FRAMES.map((f) => {
     const p = f - 1;
     const ph = p < 0 ? 0.6 : (p * Math.PI) / 2;
     const tip = (x0: number, len: number, i: number) => {
-      const spread = (x0 - 56) * 0.55;
-      return { x: x0 + spread + Math.sin(ph + i * 1.3) * (1 + len / 9), y: Math.min(100, 85 + len) };
+      const spread = (x0 - 56) * 0.75;
+      return { x: x0 + spread + Math.sin(ph + i * 1.3) * (1 + len / 8), y: Math.min(DH - 4, 85 + len) };
     };
     const ringPt = (k: number, n: number) => {
       const a = (k / n) * Math.PI * 2;
@@ -108,7 +112,7 @@ export function dispatcherBody(A: boolean): Sprite[] {
       // пучок кабелей-поводков из пояса
       cables.forEach(([x0, len, mat, t], i) => {
         const e = tip(x0, len, i);
-        F(M().bez(x0, 84, (x0 * 2 + e.x) / 3, 84 + len * 0.7, e.x, e.y, t, 10), mat);
+        F(M().bez(x0, 84, (x0 * 2 + e.x) / 3 + Math.sin(ph + i) * 2, 84 + len * 0.7, e.x, e.y, t, 14), mat);
       });
       // боковые шланги и позвоночник
       for (const side of [0, 1]) {
@@ -249,8 +253,8 @@ export function dispatcherCaps(A: boolean): Sprite {
 // Руки: плечо (от плечевого шарнира до локтя) и предплечье с клешнёй (от локтя).
 // Спрайт квадратный, шарнир — в центре.
 
-const UPPER_S = 64;
-const FORE_S = 76;
+const UPPER_S = 80;
+const FORE_S = 92;
 
 function armGrid(S: number, draw: (g: Grid, M: () => Mask, F: (m: Mask, mat: Mat) => void) => void, post?: (g: Grid) => void): Sprite {
   const g = new Grid(S, S);
@@ -274,69 +278,93 @@ function upperArm(a: number, A: boolean): Sprite {
   const at = (k: number, off = 0) => [o + dx * ARM_UPPER * k + nx * off, o + dy * ARM_UPPER * k + ny * off] as const;
   return armGrid(UPPER_S, (g, M, F) => {
     const [ex, ey] = at(1);
-    // гидроцилиндр снизу пластины (виден по краю)
-    const [h0x, h0y] = at(0.1, 4.6), [h1x, h1y] = at(0.92, 4);
-    F(M().line(h0x, h0y, h1x, h1y, 2.5), METAL);
-    g.shade(M().ellipse(o, o, 5, 5), R_STEEL, { line: 1 });
+    // гидроцилиндр снизу пластины (виден по краю) со штоком
+    const [h0x, h0y] = at(0.1, 6), [h1x, h1y] = at(0.92, 5.2);
+    F(M().line(h0x, h0y, h1x, h1y, 3), METAL);
+    const [r0x, r0y] = at(0.55, 6), [r1x, r1y] = at(0.92, 5.2);
+    F(M().line(r0x, r0y, r1x, r1y, 1.5), PLATE);
+    g.shade(M().ellipse(o, o, 6.5, 6.5), R_STEEL, { line: 1 });
     // броневая пластина плеча
     const [p0x, p0y] = at(0.12), [p1x, p1y] = at(0.86);
-    F(plate(M, p0x, p0y, p1x, p1y, 5.5, 4.5), A ? PLATE_A : PLATE);
+    F(plate(M, p0x, p0y, p1x, p1y, 7.5, 6), A ? PLATE_A : PLATE);
     // шов и бандаж
-    const [m0x, m0y] = at(0.2), [m1x, m1y] = at(0.48);
+    const [m0x, m0y] = at(0.18, -2), [m1x, m1y] = at(0.5, -2);
     F(M().line(m0x, m0y, m1x, m1y, 1), A ? [6, 6, 6, -1] : [7, 7, 7, -1]);
-    const [b0x, b0y] = at(0.62, -5), [b1x, b1y] = at(0.62, 5);
-    F(M().line(b0x, b0y, b1x, b1y, 2.5), A ? [10, 11, 9, 1] : STEEL);
-    g.shade(M().ellipse(ex, ey, 4.2, 4.2), R_METAL, { line: 1 });
+    const [b0x, b0y] = at(0.64, -6.5), [b1x, b1y] = at(0.64, 6.5);
+    F(M().line(b0x, b0y, b1x, b1y, 3), A ? [10, 11, 9, 1] : STEEL);
+    g.shade(M().ellipse(ex, ey, 5.5, 5.5), R_METAL, { line: 1 });
   }, (g) => {
     const [ex, ey] = at(1);
-    g.set(ex - 1, ey - 1, 5);
+    g.set(ex - 2, ey - 2, 5);
+    for (const k of [0.3, 0.45]) {
+      const [rx, ry] = at(k, 3.5);
+      g.set(rx, ry, A ? 6 : 7);
+    }
   });
 }
 
-function foreArm(a: number, open: boolean, A: boolean): Sprite {
+type Finger = readonly [bx: number, by: number, kx: number, ky: number, tx: number, ty: number];
+
+/**
+ * Предплечье с пятипалой кистью. thumb: +1 / −1 — с какой стороны оси большой палец
+ * (у левой и правой руки он смотрит к корпусу).
+ */
+function foreArm(a: number, open: boolean, A: boolean, thumb: number): Sprite {
   const o = FORE_S / 2;
   const dx = Math.cos(a), dy = Math.sin(a), nx = -dy, ny = dx;
   const at = (dist: number, off = 0) => [o + dx * dist + nx * off, o + dy * dist + ny * off] as const;
-  const wrist = ARM_FORE - 4;
-  const fingers = open ? [-0.85, 0, 0.85] : [-0.35, 0, 0.35];
+  const wrist = ARM_FORE - 6;
+  // четыре пальца: смещение корня поперёк ладони (к большому пальцу — плюс), угол, длины фаланг
+  const spec: [off: number, rel: number, l1: number, l2: number][] = open
+    ? [[3.6, 0.5, 6, 4], [1.2, 0.16, 7, 5], [-1.2, -0.16, 7, 5], [-3.6, -0.5, 6, 4]]
+    : [[3.4, 0.1, 5, 4], [1.1, 0.03, 6, 4], [-1.1, -0.03, 6, 4], [-3.4, -0.1, 5, 3]];
+  const fingers: Finger[] = spec.map(([off, rel, l1, l2]) => {
+    const [bx, by] = at(ARM_FORE + 3, off * thumb);
+    const a1 = a + rel * thumb;
+    const kx = bx + Math.cos(a1) * l1, ky = by + Math.sin(a1) * l1;
+    // раскрытая кисть — пальцы чуть расходятся, сжатая — загибаются к середине
+    const a2 = open ? a1 + rel * thumb * 0.4 : a1 - Math.sign(off) * thumb * 0.9;
+    return [bx, by, kx, ky, kx + Math.cos(a2) * l2, ky + Math.sin(a2) * l2];
+  });
+  {
+    // большой палец сбоку ладони
+    const [bx, by] = at(ARM_FORE - 1, 5.5 * thumb);
+    const a1 = a + (open ? 1.15 : 0.55) * thumb;
+    const kx = bx + Math.cos(a1) * 5, ky = by + Math.sin(a1) * 5;
+    const a2 = open ? a1 - 0.35 * thumb : a1 - 1.1 * thumb;
+    fingers.push([bx, by, kx, ky, kx + Math.cos(a2) * 4, ky + Math.sin(a2) * 4]);
+  }
   return armGrid(FORE_S, (g, M, F) => {
     const [wx, wy] = at(wrist);
-    // пальцы клешни (под ладонью)
-    const [px0, py0] = at(ARM_FORE);
-    for (const rel of fingers) {
-      const a1 = a + rel;
-      const bx = px0 + Math.cos(a1) * 2, by = py0 + Math.sin(a1) * 2;
-      const kx = bx + Math.cos(a1) * 6, ky = by + Math.sin(a1) * 6;
-      const a2 = open ? a1 + rel * 0.45 : a1 - Math.sign(rel) * 0.75;
-      const tx = kx + Math.cos(a2) * 5, ty = ky + Math.sin(a2) * 5;
-      F(M().line(bx, by, kx, ky, 3).line(kx, ky, tx, ty, 2.2), METAL);
-    }
-    // шланг вдоль предплечья
-    const [h0x, h0y] = at(2, -4.2), [h1x, h1y] = at(wrist - 1, -3.6);
-    F(M().line(h0x, h0y, h1x, h1y, 2), A ? [9, 10, 8, 1] : DARK);
+    // пальцы (под ладонью)
+    for (const [bx, by, kx, ky, tx, ty] of fingers) F(M().line(bx, by, kx, ky, 3).line(kx, ky, tx, ty, 2.5), METAL);
+    // шланги вдоль предплечья
+    const [h0x, h0y] = at(3, -5.5), [h1x, h1y] = at(wrist, -4.5);
+    F(M().line(h0x, h0y, h1x, h1y, 2.5), A ? [9, 10, 8, 1] : DARK);
+    const [k0x, k0y] = at(3, 5.5), [k1x, k1y] = at(wrist - 2, 4.6);
+    F(M().line(k0x, k0y, k1x, k1y, 1.5), DARK);
     // броня предплечья
-    const [p0x, p0y] = at(3);
-    F(plate(M, p0x, p0y, wx, wy, 4.8, 4), A ? PLATE_A : PLATE);
-    const [s0x, s0y] = at(wrist * 0.5, -4.5), [s1x, s1y] = at(wrist * 0.5, 4.5);
-    F(M().line(s0x, s0y, s1x, s1y, 2), A ? [10, 11, 9, 1] : STEEL);
+    const [p0x, p0y] = at(4);
+    F(plate(M, p0x, p0y, wx, wy, 6.2, 5), A ? PLATE_A : PLATE);
+    const [s0x, s0y] = at(wrist * 0.45, -6), [s1x, s1y] = at(wrist * 0.45, 6);
+    F(M().line(s0x, s0y, s1x, s1y, 2.5), A ? [10, 11, 9, 1] : STEEL);
     // запястье
-    const [r0x, r0y] = at(wrist, -5), [r1x, r1y] = at(wrist, 5);
-    F(M().line(r0x, r0y, r1x, r1y, 3), DARK);
+    const [r0x, r0y] = at(wrist + 1, -6), [r1x, r1y] = at(wrist + 1, 6);
+    F(M().line(r0x, r0y, r1x, r1y, 3.5), DARK);
     // ладонь с излучателем
-    g.shade(M().ellipse(px0, py0, 4.6, 4.6), R_STEEL, { line: 1 });
+    const [px0, py0] = at(ARM_FORE);
+    g.shade(M().ellipse(px0, py0, 5.5, 5.5), R_STEEL, { line: 1 });
   }, (g) => {
     const [px0, py0] = at(ARM_FORE);
     g.light(px0, py0, open ? 11 : A ? 10 : 9, open ? 10 : -1);
-    for (const rel of fingers) {
-      const a1 = a + rel;
-      g.set(px0 + Math.cos(a1) * 8, py0 + Math.sin(a1) * 8, 6);
-    }
+    // суставы пальцев
+    for (const f of fingers) g.set(f[2], f[3], 6);
   });
 }
 
 /** Ленивый кэш спрайтов рук: [настроение][угол] */
 const upperCache: Sprite[][] = [[], []];
-const foreCache: Sprite[][][] = [[[], []], [[], []]];
+const foreCache: Sprite[][][][] = [[[[], []], [[], []]], [[[], []], [[], []]]];
 
 export const armIndex = (a: number) => ((Math.round((a / (Math.PI * 2)) * ARM_STEPS) % ARM_STEPS) + ARM_STEPS) % ARM_STEPS;
 export const armAngle = (i: number) => (i / ARM_STEPS) * Math.PI * 2;
@@ -346,9 +374,10 @@ export function upperArmSprite(i: number, A: boolean): Sprite {
   return (upperCache[m][i] ??= upperArm(armAngle(i), A));
 }
 
-export function foreArmSprite(i: number, open: boolean, A: boolean): Sprite {
+/** side: 0 — левая рука, 1 — правая (большой палец к корпусу) */
+export function foreArmSprite(i: number, open: boolean, A: boolean, side: number): Sprite {
   const m = A ? 1 : 0, k = open ? 1 : 0;
-  return (foreCache[m][k][i] ??= foreArm(armAngle(i), open, A));
+  return (foreCache[m][k][side][i] ??= foreArm(armAngle(i), open, A, side ? 1 : -1));
 }
 
 export const UPPER_HALF = UPPER_S / 2;

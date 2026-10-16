@@ -1,5 +1,5 @@
 import {
-  ARM_FORE, ARM_UPPER, DH, DW, FORE_HALF, SHOULDER_X, SHOULDER_Y, UPPER_HALF,
+  ARM_FORE, ARM_UPPER, DA, DH, DW, FORE_HALF, SHOULDER_X, SHOULDER_Y, UPPER_HALF,
   armAngle, armIndex, dispatcherBody, dispatcherCaps, foreArmSprite, upperArmSprite,
 } from '../gfx/art/dispatcher';
 import type { Sprite } from '../gfx/sprite';
@@ -36,11 +36,14 @@ const RIGS = new WeakMap<Enemy, Rig>();
 const SIDE = [-1, 1] as const;
 /** Смещение шарниров от центра корпуса (как в drawDispatcher) */
 const SX = [SHOULDER_X - DW / 2, DW - 1 - SHOULDER_X - DW / 2];
-const SY = SHOULDER_Y - DH / 2;
+const SY = SHOULDER_Y - DA / 2;
+/** Кадр выше «корпуса» на длину кабелей: сдвиг, чтобы центр врага пришёлся на корпус */
+const DROP = (DH - DA) / 2;
 /** Летающие боссы висят на 3 px выше своей точки */
 const HOVER = 3;
 
-const idle = (side: number, t: number) => ({ x: SIDE[side] * 26, y: 34 + Math.sin(t * 1.7 + side * 2) * 3 });
+/** Покой: руки опущены вдоль корпуса и чуть покачиваются */
+const idle = (side: number, t: number) => ({ x: SIDE[side] * (7 + Math.sin(t * 1.3 + side) * 2), y: 52 + Math.sin(t * 1.7 + side * 2) * 2 });
 
 function rig(e: Enemy): Rig {
   let r = RIGS.get(e);
@@ -77,6 +80,12 @@ export function point(e: Enemy, side: number, wx: number, wy: number, open = tru
   const a = Math.atan2(wy - s.y, wx - s.x);
   const L = (ARM_UPPER + ARM_FORE) * ext;
   reach(e, side, s.x + Math.cos(a) * L, s.y + Math.sin(a) * L, open);
+}
+
+/** Поднять руку над плечом (перед залпом) */
+export function raise(e: Enemy, side: number, open = true) {
+  const s = shoulder(e, side);
+  reach(e, side, s.x + SIDE[side] * 20, s.y - 32, open);
 }
 
 /** Ладонь в мире (откуда стрелять) */
@@ -143,6 +152,7 @@ export function drawDispatcher(e: Enemy, g: Game, ctx: CanvasRenderingContext2D,
   const m = A ? 1 : 0;
   const frames = BODY[m];
   const fi = 1 + (Math.floor(g.time * 8 + e.id) % (frames.length - 1));
+  y += DROP;
   ctx.drawImage(fx(frames[fi]), x, y);
   const r = rig(e);
   r.arms.forEach((a, side) => {
@@ -151,7 +161,7 @@ export function drawDispatcher(e: Enemy, g: Game, ctx: CanvasRenderingContext2D,
     const ua = armAngle(a.ui);
     const ex = Math.round(sx + Math.cos(ua) * ARM_UPPER), ey = Math.round(sy + Math.sin(ua) * ARM_UPPER);
     ctx.drawImage(fx(upperArmSprite(a.ui, A)), sx - UPPER_HALF, sy - UPPER_HALF);
-    ctx.drawImage(fx(foreArmSprite(a.fi, a.open, A)), ex - FORE_HALF, ey - FORE_HALF);
+    ctx.drawImage(fx(foreArmSprite(a.fi, a.open, A, side)), ex - FORE_HALF, ey - FORE_HALF);
   });
   ctx.drawImage(fx(CAPS[m]), x, y);
 }

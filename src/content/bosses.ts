@@ -8,7 +8,7 @@ import { Enemy, type EnemyDef } from '../game/enemy';
 import type { Game } from '../game/game';
 import { aim, flower, n, ring, shoot, spread, stream } from '../game/patterns';
 import { dispatcherBody } from '../gfx/art/dispatcher';
-import { drawDispatcher, hand, point, reach, stepArms } from './dispatcher-rig';
+import { drawDispatcher, hand, point, raise, reach, stepArms } from './dispatcher-rig';
 import { ENEMY_BY_ID } from './enemies';
 
 // Боссы — по одному на этаж. У каждого несколько фаз (как спелл-карты в Touhou):
@@ -374,13 +374,14 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Поток нарядов', en: 'Work Order Flood' }, until: 0.8,
         update: armed((e, g, dt) => {
           hang(e, g, dt, 15);
-          // руки подняты: раздаёт наряды сверху
-          for (const s of [0, 1]) reach(e, s, e.x + (s ? 50 : -50) + Math.sin(g.time * 2 + s * 3) * 6, e.y - 42 + Math.cos(g.time * 2.4 + s) * 4);
+          // наряды сыплются с потолка; перед кольцом поднимается рука, из которой оно вылетит
           if (every(e, g, 'a', 0.07, dt)) {
             const x = 20 + Math.random() * (g.room.pxW - 40);
             shoot(g, x, 24, Math.PI / 2 + (Math.random() - 0.5) * 0.2, 70 + Math.random() * 40, { skin: 'rice', color: Math.random() < 0.2 ? 'violet' : 'red' });
           }
-          if (every(e, g, 'b', 1.6, dt)) {
+          const r = ready(e, 'b', 0.45, dt);
+          if (r) raise(e, r === 1 ? nextPalm(e) : e.mem.palm);
+          if (volley(e, g, 'b', 1.6, dt)) {
             const h = palm(e, g);
             ring(g, h.x, h.y, 16, 80, Math.random(), { skin: 'orb', color: 'amber' });
           }
@@ -393,7 +394,7 @@ export const BOSSES: EnemyDef[] = [
           const c = g.room.centerPoint();
           move(e, g, (c.x - e.x) * Math.min(1, dt * 1.5), 0);
           e.mem.a = (e.mem.a ?? 0) + dt * 0.9;
-          for (const s of [0, 1]) reach(e, s, e.x + (s ? 78 : -78) + Math.cos(e.mem.a * 3) * 5, e.y - 4 + Math.sin(e.mem.a * 3 + s * Math.PI) * 6);
+          for (const s of [0, 1]) reach(e, s, e.x + (s ? 92 : -92) + Math.cos(e.mem.a * 3) * 5, e.y - 10 + Math.sin(e.mem.a * 3 + s * Math.PI) * 6);
           if (every(e, g, 'a', 0.16, dt)) {
             const L = hand(e, 0), R = hand(e, 1);
             for (let k = 0; k < 5; k++) {
@@ -407,43 +408,35 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Протокол утилизации', en: 'Disposal Protocol' }, until: 0.4,
         update: armed((e, g, dt) => {
           hang(e, g, dt, 20);
-          // руки указывают на игрока; при залпе клешни раскрываются
-          e.mem.openT = Math.max(0, (e.mem.openT ?? 0) - dt);
-          for (const s of [0, 1]) point(e, s, g.player.x, g.player.y, e.mem.openT > 0, 0.85);
-          if (every(e, g, 'a', 1.5, dt)) {
-            e.mem.openT = 0.5;
+          // обе руки вверх — вокруг корпуса зависают осколки и летят в игрока
+          if (ready(e, 'a', 0.45, dt)) for (const s of [0, 1]) raise(e, s);
+          if (volley(e, g, 'a', 1.5, dt)) {
+            for (const s of [0, 1]) palm(e, g, s);
             const c = n(g, 16);
             for (let i = 0; i < c; i++) {
               const a = (i / c) * TAU;
               const x = e.x + Math.cos(a) * 46, y = e.y + Math.sin(a) * 46;
-              // осколки зависают, затем летят в игрока
               shoot(g, x, y, Math.atan2(g.player.y - y, g.player.x - x), 10, { skin: 'shard', color: 'violet', delay: 0.7, accel: 180, maxSpeed: 170 });
             }
           }
-          if (every(e, g, 'b', 0.8, dt)) {
-            const h = palm(e, g);
-            ring(g, h.x, h.y, 10, 60, Math.random(), { skin: 'small' });
-          }
+          if (every(e, g, 'b', 0.8, dt)) ring(g, e.x, e.y - 6, 10, 60, Math.random(), { skin: 'small' });
         }),
       },
       {
         name: { ru: 'Очистка реестра', en: 'Registry Purge' }, until: 0.2,
         update: armed((e, g, dt) => {
           e.mem.a = (e.mem.a ?? 0) + dt * 0.5;
-          // левая рука «стирает» строки реестра стеной от левого края, правая целится
-          const gapY = e.mem.gapY ?? g.player.y;
-          point(e, 0, 24, gapY, (e.mem.wallT ?? 0) > 0, 1);
-          point(e, 1, g.player.x, g.player.y, true, 0.9);
-          e.mem.wallT = Math.max(0, (e.mem.wallT ?? 0) - dt);
+          // левая рука «стирает» строки реестра стеной от левого края, правая бросает самонаводящиеся сгустки
+          if (ready(e, 'c', 0.5, dt)) point(e, 0, 24, g.player.y, true, 1);
+          if (ready(e, 'b', 0.45, dt)) point(e, 1, g.player.x, g.player.y, true, 0.9);
           if (every(e, g, 'a', 0.5, dt)) flower(g, e.x, e.y - 6, 7, 3, 85, e.mem.a, { skin: 'small', color: 'amber' });
-          if (every(e, g, 'b', 2.2, dt)) {
+          if (volley(e, g, 'b', 2.2, dt)) {
             const h = palm(e, g, 1);
             spread(g, h.x, h.y, aim(g, h.x, h.y), 4, 1.5, 55, { skin: 'big', color: 'violet', homing: 1.0, life: 5 });
           }
-          if (every(e, g, 'c', 3, dt)) {
+          if (volley(e, g, 'c', 3, dt)) {
+            palm(e, g, 0);
             const gap = g.player.y + (Math.random() - 0.5) * 50;
-            e.mem.gapY = gap;
-            e.mem.wallT = 0.4;
             for (let y = 30; y < g.room.pxH - 30; y += 16) if (Math.abs(y - gap) > 26) shoot(g, 24, y, 0, 70, { skin: 'rice' });
           }
         }),
@@ -452,8 +445,11 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Последний наряд', en: 'The Final Order' }, until: 0,
         update: armed((e, g, dt) => {
           e.mem.a = (e.mem.a ?? 0) + dt * 2.6;
-          // руки разведены и дрожат от перегрузки
-          for (const s of [0, 1]) reach(e, s, e.x + (s ? 70 : -70), e.y + 14 + Math.sin(g.time * 11 + s * 2) * 4, true);
+          // руки подняты и дрожат от перегрузки, из груди — двойная спираль
+          for (const s of [0, 1]) {
+            const sh = Math.sin(g.time * 11 + s * 2) * 4;
+            reach(e, s, e.x + (s ? 66 : -66) + sh, e.y - 40 + sh, true);
+          }
           if (every(e, g, 'a', 0.06, dt)) {
             shoot(g, e.x, e.y - 6, e.mem.a, 40, { skin: 'orb', color: 'red', accel: 70, maxSpeed: 150 });
             shoot(g, e.x, e.y - 6, e.mem.a + Math.PI, 40, { skin: 'orb', color: 'violet', accel: 70, maxSpeed: 150 });
@@ -476,6 +472,20 @@ function armed(f: (e: Enemy, g: Game, dt: number) => void) {
   };
 }
 
+/** Залп по таймеру; после него рука ещё немного остаётся поднятой (см. ready) */
+function volley(e: Enemy, g: Game, key: string, period: number, dt: number): boolean {
+  if (!every(e, g, key, period, dt)) return false;
+  e.mem[key + 'Hold'] = 0.35;
+  return true;
+}
+
+/** Пора поднимать руку: 1 — за lead секунд до залпа по таймеру key, 2 — сразу после него, 0 — нет */
+function ready(e: Enemy, key: string, lead: number, dt: number): 0 | 1 | 2 {
+  const h = (e.mem[key + 'Hold'] = Math.max(0, (e.mem[key + 'Hold'] ?? 0) - dt));
+  if (h > 0) return 2;
+  return e.mem[key] !== undefined && e.mem[key] < lead ? 1 : 0;
+}
+
 /**
  * Диспетчер висит ближе к середине зала (иначе камера, идущая за игроком внизу, срежет голову)
  * и медленно смещается, оставляя запас под руки
@@ -484,7 +494,7 @@ function hang(e: Enemy, g: Game, dt: number, speed: number) {
   const room = g.room;
   const m = Math.min(130, room.pxW / 2 - 10);
   if (!e.mem.goal || e.mem.goalT <= 0 || Math.hypot(e.mem.goal.x - e.x, e.mem.goal.y - e.y) < 6) {
-    e.mem.goal = { x: m + Math.random() * Math.max(0, room.pxW - 2 * m), y: room.pxH * 0.47 + Math.random() * 10 };
+    e.mem.goal = { x: m + Math.random() * Math.max(0, room.pxW - 2 * m), y: room.pxH * 0.48 + Math.random() * 8 };
     e.mem.goalT = 2.5;
   }
   e.mem.goalT -= dt;
@@ -492,9 +502,12 @@ function hang(e: Enemy, g: Game, dt: number, speed: number) {
   move(e, g, Math.cos(a) * speed * dt, Math.sin(a) * speed * dt);
 }
 
+/** Какая рука выстрелит следующей при чередовании */
+const nextPalm = (e: Enemy) => 1 - (e.mem.palm ?? 0);
+
 /** Ладонь для залпа: чередует руки (или конкретная), со вспышкой */
 function palm(e: Enemy, g: Game, side?: number) {
-  const s = side ?? (e.mem.palm = 1 - (e.mem.palm ?? 0));
+  const s = side ?? (e.mem.palm = nextPalm(e));
   const h = hand(e, s);
   g.fx.flash(h.x, h.y, C.red, 7, 0.15);
   return h;
