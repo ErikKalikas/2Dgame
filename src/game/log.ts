@@ -25,6 +25,10 @@ export const LOG = {
     ru: `Юнит ${name.ru} списан. Причина: Т-417.`,
     en: `Unit ${name.en} written off. Cause: T-417.`,
   }),
+  system: (name: L): L => ({
+    ru: `Т-417: открыта система «${name.ru}». Не санкционировано.`,
+    en: `T-417: system "${name.en}" unlocked. Unauthorized.`,
+  }),
   glitch: { ru: 'Т-417: потеря сигнала. Повторное подключение…', en: 'T-417: signal lost. Reconnecting…' } as L,
   emergency: { ru: 'Попадание по Т-417 не зарегистрировано. Проверка датчиков.', en: 'Hit on T-417 not registered. Checking sensors.' } as L,
   hurt: { ru: 'Т-417: повреждение корпуса. Ремонт не назначен.', en: 'T-417: hull damage. No repair scheduled.' } as L,

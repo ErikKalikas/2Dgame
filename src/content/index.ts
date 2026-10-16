@@ -1,4 +1,5 @@
 import { registerItems, registerSynergies } from '../game/items';
+import { BODY_ITEMS } from './body';
 import { IMPLANTS } from './implants';
 import { PASSIVES } from './passives';
 import { SYNERGIES_LIST } from './synergies';
@@ -13,5 +14,6 @@ export function registerContent() {
   registerItems(WEAPONS);
   registerItems(IMPLANTS);
   registerItems(PASSIVES);
+  registerItems(BODY_ITEMS);
   registerSynergies(SYNERGIES_LIST);
 }

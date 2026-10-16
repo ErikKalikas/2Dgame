@@ -99,7 +99,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synOptic',
     name: { ru: 'Всевидящее око', en: 'All-seeing Eye' },
-    desc: { ru: '3 оптических импланта: дальность +30%, крит +10%, урон крита +50%.', en: '3 optics: range +30%, crit +10%, crit damage +50%.' },
+    desc: { ru: '3 оптических модуля: дальность +30%, крит +10%, урон крита +50%.', en: '3 optics: range +30%, crit +10%, crit damage +50%.' },
     requires: (_h, tags) => tags('optic') >= 3,
     stats: (s) => {
       s.range *= 1.3;

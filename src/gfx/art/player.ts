@@ -61,8 +61,17 @@ export interface DirFrames {
   left: Sprite[];
 }
 
+export type PlayerDir = 'down' | 'up' | 'side';
+
+/** Строки кадра без обводки (для наложения деталей модулей) */
+export function playerRows(dir: PlayerDir, frame: number): string[] {
+  const top = dir === 'down' ? FRONT : dir === 'up' ? BACK : SIDE;
+  const legs = dir === 'side' ? LEGS_SIDE : LEGS_FB;
+  return [...top, ...legs[frame], '............'];
+}
+
 export function playerArt(): DirFrames {
-  const mk = (top: string[], legs: string[][]) => legs.map((l) => art([...top, ...l, '............']));
-  const right = mk(SIDE, LEGS_SIDE);
-  return { down: mk(FRONT, LEGS_FB), up: mk(BACK, LEGS_FB), right, left: right.map(flipH) };
+  const mk = (dir: PlayerDir) => [0, 1, 2].map((f) => art(playerRows(dir, f)));
+  const right = mk('side');
+  return { down: mk('down'), up: mk('up'), right, left: right.map(flipH) };
 }

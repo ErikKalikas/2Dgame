@@ -4,9 +4,9 @@ import { BOSSES } from '../content/bosses';
 import { nearestWalkable } from '../world/room';
 import { Enemy, type EnemyDef } from './enemy';
 import type { Game } from './game';
-import { itemPrice, rollItem, type ItemKind } from './items';
+import { SYSTEM_SLOTS, item, itemPrice, rollItem, type ItemDef, type ItemKind } from './items';
 
-export type PickupKind = 'coin' | 'medkit' | 'key' | 'glitch' | 'item' | 'teleporter';
+export type PickupKind = 'coin' | 'medkit' | 'glitch' | 'item' | 'teleporter' | 'surgery';
 
 export interface Pickup {
   kind: PickupKind;
@@ -95,27 +95,30 @@ export function populateRoom(g: Game) {
 
 /** Награда за зачистку обычной комнаты (как в Isaac — случайная, иногда ничего) */
 export function roomClearReward(g: Game) {
-  const info = g.room.info;
   const p = g.player;
   const c = nearestWalkable(g.room, p.x + 20, p.y);
-  if (g.keyRoom === info.id) {
-    g.pickups.push(makePickup('key', c.x, c.y));
-    g.keyRoom = -1;
-    return;
-  }
   const r = g.rng.next() - p.stats.luck * 0.05;
   if (r < 0.3) dropLoot(g, 'coin', c.x, c.y, g.rng.int(1, 3));
   else if (r < 0.42) g.pickups.push(makePickup('medkit', c.x, c.y));
   else if (r < 0.52) g.pickups.push(makePickup('glitch', c.x, c.y));
-  else if (r < 0.6) g.pickups.push(makePickup('key', c.x, c.y));
+}
+
+/** Что выложить: вид предмета (случайный из пула) или конкретный id */
+type Slotted = ItemKind | { id: string };
+
+/** Можно ли предмету выпасть: модули систем тела — только после открытия системы */
+function allowFor(g: Game) {
+  return (it: ItemDef) => !(it.slot && SYSTEM_SLOTS.includes(it.slot) && !g.player.systems.has(it.slot));
 }
 
 /** Выложить предметы на пьедесталы */
-export function placeItems(g: Game, kinds: ItemKind[], cx: number, cy: number, opts: { price?: boolean; choice?: boolean } = {}) {
+export function placeItems(g: Game, kinds: Slotted[], cx: number, cy: number, opts: { price?: boolean; choice?: boolean } = {}) {
   const group = opts.choice ? GROUP++ : undefined;
   const gap = 40;
   kinds.forEach((kind, i) => {
-    const it = rollItem(g.rng, kind, g.seenItems, g.player.stats.luck);
+    const it = typeof kind === 'string'
+      ? rollItem(g.rng, kind, g.seenItems, g.player.stats.luck, g.floorNum, allowFor(g))
+      : item(kind.id);
     if (!it) return;
     g.seenItems.add(it.id);
     const x = cx + (i - (kinds.length - 1) / 2) * gap;
@@ -128,21 +131,45 @@ export function placeItems(g: Game, kinds: ItemKind[], cx: number, cy: number, o
   });
 }
 
-/** Содержимое особых комнат при первом посещении */
+/** Скелет класса 2 — один из двух, ещё не виденный */
+function class2(g: Game): Slotted {
+  const free = ['skWorkerPlus', 'skGuard'].filter((id) => !g.seenItems.has(id));
+  return free.length ? { id: g.rng.pick(free) } : 'implant';
+}
+
+/**
+ * Содержимое особых комнат при первом посещении. Скелеты: класс 2 гарантированно на уровнях 1–2
+ * (сокровищница 1-го, магазин 2-го), класс 3 — в магазине 4-го, класс 4 — редкий выбор с 5-го.
+ * Рюкзаки продаются в магазинах 3-го и 6-го уровней.
+ */
 export function furnishRoom(g: Game) {
   const info = g.room.info;
   const c = g.room.centerPoint();
+  const n = g.floorNum;
   if (info.type === 'treasure') {
-    const second: ItemKind = g.rng.chance(0.5) ? 'weapon' : 'implant';
+    let second: Slotted = g.rng.chance(0.5) ? 'weapon' : 'implant';
+    if (n === 1) second = class2(g);
+    else if (n >= 5 && g.rng.chance(0.2)) {
+      const sk = rollItem(g.rng, 'skeleton', g.seenItems, 0, n, (it) => (it.skeletonClass ?? 1) >= 3);
+      if (sk) second = { id: sk.id };
+    }
     placeItems(g, ['implant', second], c.x, c.y, { choice: true });
   } else if (info.type === 'shop') {
-    placeItems(g, ['implant', 'weapon', 'implant'], c.x, c.y - 24, { price: true });
+    const middle: Slotted = n === 2 ? class2(g) : n === 4 && !g.seenItems.has('skLoader') ? { id: 'skLoader' } : 'weapon';
+    placeItems(g, ['implant', middle, 'implant'], c.x, c.y - 24, { price: true });
     const row = c.y + 28;
-    const goods: ['medkit' | 'key' | 'glitch', number][] = [['medkit', 12], ['key', 8], ['glitch', 8]];
+    const goods: ['medkit' | 'glitch', number][] = [['medkit', 12], ['glitch', 8]];
+    const pack = n === 3 ? 'bpSatchel' : n === 6 ? 'bpDuffel' : null;
+    const cols = goods.length + (pack ? 1 : 0);
     goods.forEach(([kind, price], i) => {
-      const pos = nearestWalkable(g.room, c.x + (i - 1) * 40, row);
+      const pos = nearestWalkable(g.room, c.x + (i - (cols - 1) / 2) * 40, row);
       g.pickups.push(makePickup(kind, pos.x, pos.y, { price: Math.round(price * g.priceMult) }));
     });
+    if (pack) placeItems(g, [{ id: pack }], c.x + ((cols - 1) / 2) * 40, row, { price: true });
+  } else if (info.type === 'surgery') {
+    // кресло с роботом-хирургом в центре
+    const pos = nearestWalkable(g.room, c.x, c.y - 8);
+    g.pickups.push(makePickup('surgery', pos.x, pos.y));
   }
 }
 

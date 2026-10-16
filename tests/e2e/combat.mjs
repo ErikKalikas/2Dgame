@@ -15,10 +15,11 @@ await page.waitForTimeout(500);
 await page.waitForTimeout(400);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(200);
-// телепортируемся в проём первой двери
+// телепортируемся в проём двери
 await page.evaluate(() => {
   const g = window.__game.scene.game;
-  const d = g.room.doors[0];
+  // дверь в обычную комнату (в особых врагов нет)
+  const d = g.room.doors.find((x) => g.plan.rooms[x.to].type === 'normal') ?? g.room.doors[0];
   g.player.x = (d.tx + 0.5) * 16 + (d.dir === 'n' || d.dir === 's' ? 8 : 0);
   g.player.y = (d.ty + 0.5) * 16 + (d.dir === 'w' || d.dir === 'e' ? 8 : 0);
 });

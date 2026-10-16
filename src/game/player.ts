@@ -1,10 +1,10 @@
 import { input } from '../core/input';
-import { SPR } from '../gfx/sprites';
+import { playerLook } from './look';
 import type { Sprite } from '../gfx/sprite';
 import { T, walkable } from '../world/tiles';
 import { moveBody, overlaps } from './collision';
 import type { Game } from './game';
-import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type SynergyDef, type Tag } from './items';
+import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type Slot, type SynergyDef, type Tag } from './items';
 import { baseStats, finalFireDelay, type Stats } from './stats';
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
@@ -31,7 +31,6 @@ export class Player {
   shoveCd = 0;
   shoveT = 0;
   coins = 0;
-  keys = 0;
   xp = 0;
   level = 1;
   kills = 0;
@@ -59,10 +58,21 @@ export class Player {
   holdItem: ItemDef | null = null;
   holdT = 0;
 
+  /** Оружие в правой руке: ручное или модуль руки-оружия (тогда он же стоит в слоте armR) */
   weapon: ItemDef;
-  implants: string[] = [];
+  /** Модули тела по слотам (id) */
+  slots: Partial<Record<Slot, string>> = {};
+  /** Установленный скелет */
+  skeleton = 'skWorker';
+  /** Рюкзак: подобранные, но ещё не установленные модули и скелеты */
+  backpack: string[] = [];
+  backpackSize = 3;
+  /** Открытые системы тела (кровеносная, щупальца, нервная, реактор) */
+  systems = new Set<Slot>();
+  /** Прошивки и их стаки */
   passives = new Map<string, number>();
-  activeId: string | null = null;
+  /** Щит левой руки поднят (для отрисовки) */
+  shieldUp = 0;
 
   stats: Stats = baseStats();
   /** Поправка к максимуму жизней от сложности */
@@ -75,14 +85,34 @@ export class Player {
     this.recalc();
   }
 
+  /** Установленные модули (без скелета) */
+  get installed(): string[] {
+    return Object.values(this.slots).filter((id): id is string => !!id);
+  }
+
+  /** Активный модуль (Q): первый установленный с активной способностью */
+  get activeId(): string | null {
+    for (const id of this.installed) if (item(id).active) return id;
+    return null;
+  }
+
+  /** Модуль левой руки, если стоит */
+  get leftModule(): ItemDef | null {
+    const id = this.slots.armL;
+    return id ? item(id) : null;
+  }
+
+  get skeletonClass(): number {
+    return item(this.skeleton).skeletonClass ?? 1;
+  }
+
   has(id: string): boolean {
-    return this.weapon.id === id || this.implants.includes(id) || this.passives.has(id) || this.activeId === id;
+    return this.weapon.id === id || this.installed.includes(id) || this.passives.has(id) || this.skeleton === id;
   }
 
   tagCount(tag: Tag): number {
     let n = 0;
-    const all = [this.weapon.id, ...this.implants, ...this.passives.keys()];
-    if (this.activeId) all.push(this.activeId);
+    const all = new Set([this.weapon.id, ...this.installed, ...this.passives.keys(), this.skeleton]);
     for (const id of all) if (ITEMS.get(id)?.tags.includes(tag)) n++;
     return n;
   }
@@ -93,13 +123,15 @@ export class Player {
     s.maxLives += this.lifeOffset;
     const hooks: Hooks[] = [];
     this.weapon.weapon?.stats(s);
+    // рука-оружие сильнее ручного, но меняется только в операционной
+    if (this.weapon.slot === 'armR') s.damageMult *= 1.25;
     if (this.weapon.hooks) hooks.push(this.weapon.hooks);
     const apply = (it: ItemDef, stacks: number) => {
       it.stats?.(s, stacks);
       if (it.hooks) hooks.push(it.hooks);
     };
-    for (const id of this.implants) apply(item(id), 1);
-    if (this.activeId) apply(item(this.activeId), 1);
+    apply(item(this.skeleton), 1);
+    for (const id of this.installed) if (id !== this.weapon.id) apply(item(id), 1);
     for (const [id, n] of this.passives) apply(item(id), n);
     this.synergies = SYNERGIES.filter((sy) => sy.requires((id) => this.has(id), (t) => this.tagCount(t)));
     for (const sy of this.synergies) {
@@ -131,11 +163,11 @@ export class Player {
     return this.facing === 'left' ? Math.PI : this.facing === 'right' ? 0 : this.facing === 'up' ? -Math.PI / 2 : Math.PI / 2;
   }
 
+  /** Текущий кадр с деталями установленных модулей */
   get sprite(): Sprite {
-    const frames = SPR.player[this.facing];
-    if (this.holdItem) return SPR.player.down[0];
-    if (!this.moving) return frames[0];
-    return frames[1 + (Math.floor(this.anim * 8) % 2)];
+    if (this.holdItem) return playerLook(this, 'down', 0);
+    if (!this.moving) return playerLook(this, this.facing, 0);
+    return playerLook(this, this.facing, 1 + (Math.floor(this.anim * 8) % 2));
   }
 
   update(g: Game, dt: number) {
@@ -250,13 +282,19 @@ export class Player {
       }
     }
 
-    // левая рука (E): толчок манипулятором; двуручное оружие держит обе руки
+    // левая рука (E): модуль руки или толчок манипулятором; двуручное оружие держит обе руки
     this.shoveCd = Math.max(0, this.shoveCd - dt);
     this.shoveT = Math.max(0, this.shoveT - dt);
-    if (input.pressed('leftHand') && this.shoveCd <= 0 && !this.twoHanded) {
-      g.shove(this.aimAngle);
-      this.shoveCd = 0.7;
-      this.shoveT = 0.15;
+    this.shieldUp = Math.max(0, this.shieldUp - dt);
+    const lh = this.leftModule?.leftHand;
+    if (!this.twoHanded) {
+      if (lh?.hold && input.isDown('leftHand')) lh.hold(g, this.aimAngle, dt);
+      if (input.pressed('leftHand') && this.shoveCd <= 0) {
+        if (lh) lh.use(g, this.aimAngle);
+        else g.shove(this.aimAngle);
+        this.shoveCd = lh ? lh.cooldown : 0.7;
+        this.shoveT = 0.15;
+      }
     }
 
     // сбой (F): по полному заряду или в аварийное окно после попадания

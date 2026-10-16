@@ -14,6 +14,7 @@ import { SYNERGIES, item, type ItemDef } from '../game/items';
 import { qualityColor, renderGame as renderGameWorld } from '../game/render';
 import { finalDamage, finalFireDelay } from '../game/stats';
 import { EndScene } from './end';
+import { BackpackFullOverlay, SurgeryOverlay } from './surgery';
 import { ItemBrowser } from './item-browser';
 import { MainMenu } from './main-menu';
 import { Menu } from './menu-widget';
@@ -45,6 +46,16 @@ export class GameScene implements Scene {
       return;
     }
     g.update(dt);
+    if (g.surgeryRequest) {
+      g.surgeryRequest = false;
+      this.overlay = new SurgeryOverlay(this);
+      return;
+    }
+    if (g.backpackFull) {
+      this.overlay = new BackpackFullOverlay(this, g.backpackFull);
+      g.backpackFull = null;
+      return;
+    }
     if (g.state === 'play' && g.pendingLevelUps > 0 && g.fade >= 1) {
       const choices = g.rollPassives();
       if (choices.length) this.overlay = new LevelUpOverlay(this, choices);
@@ -195,13 +206,14 @@ class LoadoutOverlay implements Scene {
     this.browser = new ItemBrowser(
       [
         {
-          label: S.implants,
+          label: S.body,
           entries: [
-            { item: p.weapon },
-            ...(p.activeId ? [{ item: item(p.activeId) }] : []),
-            ...p.implants.map((id) => ({ item: item(id) })),
+            ...(p.weapon.slot === 'armR' ? [] : [{ item: p.weapon }]),
+            { item: item(p.skeleton) },
+            ...p.installed.map((id) => ({ item: item(id) })),
           ],
         },
+        { label: S.backpack, entries: p.backpack.map((id) => ({ item: item(id) })) },
         { label: S.passives, entries: [...p.passives].map(([id, n]) => ({ item: item(id), count: n })) },
         { label: S.synergies, entries: p.synergies.map((s) => ({ synergy: s })) },
       ],

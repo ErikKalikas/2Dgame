@@ -16,8 +16,8 @@ import { LOG, LOG_MAX, LOG_TIME, type LogLine } from './log';
 import type { L } from '../core/i18n';
 import type { Enemy } from './enemy';
 import { FxSystem } from './fx';
-import { item, itemsOfKind, type ItemDef } from './items';
-import { moveBody } from './collision';
+import { SLOT_NAME, item, itemsOfKind, type ItemDef, type Slot } from './items';
+import { distToSegment, moveBody } from './collision';
 import { FlowField } from './pathfinding';
 import { Player } from './player';
 import { bossReward, dropLoot, furnishRoom, makePickup, populateRoom, roomClearReward, type Pickup } from './spawn';
@@ -36,6 +36,12 @@ const DIFFS: Record<Difficulty, DiffParams> = {
 };
 
 export type GameState = 'play' | 'transition' | 'dying' | 'dead' | 'won' | 'floorFade';
+
+/** Сколько держать R, чтобы взломать запертую дверь (с) */
+export const HACK_TIME = 2;
+
+/** Какой босс (номер уровня) открывает систему тела */
+const SYSTEM_BY_FLOOR: Record<number, Slot> = { 2: 'blood', 4: 'tentacles', 6: 'nervous', 8: 'reactor' };
 
 /** Пролёт пули ближе этого (px от края хитбокса) заряжает сбой */
 const GRAZE = 14;
@@ -77,7 +83,9 @@ export class Game {
   pendingLevelUps = 0;
   seenItems = new Set<string>();
   /** Комната, за зачистку которой гарантированно выпадет ключ */
-  keyRoom = -1;
+  /** Взлом запертой двери: какая дверь рядом и сколько уже держим R */
+  hackDoor: DoorPlace | null = null;
+  hackT = 0;
   bossIntro = 0;
   electroT = 0;
   /** Вспышки света от взрывов */
@@ -89,6 +97,12 @@ export class Game {
   slowmo = 0;
   /** Лог Диспетчера (левый нижний угол) */
   logLines: LogLine[] = [];
+  /** Игрок попросил операционную (R у кресла) — сцена откроет окно операции */
+  surgeryRequest = false;
+  /** Подобранный модуль не влез в рюкзак — сцена откроет окно выбора */
+  backpackFull: Pickup | null = null;
+  /** Барьеры сварочной стенки: гасят вражеские пули */
+  barriers: { x1: number; y1: number; x2: number; y2: number; t: number }[] = [];
   /** Имя последнего побеждённого босса (для лога) */
   lastBoss: L | null = null;
 
@@ -126,8 +140,6 @@ export class Game {
     this.maps.clear();
     this.roomPickups.clear();
     this.roomCanvas.clear();
-    const normals = this.plan.rooms.filter((r) => r.type === 'normal');
-    this.keyRoom = n >= 2 && normals.length ? frng.pick(normals).id : -1;
     const start = this.plan.rooms[this.plan.startId];
     this.enterRoom(start, null);
     const c = nearestWalkable(this.room, this.room.pxW / 2, this.room.pxH / 2);
@@ -164,7 +176,7 @@ export class Game {
   }
 
   /** Войти в комнату через дверь (или в стартовую при door = null) */
-  private enterRoom(info: RoomInfo, from: DoorPlace | null) {
+  enterRoom(info: RoomInfo, from: DoorPlace | null) {
     if (this.room) this.roomPickups.set(this.room.info.id, this.pickups);
     const firstVisit = !info.visited;
     info.visited = true;
@@ -175,6 +187,7 @@ export class Game {
     this.enemies = [];
     this.ebullets = [];
     this.pbullets = [];
+    this.barriers = [];
     this.pickups = this.roomPickups.get(info.id) ?? [];
     this.fx.list = [];
     if (from) {
@@ -240,6 +253,7 @@ export class Game {
     this.updateDrones(dt);
 
     this.updateGlitch();
+    this.updateBarriers(dt);
     for (const l of this.logLines) l.t -= dt;
     this.logLines = this.logLines.filter((l) => l.t > 0);
 
@@ -252,7 +266,7 @@ export class Game {
     updateEBullets(this, edt);
     this.updatePickups(dt);
     this.checkPlayerHits();
-    this.checkDoors();
+    this.checkDoors(dt);
     this.fx.update(dt);
     for (let i = this.lightFlashes.length - 1; i >= 0; i--) {
       this.lightFlashes[i].t -= dt;
@@ -290,7 +304,7 @@ export class Game {
     );
   }
 
-  private checkDoors() {
+  private checkDoors(dt: number) {
     const p = this.player;
     // игрок стоит в проёме двери → переход
     const tx = Math.floor(p.x / TILE), ty = Math.floor(p.y / TILE);
@@ -302,17 +316,36 @@ export class Game {
         return;
       }
     }
-    // запертые двери открываются ключом при касании
-    if (this.locked) return;
+    // запертая дверь взламывается удержанием R рядом с ней
+    this.hackDoor = null;
+    if (this.locked) {
+      this.hackT = 0;
+      return;
+    }
+    let near: DoorPlace | null = null;
     for (const d of this.room.doors) {
-      if (!d.locked || p.keys <= 0) continue;
+      if (!d.locked) continue;
       const cx = (d.tx + (d.dir === 'n' || d.dir === 's' ? 1 : 0.5)) * TILE;
       const cy = (d.ty + (d.dir === 'w' || d.dir === 'e' ? 1 : 0.5)) * TILE;
-      if (dist2(p.x, p.y, cx, cy) < 26 * 26) {
-        p.keys--;
-        this.unlockDoor(d);
-        this.fx.burst(cx, cy, C.yellow, 12, 60, 0.4, 1, true);
-      }
+      if (dist2(p.x, p.y, cx, cy) < 30 * 30) near = d;
+    }
+    if (!near) {
+      this.hackT = 0;
+      return;
+    }
+    this.hackDoor = near;
+    if (!input.isDown('interact')) {
+      this.hackT = Math.max(0, this.hackT - dt * 2);
+      return;
+    }
+    this.hackT += dt;
+    const cx = (near.tx + (near.dir === 'n' || near.dir === 's' ? 1 : 0.5)) * TILE;
+    const cy = (near.ty + (near.dir === 'w' || near.dir === 'e' ? 1 : 0.5)) * TILE;
+    if (Math.random() < dt * 20) this.fx.add({ kind: 'spark', x: cx + (Math.random() - 0.5) * 16, y: cy + (Math.random() - 0.5) * 16, vx: (Math.random() - 0.5) * 60, vy: -30, color: C.yellow, life: 0.25, glow: true });
+    if (this.hackT >= HACK_TIME) {
+      this.hackT = 0;
+      this.unlockDoor(near);
+      this.fx.burst(cx, cy, C.yellow, 12, 60, 0.4, 1, true);
     }
   }
 
@@ -471,7 +504,7 @@ export class Game {
         k.x += ((p.x - k.x) / d) * 160 * dt;
         k.y += ((p.y - k.y) / d) * 160 * dt;
       }
-      const needsUse = k.kind === 'item' || k.kind === 'teleporter' || k.price !== undefined;
+      const needsUse = k.kind === 'item' || k.kind === 'teleporter' || k.kind === 'surgery' || k.price !== undefined;
       if (needsUse) {
         if (d2 < bestD) {
           bestD = d2;
@@ -497,10 +530,6 @@ export class Game {
         p.lives++;
         this.fx.burst(k.x, k.y, C.red, 8, 50, 0.35, 1, true);
         break;
-      case 'key':
-        p.keys++;
-        this.fx.burst(k.x, k.y, C.yellow, 6, 40, 0.3, 1, true);
-        break;
       case 'glitch':
         if (p.glitch >= 1) return;
         p.glitch = Math.min(1, p.glitch + 0.3);
@@ -510,14 +539,32 @@ export class Game {
     k.dead = true;
   }
 
-  private usePickup(k: Pickup) {
+  usePickup(k: Pickup) {
     const p = this.player;
+    if (k.kind === 'surgery') {
+      this.surgeryRequest = true;
+      return;
+    }
     if (k.kind === 'teleporter') {
       if (this.floorNum < FLOORS) {
         this.state = 'floorFade';
         this.fade = 1;
       }
       return;
+    }
+    if (k.kind === 'item' && k.itemId) {
+      const it = item(k.itemId);
+      // с рукой-оружием ручное оружие не берётся
+      if (it.kind === 'weapon' && p.weapon.slot === 'armR') {
+        this.fx.ring(k.x, k.y, C.redD, 14, 0.25);
+        return;
+      }
+      // рюкзак полон — окно выбора (что выбросить)
+      if ((it.kind === 'implant' || it.kind === 'skeleton') && p.backpack.length >= p.backpackSize) {
+        if (k.price === undefined || p.coins >= k.price) this.backpackFull = k;
+        else this.fx.ring(k.x, k.y, C.redD, 14, 0.25);
+        return;
+      }
     }
     if (k.price !== undefined) {
       if (p.coins < k.price) {
@@ -548,19 +595,21 @@ export class Game {
     }
   }
 
-  /** Получить предмет. Оружие и активный имплант заменяют текущие (старые остаются на полу) */
+  /**
+   * Получить предмет. Оружие заменяет текущее (старое остаётся на полу); модули и скелеты
+   * кладутся в рюкзак (ставятся только в операционной); рюкзак побольше и прошивки — сразу
+   */
   acquire(it: ItemDef, x: number, y: number) {
     const p = this.player;
     if (it.kind === 'weapon') {
       const old = p.weapon;
       p.weapon = it;
+      p.charge = 0;
       this.pickups.push(makePickup('item', x, y, { itemId: old.id, t: -0.5 }));
-    } else if (it.kind === 'implant') {
-      if (it.active) {
-        if (p.activeId) this.pickups.push(makePickup('item', x, y, { itemId: p.activeId, t: -0.5 }));
-        p.activeId = it.id;
-        p.activeCd = 0;
-      } else p.implants.push(it.id);
+    } else if (it.kind === 'implant' || it.kind === 'skeleton') {
+      p.backpack.push(it.id);
+    } else if (it.kind === 'backpack') {
+      p.backpackSize = Math.max(p.backpackSize, it.capacity ?? 3);
     } else {
       p.passives.set(it.id, (p.passives.get(it.id) ?? 0) + 1);
     }
@@ -616,14 +665,15 @@ export class Game {
   }
 
   /** Попадание по тайлу: ящики разрушаются */
-  hitTile(x: number, y: number, dmg: number) {
+  /** Удар по тайлу: ящик теряет прочность. true — ящик разбит */
+  hitTile(x: number, y: number, dmg: number): boolean {
     const tx = Math.floor(x / TILE), ty = Math.floor(y / TILE);
-    if (this.room.get(tx, ty) !== T.Crate) return;
+    if (this.room.get(tx, ty) !== T.Crate) return false;
     const i = ty * this.room.tw + tx;
     const hp = (this.room.crateHp.get(i) ?? 10) - dmg;
     if (hp > 0) {
       this.room.crateHp.set(i, hp);
-      return;
+      return false;
     }
     this.room.crateHp.delete(i);
     this.room.set(tx, ty, T.Floor);
@@ -633,6 +683,7 @@ export class Game {
     this.flow = new FlowField(this.room);
     this.flow.update(this.player.x, this.player.y);
     if (this.rng.chance(0.15)) dropLoot(this, 'coin', (tx + 0.5) * TILE, (ty + 0.5) * TILE, 1);
+    return true;
   }
 
   /** Снаряд исчез (врезался/истёк) — взрывается, если умеет */
@@ -689,6 +740,12 @@ export class Game {
   private onBossDefeated() {
     this.clearBullets(true);
     if (this.lastBoss) this.log(LOG.bossDown(this.lastBoss));
+    // босс открывает новую систему тела
+    const sys = SYSTEM_BY_FLOOR[this.floorNum];
+    if (sys && !this.player.systems.has(sys)) {
+      this.player.systems.add(sys);
+      this.log(LOG.system(SLOT_NAME[sys]));
+    }
     if (this.floorNum >= FLOORS) {
       this.state = 'won';
       this.stateT = 0;
@@ -754,6 +811,19 @@ export class Game {
       if (Math.random() < 0.3) this.fx.add({ kind: 'spark', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, color: C.violet, life: 0.2, glow: true });
     }
     if (any) this.ebullets = this.ebullets.filter((b) => !b.dead);
+  }
+
+  private updateBarriers(dt: number) {
+    if (!this.barriers.length) return;
+    for (const w of this.barriers) {
+      w.t -= dt;
+      for (const b of this.ebullets) if (!b.dead && distToSegment(b.x, b.y, w.x1, w.y1, w.x2, w.y2) < b.r + 2) {
+        b.dead = true;
+        this.fx.add({ kind: 'dot', x: b.x, y: b.y, color: C.amber, life: 0.2, glow: true });
+      }
+    }
+    this.ebullets = this.ebullets.filter((b) => !b.dead);
+    this.barriers = this.barriers.filter((w) => w.t > 0);
   }
 
   /** Толчок рабочим манипулятором (E): слабый удар вплотную, сильно отбрасывает */

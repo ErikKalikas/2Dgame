@@ -18,7 +18,7 @@ describe('генерация этажа', () => {
     expect(roomTarget(8, new RNG(1))).toBe(20);
   });
 
-  for (let floor = 1; floor <= 8; floor++) {
+  for (let floor = 1; floor <= 9; floor++) {
     it(`этаж ${floor}: особые комнаты на месте и всё связно (100 seed)`, () => {
       for (let s = 0; s < 100; s++) {
         const plan = generateFloor(floor, new RNG(`t${floor}-${s}`));
@@ -27,9 +27,10 @@ describe('генерация этажа', () => {
         expect(types.filter((t) => t === 'boss')).toHaveLength(1);
         expect(types.filter((t) => t === 'treasure')).toHaveLength(1);
         expect(types.filter((t) => t === 'shop')).toHaveLength(1);
+        expect(types.filter((t) => t === 'surgery')).toHaveLength(1);
         // особые комнаты — тупики размером 1×1
         for (const r of plan.rooms) {
-          if (r.type === 'boss' || r.type === 'treasure' || r.type === 'shop') {
+          if (r.type === 'boss' || r.type === 'treasure' || r.type === 'shop' || r.type === 'surgery') {
             expect(r.w * r.h).toBe(1);
             expect(r.doors).toHaveLength(1);
           }

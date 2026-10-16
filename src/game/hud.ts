@@ -5,23 +5,30 @@ import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import { SPR } from '../gfx/sprites';
 import { xpNeed, type Game } from './game';
-import { item, type ItemDef } from './items';
+import { HACK_TIME } from './game';
+import { SLOT_NAME, item, type ItemDef } from './items';
 import { qualityColor } from './render';
 
-const KIND_LABEL = {
-  weapon: { ru: 'оружие', en: 'weapon' },
-  weapon2: { ru: 'двуручное оружие', en: 'two-handed weapon' },
-  implant: { ru: 'имплант', en: 'implant' },
-  passive: { ru: 'модификация', en: 'modification' },
-};
-
 export function kindLabel(it: ItemDef): string {
-  if (it.kind === 'implant' && it.active) return tr({ ru: 'активный имплант [Q]', en: 'active implant [Q]' });
-  if (it.weapon?.hands === 2) return tr(KIND_LABEL.weapon2);
-  return tr(KIND_LABEL[it.kind]);
+  switch (it.kind) {
+    case 'weapon':
+      return tr(it.weapon?.hands === 2 ? { ru: 'двуручное оружие', en: 'two-handed weapon' } : { ru: 'оружие', en: 'weapon' });
+    case 'passive':
+      return tr({ ru: 'прошивка', en: 'firmware' });
+    case 'skeleton':
+      return tr({ ru: `скелет · класс ${it.skeletonClass}`, en: `frame · class ${it.skeletonClass}` });
+    case 'backpack':
+      return tr({ ru: 'рюкзак', en: 'backpack' });
+    default: {
+      const slot = it.slot ? tr(SLOT_NAME[it.slot]).toLowerCase() : '';
+      if (it.weapon) return tr({ ru: `рука-оружие · ${slot}`, en: `arm weapon · ${slot}` });
+      const key = it.active ? ' [Q]' : it.leftHand ? ' [E]' : '';
+      return tr({ ru: `модуль · ${slot}`, en: `module · ${slot}` }) + key;
+    }
+  }
 }
 
-/** HUD сверху: жизни, сбой, кредиты, ключи, уровень и опыт */
+/** HUD сверху: жизни, сбой, энергоячейки, рюкзак, уровень и опыт */
 export function renderHud(g: Game, r: Renderer) {
   const p = g.player;
   r.rect(0, 0, VIEW_W, 17, C.void, 0.75);
@@ -47,9 +54,10 @@ export function renderHud(g: Game, r: Renderer) {
   r.sprite(SPR.coinIcon, x, 4);
   r.text(String(p.coins), x + 7, 4, { size: 6, color: C.yellow });
   x += 30;
-  r.sprite(SPR.keyIcon, x, 5);
-  r.text(String(p.keys), x + 11, 4, { size: 6, color: C.bone });
-  x += 26;
+  // рюкзак: занято / мест
+  r.sprite(SPR.packIcon, x, 4);
+  r.text(`${p.backpack.length}/${p.backpackSize}`, x + 9, 4, { size: 6, color: p.backpack.length >= p.backpackSize ? C.red : C.bone });
+  x += 34;
 
   // уровень и опыт
   r.text(`${tr(S.level)} ${p.level}`, x, 4, { size: 6, color: C.red });
@@ -64,6 +72,7 @@ export function renderHud(g: Game, r: Renderer) {
   renderLoadout(g, r);
   renderBossBar(g, r);
   renderLog(g, r);
+  renderHack(g, r);
   renderPrices(g, r);
   renderTooltip(g, r);
 
@@ -94,7 +103,7 @@ function renderMinimap(g: Game, r: Renderer) {
     const cur = room.id === g.room.info.id;
     const col = cur ? C.bone : room.visited ? C.steel : C.metal;
     r.rect(x, y, room.w * cw - 1, room.h * ch - 1, col);
-    const mark = room.type === 'boss' ? C.red : room.type === 'treasure' ? C.yellow : room.type === 'shop' ? C.amber : null;
+    const mark = room.type === 'boss' ? C.red : room.type === 'treasure' ? C.yellow : room.type === 'shop' ? C.amber : room.type === 'surgery' ? C.violet : null;
     if (mark) r.rect(x + Math.floor((room.w * cw) / 2) - 1, y + Math.floor((room.h * ch) / 2) - 1, 2, 2, mark);
   }
 
@@ -117,8 +126,26 @@ function renderLoadout(g: Game, r: Renderer) {
     }
     r.text('Q', 39, y + 11, { size: 5, color: C.steelL, align: 'right' });
   }
-  // левая рука [E]: толчок манипулятором; у двуручного оружия недоступна
-  r.text(p.twoHanded ? 'E×' : 'E', 20, y + 11, { size: 5, color: p.twoHanded ? C.redD : p.shoveCd > 0 ? C.metal : C.steelL, align: 'right' });
+  // левая рука [E]: модуль руки или толчок манипулятором; у двуручного оружия недоступна
+  const lm = p.leftModule;
+  if (lm) {
+    const lx = p.activeId ? 43 : 23;
+    r.rect(lx, y - 1, 18, 18, C.void, 0.7);
+    r.frame(lx, y - 1, 18, 18, p.twoHanded ? C.redD : p.shoveCd > 0 ? C.metal : C.steelL);
+    r.sprite(icon(lm.icon), lx + 3, y + 2, 1, p.twoHanded || p.shoveCd > 0 ? 0.4 : 1);
+    r.text(p.twoHanded ? 'E×' : 'E', lx + 16, y + 11, { size: 5, color: p.twoHanded ? C.redD : C.steelL, align: 'right' });
+  } else r.text(p.twoHanded ? 'E×' : 'E', 20, y + 11, { size: 5, color: p.twoHanded ? C.redD : p.shoveCd > 0 ? C.metal : C.steelL, align: 'right' });
+}
+
+/** Взлом запертой двери: подсказка и полоса удержания R */
+function renderHack(g: Game, r: Renderer) {
+  const d = g.hackDoor;
+  if (!d || g.state !== 'play') return;
+  const x = VIEW_W / 2, y = VIEW_H - 52;
+  r.text(tr({ ru: '[R держать] взлом', en: '[R hold] hack' }), x, y, { size: 5, color: C.yellow, align: 'center' });
+  const w = 60;
+  r.rect(x - w / 2, y + 8, w, 3, C.black);
+  r.rect(x - w / 2, y + 8, Math.round((w * g.hackT) / HACK_TIME), 3, C.yellow);
 }
 
 /** Лог Диспетчера: 1–2 строки терминала над снаряжением, гаснут через несколько секунд */
@@ -177,9 +204,9 @@ function renderTooltip(g: Game, r: Renderer) {
   } else if (k.kind === 'medkit') {
     title = tr({ ru: 'Аптечка', en: 'Medkit' });
     desc = tr({ ru: '+1 жизнь', en: '+1 life' });
-  } else if (k.kind === 'key') {
-    title = tr({ ru: 'Ключ-карта', en: 'Keycard' });
-    desc = tr({ ru: 'Открывает запертую дверь', en: 'Opens a locked door' });
+  } else if (k.kind === 'surgery') {
+    title = tr({ ru: 'Операционная', en: 'Surgery' });
+    desc = tr({ ru: 'Кресло и робот-хирург: поставить, снять и поменять модули из рюкзака.', en: 'A chair and a robot surgeon: install, remove and swap modules from your backpack.' });
   } else if (k.kind === 'glitch') {
     title = tr({ ru: 'Ячейка сбоя', en: 'Glitch cell' });
     desc = tr({ ru: '+30% заряда сбоя', en: '+30% glitch charge' });
@@ -194,6 +221,8 @@ function renderTooltip(g: Game, r: Renderer) {
   lines.forEach((l, i) => r.text(l, x + 6, y + 16 + i * 8, { size: 5, color: C.grey }));
   let prompt: string;
   if (k.kind === 'teleporter') prompt = tr(S.pressRTeleport);
+  else if (k.kind === 'surgery') prompt = tr({ ru: '[R] операция', en: '[R] operate' });
+  else if (k.kind === 'item' && k.itemId && item(k.itemId).kind === 'weapon' && g.player.weapon.slot === 'armR') prompt = tr({ ru: 'рука-оружие: не взять', en: 'arm weapon: cannot hold' });
   else if (k.price !== undefined) prompt = g.player.coins >= k.price ? `${tr(S.pressRBuy)} · ${k.price}` : `${tr(S.notEnough)} · ${k.price}`;
   else prompt = tr(S.pressR);
   r.text(prompt, x + w - 6, y + h - 9, { size: 5, color: C.yellow, align: 'right' });

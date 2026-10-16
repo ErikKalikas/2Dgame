@@ -91,6 +91,30 @@ export function renderGame(g: Game, r: Renderer) {
     ctx.globalAlpha = 1;
   }
   renderPBullets(g, ctx, cx, cy);
+  // сварочные стенки (левая рука)
+  for (const w of g.barriers) {
+    ctx.strokeStyle = Math.floor(g.time * 20) % 2 ? C.amber : C.yellow;
+    ctx.globalAlpha = Math.min(1, w.t * 2);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(w.x1 - cx, w.y1 - cy);
+    ctx.lineTo(w.x2 - cx, w.y2 - cy);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+  }
+  // поднятый щит левой руки
+  if (g.player.shieldUp > 0) {
+    const p = g.player, a = p.aimAngle;
+    ctx.strokeStyle = C.amber;
+    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(p.x - cx, p.y - 3 - cy, 14, a - 1.1, a + 1.1);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 1;
+  }
   ctx.globalCompositeOperation = 'lighter';
   g.fx.render(ctx, cx, cy, true);
   ctx.globalCompositeOperation = 'source-over';
@@ -246,7 +270,7 @@ function renderDoor(g: Game, ctx: CanvasRenderingContext2D, d: RoomMap['doors'][
   const x = d.tx * TILE - cx, y = d.ty * TILE - cy;
   const w = horiz ? TILE * 2 : TILE, h = horiz ? TILE : TILE * 2;
   const target = g.plan.rooms[d.to];
-  const accent = target.type === 'boss' ? C.red : target.type === 'treasure' ? C.yellow : target.type === 'shop' ? C.amber : g.theme.wallTop;
+  const accent = target.type === 'boss' ? C.red : target.type === 'treasure' ? C.yellow : target.type === 'shop' ? C.amber : target.type === 'surgery' ? C.violet : g.theme.wallTop;
   const closed = d.locked || g.locked;
   // рамка
   ctx.fillStyle = accent;
@@ -312,6 +336,12 @@ function renderPickups(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: n
         ctx.drawImage(fr, x - 12, y - 8);
         break;
       }
+      case 'surgery': {
+        const s = SPR.surgery[Math.floor(g.time * 3) % 2];
+        ctx.drawImage(sh, x - 10, y + 14, 20, 4);
+        ctx.drawImage(s, x - Math.floor(s.width / 2), y - s.height + 18);
+        break;
+      }
       case 'coin': {
         ctx.drawImage(sh, x - 3, y + 1, 6, 2);
         const fr = SPR.coin[Math.floor(k.t * 8) % 4];
@@ -319,7 +349,7 @@ function renderPickups(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: n
         break;
       }
       default: {
-        const s = k.kind === 'medkit' ? SPR.medkit : k.kind === 'key' ? SPR.key : SPR.glitchCell;
+        const s = k.kind === 'medkit' ? SPR.medkit : SPR.glitchCell;
         ctx.drawImage(sh, x - 5, y + 2);
         ctx.drawImage(s, x - Math.floor(s.width / 2), y - s.height + 3 + bob);
       }

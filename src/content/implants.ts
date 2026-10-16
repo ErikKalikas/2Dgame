@@ -1,5 +1,6 @@
 import { TAU, dist2 } from '../core/math';
 import { C } from '../gfx/palette';
+import { SHOCK_PALM } from './body';
 import { chainLightning, damageEnemy, explode, fan, spawnShot } from '../game/combat';
 import type { PBullet } from '../game/bullets';
 import { boltPoints } from '../game/fx';
@@ -61,7 +62,7 @@ let turret: { x: number; y: number; t: number; cd: number } | null = null;
 export const IMPLANTS: ItemDef[] = [
   // ================================================================ исходные
   {
-    id: 'smartlink', kind: 'implant', quality: 2, tags: ['smart', 'neural'],
+    id: 'smartlink', kind: 'implant', slot: 'head', quality: 2, tags: ['smart', 'neural'],
     name: { ru: 'Прицельный контур', en: 'Targeting Loop' },
     desc: { ru: 'Снаряды доворачивают к ближайшему врагу.', en: 'Shots curve toward the nearest enemy.' },
     icon: { shape: 'crosshair', color: C.steel, accent: C.red },
@@ -70,7 +71,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'reflexBooster', kind: 'implant', quality: 1, tags: ['neural'],
+    id: 'reflexBooster', kind: 'implant', slot: 'nervous', quality: 1, tags: ['neural'],
     name: { ru: 'Рефлекс-бустер', en: 'Reflex Booster' },
     desc: { ru: 'Скорострельность +25%.', en: 'Fire rate +25%.' },
     icon: { shape: 'brain', color: C.redD, accent: C.yellow },
@@ -79,7 +80,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'subdermal', kind: 'implant', quality: 2, tags: ['heavy'],
+    id: 'subdermal', kind: 'implant', slot: 'torso', quality: 2, tags: ['heavy'],
     name: { ru: 'Субдермальная броня', en: 'Subdermal Armor' },
     desc: { ru: '+1 к максимуму жизней.', en: '+1 max life.' },
     icon: { shape: 'shield', color: C.steel, accent: C.amber },
@@ -88,7 +89,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'twinBarrel', kind: 'implant', quality: 2, tags: ['kinetic'],
+    id: 'twinBarrel', kind: 'implant', slot: 'back', quality: 2, tags: ['kinetic'],
     name: { ru: 'Сдвоенный канал', en: 'Twin Channel' },
     desc: { ru: '+1 снаряд за выстрел, урон каждого −15%.', en: '+1 projectile per shot, each deals −15% damage.' },
     icon: { shape: 'arm', color: C.steelL, accent: C.red },
@@ -98,7 +99,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'sandevistan', kind: 'implant', quality: 3, tags: ['neural', 'stealth'],
+    id: 'sandevistan', kind: 'implant', slot: 'nervous', quality: 3, tags: ['neural', 'stealth'],
     name: { ru: 'Хроно-ускоритель', en: 'Chrono Accelerator' },
     desc: { ru: '[Q] Замедляет время вокруг на 3 секунды. Перезарядка 18 с.', en: '[Q] Slows time around you for 3 seconds. Cooldown 18 s.' },
     icon: { shape: 'spine', color: C.amber, accent: C.violet },
@@ -113,7 +114,7 @@ export const IMPLANTS: ItemDef[] = [
 
   // ================================================================ качество 1
   {
-    id: 'iFalconOptics', kind: 'implant', quality: 1, tags: ['optic'],
+    id: 'iFalconOptics', kind: 'implant', slot: 'head', quality: 1, tags: ['optic'],
     name: { ru: 'Оптика «Сокол»', en: 'Falcon Optics' },
     desc: { ru: 'Дальность +35%, скорость снарядов +15%.', en: 'Range +35%, shot speed +15%.' },
     icon: { shape: 'eye', color: C.steelL, accent: C.amber },
@@ -123,7 +124,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iHelixRifling', kind: 'implant', quality: 1, tags: ['kinetic'],
+    id: 'iHelixRifling', kind: 'passive', maxStacks: 1, quality: 1, tags: ['kinetic'],
     name: { ru: 'Спиральная нарезка', en: 'Helix Rifling' },
     desc: { ru: 'Снаряды летят по закручивающейся дуге и пробивают +1 врага.', en: 'Shots fly in a curling arc and pierce +1 enemy.' },
     icon: { shape: 'coil', color: C.steel, accent: C.yellow },
@@ -133,7 +134,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iServoAnkles', kind: 'implant', quality: 1, tags: ['kinetic'],
+    id: 'iServoAnkles', kind: 'implant', slot: 'legs', quality: 1, tags: ['kinetic'],
     name: { ru: 'Сервоприводы голеностопа', en: 'Servo Ankles' },
     desc: { ru: 'Скорость +15%, перезарядка рывка −20%.', en: 'Speed +15%, dash cooldown −20%.' },
     icon: { shape: 'leg', color: C.steel, accent: C.amber },
@@ -144,7 +145,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iRearCam', kind: 'implant', quality: 1, tags: ['optic'],
+    id: 'iRearCam', kind: 'implant', slot: 'head', quality: 1, tags: ['optic'],
     name: { ru: 'Затылочная камера', en: 'Rear Camera' },
     desc: { ru: 'Каждый залп дублируется назад.', en: 'Every volley is also fired backwards.' },
     icon: { shape: 'eye', color: C.redD, accent: C.bone },
@@ -153,7 +154,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iPainEditor', kind: 'implant', quality: 1, tags: ['neural'],
+    id: 'iPainEditor', kind: 'implant', slot: 'nervous', quality: 1, tags: ['neural'],
     name: { ru: 'Редактор боли', en: 'Pain Editor' },
     desc: { ru: 'Потеряв жизнь, выпускаете кольцо из 12 снарядов с уроном ×1.5.', en: 'Losing a life releases a ring of 12 shots dealing ×1.5 damage.' },
     icon: { shape: 'brain', color: C.steel, accent: C.red },
@@ -164,9 +165,9 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iCreditSniffer', kind: 'implant', quality: 1, tags: ['smart'],
-    name: { ru: 'Кредитный сниффер', en: 'Credit Sniffer' },
-    desc: { ru: 'Притяжение монет +70. За каждую зачищенную комнату +2 кредита.', en: 'Coin magnet +70. +2 credits for each cleared room.' },
+    id: 'iCreditSniffer', kind: 'implant', slot: 'tentacles', quality: 1, tags: ['smart'],
+    name: { ru: 'Сниффер ячеек', en: 'Cell Sniffer' },
+    desc: { ru: 'Притяжение энергоячеек +70. За каждую зачищенную комнату +2 ячейки.', en: 'Cell magnet +70. +2 cells for each cleared room.' },
     icon: { shape: 'chip', color: C.amberD, accent: C.yellow },
     stats: (s) => {
       s.magnet += 70;
@@ -179,7 +180,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iThermalOptics', kind: 'implant', quality: 1, tags: ['optic', 'fire'],
+    id: 'iThermalOptics', kind: 'implant', slot: 'head', quality: 1, tags: ['optic', 'fire'],
     name: { ru: 'Тепловизор', en: 'Thermal Optics' },
     desc: { ru: 'Попадания поджигают врагов: 2 урона в секунду.', en: 'Hits ignite enemies for 2 damage per second.' },
     icon: { shape: 'eye', color: C.amber, accent: C.red },
@@ -188,17 +189,14 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iShockPalm', kind: 'implant', quality: 1, tags: ['electric'],
+    id: 'iShockPalm', kind: 'implant', slot: 'armL', quality: 1, tags: ['electric'],
     name: { ru: 'Шокер в ладони', en: 'Shock Palm' },
-    desc: { ru: 'Шанс оглушить врага попаданием +15%.', en: '+15% chance to stun an enemy on hit.' },
+    desc: { ru: '[E] Разряд из ладони: оглушает врагов вплотную на 1 с.', en: '[E] Palm discharge: stuns enemies up close for 1 s.' },
     icon: { shape: 'arm', color: C.steel, accent: C.yellow },
-    stats: (s) => {
-      s.shock += 0.15;
-      s.knockback += 10;
-    },
+    leftHand: SHOCK_PALM,
   },
   {
-    id: 'iDermalWeave', kind: 'implant', quality: 1, tags: ['heavy'],
+    id: 'iDermalWeave', kind: 'implant', slot: 'torso', quality: 1, tags: ['heavy'],
     name: { ru: 'Кевларовое плетение', en: 'Dermal Weave' },
     desc: { ru: 'Щит поглощает 1 попадание в каждой комнате. Скорость −7%.', en: 'A shield absorbs 1 hit in each room. Speed −7%.' },
     icon: { shape: 'shield', color: C.metal, accent: C.bone },
@@ -208,7 +206,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iAdrenalPump', kind: 'implant', quality: 1, tags: ['mutation', 'neural'],
+    id: 'iAdrenalPump', kind: 'implant', slot: 'blood', quality: 1, tags: ['mutation', 'neural'],
     name: { ru: 'Адреналиновый насос', en: 'Adrenal Pump' },
     desc: { ru: 'Потеряв жизнь, замедляете время на 2.5 с и сразу восстанавливаете рывок.', en: 'Losing a life slows time for 2.5 s and instantly restores your dash.' },
     icon: { shape: 'heart', color: C.redD, accent: C.amber },
@@ -220,7 +218,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iSpinalDischarger', kind: 'implant', quality: 1, tags: ['electric'],
+    id: 'iSpinalDischarger', kind: 'implant', slot: 'back', quality: 1, tags: ['electric'],
     name: { ru: 'Спинальный разрядник', en: 'Spinal Discharger' },
     desc: { ru: 'Рывок бьёт разрядом всех врагов в радиусе 42: урон ×1.5 и оглушение.', en: 'Dashing zaps all enemies within 42 px for ×1.5 damage and stuns them.' },
     icon: { shape: 'spine', color: C.steel, accent: C.yellow },
@@ -238,7 +236,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iBallisticCalc', kind: 'implant', quality: 1, tags: ['smart', 'kinetic'],
+    id: 'iBallisticCalc', kind: 'implant', slot: 'head', quality: 1, tags: ['smart', 'kinetic'],
     name: { ru: 'Баллистический вычислитель', en: 'Ballistic Calculator' },
     desc: { ru: 'Снаряды рикошетят от стен 1 раз. Дальность +15%.', en: 'Shots ricochet off walls once. Range +15%.' },
     icon: { shape: 'crosshair', color: C.steelL, accent: C.amber },
@@ -248,7 +246,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iBoneLacing', kind: 'implant', quality: 1, tags: ['heavy', 'mutation'],
+    id: 'iBoneLacing', kind: 'implant', slot: 'torso', quality: 1, tags: ['heavy', 'mutation'],
     name: { ru: 'Армирование костей', en: 'Bone Lacing' },
     desc: { ru: '+1 к максимуму жизней, но хитбокс больше на 25%.', en: '+1 max life, but your hitbox is 25% larger.' },
     icon: { shape: 'skull', color: C.bone, accent: C.steel },
@@ -258,7 +256,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iFlashEmitter', kind: 'implant', quality: 1, tags: ['optic', 'electric'],
+    id: 'iFlashEmitter', kind: 'implant', slot: 'head', quality: 1, tags: ['optic', 'electric'],
     name: { ru: 'Ослепляющий излучатель', en: 'Flash Emitter' },
     desc: { ru: '[Q] Вспышка оглушает врагов в радиусе 100 на 1.2 с (боссов — замедляет). Перезарядка 12 с.', en: '[Q] A flash stuns enemies within 100 px for 1.2 s (slows bosses). Cooldown 12 s.' },
     icon: { shape: 'eye', color: C.bone, accent: C.yellow },
@@ -280,9 +278,9 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iMagPulse', kind: 'implant', quality: 1, tags: ['electric', 'kinetic'],
+    id: 'iMagPulse', kind: 'implant', slot: 'legs', quality: 1, tags: ['electric', 'kinetic'],
     name: { ru: 'Магнитный импульс', en: 'Mag Pulse' },
-    desc: { ru: '[Q] Отбрасывает врагов в радиусе 80 и притягивает все монеты и ключи комнаты. Перезарядка 10 с.', en: '[Q] Knocks back enemies within 80 px and pulls in every coin and key in the room. Cooldown 10 s.' },
+    desc: { ru: '[Q] Отбрасывает врагов в радиусе 80 и притягивает все энергоячейки комнаты. Перезарядка 10 с.', en: '[Q] Knocks back enemies within 80 px and pulls in every coin and key in the room. Cooldown 10 s.' },
     icon: { shape: 'coil', color: C.redD, accent: C.steelL },
     active: {
       cooldown: 10,
@@ -296,7 +294,7 @@ export const IMPLANTS: ItemDef[] = [
           e.ky += Math.sin(a) * 220;
         }
         for (const k of g.pickups) {
-          if (k.dead || k.price !== undefined || (k.kind !== 'coin' && k.kind !== 'key')) continue;
+          if (k.dead || k.price !== undefined || k.kind !== 'coin') continue;
           k.x = p.x;
           k.y = p.y;
           k.vx = k.vy = 0;
@@ -307,7 +305,7 @@ export const IMPLANTS: ItemDef[] = [
 
   // ================================================================ качество 2
   {
-    id: 'iShoulderMounts', kind: 'implant', quality: 2, tags: ['kinetic', 'smart'],
+    id: 'iShoulderMounts', kind: 'implant', slot: 'back', quality: 2, tags: ['kinetic', 'smart'],
     name: { ru: 'Плечевые турели', en: 'Shoulder Mounts' },
     desc: { ru: 'Каждый залп также летит в обе стороны. Урон −15%.', en: 'Every volley also fires to both sides. Damage −15%.' },
     icon: { shape: 'arm', color: C.metal, accent: C.amber },
@@ -317,7 +315,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iMantisBlades', kind: 'implant', quality: 2, tags: ['blade'],
+    id: 'iMantisBlades', kind: 'implant', slot: 'tentacles', quality: 2, tags: ['blade'],
     name: { ru: 'Выкидные клинки', en: 'Switch Blades' },
     desc: { ru: 'Выдвижные клинки 4 раза в секунду режут врагов вплотную (радиус 24) на 80% урона.', en: 'Retractable blades slash adjacent enemies (24 px) 4 times per second for 80% damage.' },
     icon: { shape: 'claw', color: C.steelL, accent: C.red },
@@ -338,7 +336,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iOrbitalGuard', kind: 'implant', quality: 2, tags: ['kinetic'],
+    id: 'iOrbitalGuard', kind: 'passive', maxStacks: 1, quality: 2, tags: ['kinetic'],
     name: { ru: 'Орбитальный контур', en: 'Orbital Guard' },
     desc: { ru: 'Снаряды кружат вокруг вас по расширяющейся орбите. Дальность +60%, пробивание +1.', en: 'Shots circle around you in a widening orbit. Range +60%, pierce +1.' },
     icon: { shape: 'disc', color: C.steel, accent: C.amber },
@@ -349,7 +347,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iReturnServo', kind: 'implant', quality: 2, tags: ['blade', 'kinetic'],
+    id: 'iReturnServo', kind: 'passive', maxStacks: 1, quality: 2, tags: ['blade', 'kinetic'],
     name: { ru: 'Возвратный магнит', en: 'Return Servo' },
     desc: { ru: 'Снаряды возвращаются к вам, как бумеранг, и пробивают +1 врага.', en: 'Shots return to you like a boomerang and pierce +1 enemy.' },
     icon: { shape: 'gear', color: C.steelL, accent: C.red },
@@ -359,7 +357,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iPhaseRounds', kind: 'implant', quality: 2, tags: ['stealth', 'optic'],
+    id: 'iPhaseRounds', kind: 'passive', maxStacks: 1, quality: 2, tags: ['stealth', 'optic'],
     name: { ru: 'Фазовые пули', en: 'Phase Rounds' },
     desc: { ru: 'Снаряды проходят сквозь стены и укрытия. Скорость снарядов +10%.', en: 'Shots pass through walls and cover. Shot speed +10%.' },
     icon: { shape: 'mask', color: C.grey, accent: C.violet },
@@ -369,7 +367,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iWingmanDrone', kind: 'implant', quality: 2, tags: ['smart'],
+    id: 'iWingmanDrone', kind: 'implant', slot: 'back', quality: 2, tags: ['smart'],
     name: { ru: 'Дрон-напарник', en: 'Wingman Drone' },
     desc: { ru: '+1 боевой дрон: кружит рядом и стреляет по ближайшему врагу.', en: '+1 combat drone that circles you and shoots the nearest enemy.' },
     icon: { shape: 'drone', color: C.steel, accent: C.amber },
@@ -378,7 +376,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iFragCasing', kind: 'implant', quality: 2, tags: ['explosive'],
+    id: 'iFragCasing', kind: 'implant', slot: 'torso', quality: 2, tags: ['explosive'],
     name: { ru: 'Осколочный корпус', en: 'Frag Casing' },
     desc: { ru: 'Убитые враги разлетаются 6 осколками с уроном 50%.', en: 'Killed enemies burst into 6 shards dealing 50% damage.' },
     icon: { shape: 'bomb', color: C.metal, accent: C.amber },
@@ -392,7 +390,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iNanoSwarm', kind: 'implant', quality: 2, tags: ['nano'],
+    id: 'iNanoSwarm', kind: 'implant', slot: 'blood', quality: 2, tags: ['nano'],
     name: { ru: 'Нанорой', en: 'Nano Swarm' },
     desc: { ru: 'Облако нанитов дважды в секунду грызёт врагов в радиусе 48 на 50% урона.', en: 'A nanite cloud chews enemies within 48 px twice per second for 50% damage.' },
     icon: { shape: 'dna', color: C.steelL, accent: C.violet },
@@ -412,8 +410,8 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iDaemonUplink', kind: 'implant', quality: 2, tags: ['neural', 'smart'],
-    name: { ru: 'Аплинк демона', en: 'Daemon Uplink' },
+    id: 'iDaemonUplink', kind: 'implant', slot: 'head', quality: 2, tags: ['neural', 'smart'],
+    name: { ru: 'Перехват поводка', en: 'Leash Hijack' },
     desc: { ru: 'Попадания взламывают врага: 4 с он получает +25% урона.', en: 'Hits hack the enemy: it takes +25% damage for 4 s.' },
     icon: { shape: 'chip', color: C.metal, accent: C.violet },
     stats: (s) => {
@@ -421,7 +419,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iKineticDampers', kind: 'implant', quality: 2, tags: ['neural', 'kinetic'],
+    id: 'iKineticDampers', kind: 'implant', slot: 'torso', quality: 2, tags: ['neural', 'kinetic'],
     name: { ru: 'Кинетические демпферы', en: 'Kinetic Dampers' },
     desc: { ru: '12% шанс полностью избежать попадания. Отбрасывание врагов +30.', en: '12% chance to fully evade a hit. Enemy knockback +30.' },
     icon: { shape: 'leg', color: C.metal, accent: C.bone },
@@ -431,7 +429,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iNapalmDropper', kind: 'implant', quality: 2, tags: ['explosive', 'fire'],
+    id: 'iNapalmDropper', kind: 'implant', slot: 'legs', quality: 2, tags: ['explosive', 'fire'],
     name: { ru: 'Напалмовый сброс', en: 'Napalm Dropper' },
     desc: { ru: 'Рывок оставляет мину: через 0.7 с взрыв (радиус 30, урон ×3) поджигает врагов.', en: 'Dashing drops a mine that blows up after 0.7 s (30 px, ×3 damage) and ignites enemies.' },
     icon: { shape: 'fire', color: C.redD, accent: C.amber },
@@ -461,7 +459,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iAfterimage', kind: 'implant', quality: 2, tags: ['stealth', 'neural'],
+    id: 'iAfterimage', kind: 'implant', slot: 'legs', quality: 2, tags: ['stealth', 'neural'],
     name: { ru: 'Остаточный образ', en: 'Afterimage' },
     desc: { ru: 'Рывок выпускает с места старта кольцо из 8 снарядов с уроном 80%.', en: 'Dashing fires a ring of 8 shots from your starting point for 80% damage.' },
     icon: { shape: 'cloak', color: C.steel, accent: C.violet },
@@ -472,7 +470,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iCapacitorArm', kind: 'implant', quality: 2, tags: ['electric', 'heavy'],
+    id: 'iCapacitorArm', kind: 'implant', slot: 'reactor', quality: 2, tags: ['electric', 'heavy'],
     name: { ru: 'Конденсаторная рука', en: 'Capacitor Arm' },
     desc: { ru: 'Каждый 6-й выстрел добавляет крупный разряд: урон ×3, размер ×2.2, пробивает +3.', en: 'Every 6th shot adds a large charge: ×3 damage, ×2.2 size, pierces +3.' },
     icon: { shape: 'battery', color: C.steel, accent: C.yellow },
@@ -488,7 +486,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iChainRelay', kind: 'implant', quality: 2, tags: ['electric'],
+    id: 'iChainRelay', kind: 'implant', slot: 'reactor', quality: 2, tags: ['electric'],
     name: { ru: 'Цепной ретранслятор', en: 'Chain Relay' },
     desc: { ru: 'Попадание бьёт молнией ещё по 1 врагу рядом. Шанс оглушения +5%.', en: 'Hits arc lightning to 1 more nearby enemy. Stun chance +5%.' },
     icon: { shape: 'lightning', color: C.steelL, accent: C.yellow },
@@ -498,7 +496,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iEmpBurst', kind: 'implant', quality: 2, tags: ['electric'],
+    id: 'iEmpBurst', kind: 'implant', slot: 'torso', quality: 2, tags: ['electric'],
     name: { ru: 'ЭМИ-разрядник', en: 'EMP Burst' },
     desc: { ru: '[Q] Стирает вражеские пули в радиусе 110, наносит врагам там урон ×2 и оглушает их. Перезарядка 15 с.', en: '[Q] Erases enemy bullets within 110 px, deals ×2 damage to enemies there and stuns them. Cooldown 15 s.' },
     icon: { shape: 'lightning', color: C.amber, accent: C.bone },
@@ -519,8 +517,8 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iPingHack', kind: 'implant', quality: 2, tags: ['neural', 'smart'],
-    name: { ru: 'Квикхак «Пинг»', en: 'Ping Quickhack' },
+    id: 'iPingHack', kind: 'implant', slot: 'head', quality: 2, tags: ['neural', 'smart'],
+    name: { ru: 'Сетевой пинг', en: 'Network Ping' },
     desc: { ru: '[Q] Взламывает всех врагов в комнате: 5 с они получают +50% урона и на 0.5 с оглушены. Перезарядка 15 с.', en: '[Q] Hacks every enemy in the room: +50% damage taken for 5 s and stunned for 0.5 s. Cooldown 15 s.' },
     icon: { shape: 'brain', color: C.metal, accent: C.violet },
     active: {
@@ -539,8 +537,8 @@ export const IMPLANTS: ItemDef[] = [
 
   // ================================================================ качество 3
   {
-    id: 'iThermopticCamo', kind: 'implant', quality: 3, tags: ['stealth', 'optic'],
-    name: { ru: 'Термооптический камуфляж', en: 'Thermoptic Camo' },
+    id: 'iThermopticCamo', kind: 'implant', slot: 'torso', quality: 3, tags: ['stealth', 'optic'],
+    name: { ru: 'Маскировочная плёнка', en: 'Masking Film' },
     desc: { ru: '[Q] 2.5 с неуязвимости; пули в радиусе 50 рассеиваются. Перезарядка 24 с.', en: '[Q] 2.5 s of invulnerability; bullets within 50 px dissipate. Cooldown 24 s.' },
     icon: { shape: 'cloak', color: C.grey, accent: C.bone },
     active: {
@@ -555,7 +553,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iOverclockChip', kind: 'implant', quality: 3, tags: ['neural', 'electric'],
+    id: 'iOverclockChip', kind: 'implant', slot: 'reactor', quality: 3, tags: ['neural', 'electric'],
     name: { ru: 'Чип разгона', en: 'Overclock Chip' },
     desc: { ru: '[Q] На 5 с каждый залп выпускается дважды. Перезарядка 20 с.', en: '[Q] For 5 s every volley is fired twice. Cooldown 20 s.' },
     icon: { shape: 'chip', color: C.redD, accent: C.yellow },
@@ -579,7 +577,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iSentryPod', kind: 'implant', quality: 3, tags: ['smart', 'kinetic'],
+    id: 'iSentryPod', kind: 'implant', slot: 'back', quality: 3, tags: ['smart', 'kinetic'],
     name: { ru: 'Развёртываемая турель', en: 'Sentry Pod' },
     desc: { ru: '[Q] Ставит турель на 6 с: 5 выстрелов в секунду по ближайшему врагу, урон 60%. Перезарядка 22 с.', en: '[Q] Deploys a turret for 6 s that fires 5 shots per second at the nearest enemy for 60% damage. Cooldown 22 s.' },
     icon: { shape: 'gear', color: C.steel, accent: C.amber },
@@ -615,8 +613,8 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iMicroMissiles', kind: 'implant', quality: 3, tags: ['explosive', 'smart'],
-    name: { ru: 'Микроракеты в предплечье', en: 'Forearm Micro-Missiles' },
+    id: 'iMicroMissiles', kind: 'implant', slot: 'back', quality: 3, tags: ['explosive', 'smart'],
+    name: { ru: 'Микроракеты в ранце', en: 'Backpack Micro-Missiles' },
     desc: { ru: 'Во время стрельбы раз в секунду запускает 2 самонаводящиеся ракеты (взрыв 20, урон ×1).', en: 'While shooting, launches 2 homing missiles once per second (20 px blast, ×1 damage).' },
     icon: { shape: 'rocket', color: C.steel, accent: C.red },
     hooks: {
@@ -634,7 +632,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iArcCoil', kind: 'implant', quality: 3, tags: ['electric'],
+    id: 'iArcCoil', kind: 'implant', slot: 'reactor', quality: 3, tags: ['electric'],
     name: { ru: 'Дуговая катушка', en: 'Arc Coil' },
     desc: { ru: 'Каждую секунду молния бьёт до 3 ближайших врагов в радиусе 130: урон ×1.2.', en: 'Every second lightning strikes up to 3 nearest enemies within 130 px for ×1.2 damage.' },
     icon: { shape: 'coil', color: C.amber, accent: C.yellow },
@@ -657,7 +655,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iGorillaFists', kind: 'implant', quality: 3, tags: ['heavy', 'kinetic'],
+    id: 'iGorillaFists', kind: 'passive', maxStacks: 1, quality: 3, tags: ['heavy', 'kinetic'],
     name: { ru: 'Гидравлические кулаки', en: 'Hydraulic Fists' },
     desc: { ru: 'Снаряды крупнее в 1.6 раза, урон +40%, сильное отбрасывание. Скорострельность −20%.', en: 'Shots are 1.6× larger, damage +40%, heavy knockback. Fire rate −20%.' },
     icon: { shape: 'arm', color: C.steelL, accent: C.amber },
@@ -670,7 +668,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iNaniteVeil', kind: 'implant', quality: 3, tags: ['nano', 'stealth'],
+    id: 'iNaniteVeil', kind: 'implant', slot: 'blood', quality: 3, tags: ['nano', 'stealth'],
     name: { ru: 'Нанитовая завеса', en: 'Nanite Veil' },
     desc: { ru: 'Наниты каждые 0.4 с растворяют одну вражескую пулю в радиусе 28.', en: 'Nanites dissolve one enemy bullet within 28 px every 0.4 s.' },
     icon: { shape: 'mutation', color: C.grey, accent: C.violet },
@@ -683,7 +681,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iReactiveArmor', kind: 'implant', quality: 3, tags: ['heavy', 'explosive'],
+    id: 'iReactiveArmor', kind: 'implant', slot: 'torso', quality: 3, tags: ['heavy', 'explosive'],
     name: { ru: 'Реактивная броня', en: 'Reactive Armor' },
     desc: { ru: 'Щит на 1 попадание в каждой комнате. Потеряв жизнь, взрываетесь (радиус 70, урон ×4).', en: 'A shield absorbs 1 hit in each room. Losing a life makes you explode (70 px, ×4 damage).' },
     icon: { shape: 'shield', color: C.redD, accent: C.amber },
@@ -697,7 +695,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iHiveLink', kind: 'implant', quality: 3, tags: ['smart', 'nano'],
+    id: 'iHiveLink', kind: 'implant', slot: 'back', quality: 3, tags: ['smart', 'nano'],
     name: { ru: 'Улей-линк', en: 'Hive Link' },
     desc: { ru: '+2 боевых дрона. Урон −10%.', en: '+2 combat drones. Damage −10%.' },
     icon: { shape: 'drone', color: C.amber, accent: C.red },
@@ -707,7 +705,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iPlasmaInjector', kind: 'implant', quality: 3, tags: ['fire', 'electric'],
+    id: 'iPlasmaInjector', kind: 'passive', maxStacks: 1, quality: 3, tags: ['fire', 'electric'],
     name: { ru: 'Плазменный инжектор', en: 'Plasma Injector' },
     desc: { ru: 'Снаряды вылетают медленно, но разгоняются и раздуваются в полёте. Урон +20%.', en: 'Shots launch slowly, then accelerate and swell in flight. Damage +20%.' },
     icon: { shape: 'core', color: C.amber, accent: C.redL },
@@ -721,7 +719,7 @@ export const IMPLANTS: ItemDef[] = [
 
   // ================================================================ качество 4
   {
-    id: 'iBackupHeart', kind: 'implant', quality: 4, tags: ['mutation', 'nano'],
+    id: 'iBackupHeart', kind: 'implant', slot: 'blood', quality: 4, tags: ['mutation', 'nano'],
     name: { ru: 'Резервное сердце', en: 'Backup Heart' },
     desc: { ru: '[Q] +1 жизнь (при полном здоровье — полный заряд сбоя). Перезарядка 60 с.', en: '[Q] +1 life (a full glitch charge if at full health). Cooldown 60 s.' },
     icon: { shape: 'heart', color: C.red, accent: C.bone },
@@ -737,7 +735,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iMirrorField', kind: 'implant', quality: 4, tags: ['nano', 'kinetic'],
+    id: 'iMirrorField', kind: 'implant', slot: 'tentacles', quality: 4, tags: ['nano', 'kinetic'],
     name: { ru: 'Зеркальное поле', en: 'Mirror Field' },
     desc: { ru: 'Каждые 1.2 с до 4 вражеских пуль в радиусе 40 разворачиваются в ваши снаряды с уроном ×1.5.', en: 'Every 1.2 s up to 4 enemy bullets within 40 px are turned into your shots dealing ×1.5 damage.' },
     icon: { shape: 'shield', color: C.bone, accent: C.violet },
@@ -764,9 +762,9 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iOrbitalStrike', kind: 'implant', quality: 4, tags: ['explosive', 'smart'],
-    name: { ru: 'Орбитальный удар', en: 'Orbital Strike' },
-    desc: { ru: '[Q] Взрыв накрывает каждого врага в комнате (радиус 26, урон ×4). Перезарядка 30 с.', en: '[Q] An explosion hits every enemy in the room (26 px, ×4 damage). Cooldown 30 s.' },
+    id: 'iOrbitalStrike', kind: 'implant', slot: 'back', quality: 4, tags: ['explosive', 'smart'],
+    name: { ru: 'Сброс с крана', en: 'Crane Drop' },
+    desc: { ru: '[Q] Кран сбрасывает груз на каждого врага в комнате (радиус 26, урон ×4). Перезарядка 30 с.', en: '[Q] A crane drops cargo on every enemy in the room (26 px, ×4 damage). Cooldown 30 s.' },
     icon: { shape: 'crosshair', color: C.red, accent: C.yellow },
     active: {
       cooldown: 30,
@@ -781,7 +779,7 @@ export const IMPLANTS: ItemDef[] = [
     },
   },
   {
-    id: 'iExecutionCortex', kind: 'implant', quality: 4, tags: ['neural', 'blade'],
+    id: 'iExecutionCortex', kind: 'implant', slot: 'nervous', quality: 4, tags: ['neural', 'blade'],
     name: { ru: 'Кора палача', en: 'Execution Cortex' },
     desc: { ru: 'Попадание добивает обычного врага с запасом здоровья ниже 20%. Каждое убийство бьёт молнией по 2 ближайшим врагам (урон ×0.8).', en: 'Hits execute non-boss enemies below 20% health. Every kill arcs lightning to 2 nearby enemies (×0.8 damage).' },
     icon: { shape: 'skull', color: C.redD, accent: C.yellow },

@@ -1,6 +1,6 @@
 import { RNG } from '../core/rng';
 
-export type RoomType = 'start' | 'normal' | 'treasure' | 'shop' | 'boss';
+export type RoomType = 'start' | 'normal' | 'treasure' | 'shop' | 'boss' | 'surgery';
 export type Dir = 'n' | 's' | 'w' | 'e';
 
 export const DIRS: Record<Dir, [number, number]> = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
@@ -119,7 +119,7 @@ function tryGenerate(floorNum: number, rng: RNG): FloorPlan | null {
   }
 
   const deadEnds = cells.filter(([x, y]) => !(x === sx && y === sy) && neighbors(x, y) === 1);
-  if (deadEnds.length < 3) return null;
+  if (deadEnds.length < 4) return null;
   deadEnds.sort((a, b) => depth[idx(b[0], b[1])] - depth[idx(a[0], a[1])]);
   const bossCell = deadEnds[0];
   // босс должен быть не рядом со стартом
@@ -127,12 +127,14 @@ function tryGenerate(floorNum: number, rng: RNG): FloorPlan | null {
   const rest = rng.shuffle(deadEnds.slice(1));
   const treasureCell = rest[0];
   const shopCell = rest[1];
+  const surgeryCell = rest[2];
 
   const special = new Map<number, RoomType>();
   special.set(idx(sx, sy), 'start');
   special.set(idx(bossCell[0], bossCell[1]), 'boss');
   special.set(idx(treasureCell[0], treasureCell[1]), 'treasure');
   special.set(idx(shopCell[0], shopCell[1]), 'shop');
+  special.set(idx(surgeryCell[0], surgeryCell[1]), 'surgery');
 
   // объединение обычных клеток в большие комнаты
   const grid = new Int16Array(GRID_W * GRID_H).fill(-1);
@@ -177,7 +179,7 @@ function tryGenerate(floorNum: number, rng: RNG): FloorPlan | null {
           const other = grid[idx(nx, ny)];
           if (other < 0 || other === room.id) continue;
           const otherType = rooms[other].type;
-          // сокровищница заперта начиная со 2-го этажа (нужен ключ)
+          // сокровищница заперта начиная со 2-го этажа (взлом удержанием R)
           const locked = floorNum >= 2 && (otherType === 'treasure' || room.type === 'treasure');
           room.doors.push({ dir: d, cx, cy, to: other, locked });
         }

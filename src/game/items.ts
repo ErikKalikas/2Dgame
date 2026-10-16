@@ -4,7 +4,39 @@ import type { Enemy } from './enemy';
 import type { Game } from './game';
 import type { Stats } from './stats';
 
-export type ItemKind = 'weapon' | 'implant' | 'passive';
+/**
+ * weapon — ручное оружие; implant — модуль тела (ставится в операционной, до этого лежит в рюкзаке);
+ * passive — прошивка (сразу, без слота); skeleton — скелет (класс 1–4); backpack — рюкзак побольше
+ */
+export type ItemKind = 'weapon' | 'implant' | 'passive' | 'skeleton' | 'backpack';
+
+/** Слоты тела: 6 открыты сразу, 4 системы открываются боссами */
+export type Slot = 'head' | 'armL' | 'armR' | 'torso' | 'legs' | 'back' | 'blood' | 'tentacles' | 'nervous' | 'reactor';
+export const BODY_SLOTS: Slot[] = ['head', 'armL', 'armR', 'torso', 'legs', 'back'];
+export const SYSTEM_SLOTS: Slot[] = ['blood', 'tentacles', 'nervous', 'reactor'];
+export const ALL_SLOTS: Slot[] = [...BODY_SLOTS, ...SYSTEM_SLOTS];
+
+export const SLOT_NAME: Record<Slot, L> = {
+  head: { ru: 'Голова', en: 'Head' },
+  armL: { ru: 'Левая рука', en: 'Left arm' },
+  armR: { ru: 'Правая рука', en: 'Right arm' },
+  torso: { ru: 'Корпус', en: 'Torso' },
+  legs: { ru: 'Ноги', en: 'Legs' },
+  back: { ru: 'Спина', en: 'Back' },
+  blood: { ru: 'Кровеносная', en: 'Circulatory' },
+  tentacles: { ru: 'Щупальца', en: 'Tentacles' },
+  nervous: { ru: 'Нервная', en: 'Nervous' },
+  reactor: { ru: 'Реактор', en: 'Reactor' },
+};
+
+/** Модуль левой руки: вторая атака на E */
+export interface LeftHandSpec {
+  cooldown: number;
+  /** Нажатие E (angle — направление прицела) */
+  use(g: Game, angle: number): void;
+  /** Пока E зажата (для щита) */
+  hold?(g: Game, angle: number, dt: number): void;
+}
 
 /** Теги нужны для синергий: набрав несколько предметов одного тега, игрок получает бонус */
 export type Tag =
@@ -72,6 +104,14 @@ export interface ItemDef {
   weapon?: WeaponSpec;
   /** Для пассивок: сколько раз можно взять */
   maxStacks?: number;
+  /** Модуль: в какой слот ставится */
+  slot?: Slot;
+  /** Скелет: класс 1–4 (модули редкостью выше класса не ставятся) */
+  skeletonClass?: 1 | 2 | 3 | 4;
+  /** Рюкзак: сколько мест */
+  capacity?: number;
+  /** Модуль левой руки */
+  leftHand?: LeftHandSpec;
 }
 
 export interface SynergyDef {
@@ -109,13 +149,22 @@ export function itemsOfKind(kind: ItemKind): ItemDef[] {
 
 const QUALITY_WEIGHT = [0, 10, 6, 3, 1.4];
 
-/** Случайный предмет нужного вида, исключая уже имеющиеся/выложенные */
-export function rollItem(rng: RNG, kind: ItemKind, exclude: Set<string>, luck = 0): ItemDef | null {
-  const pool = itemsOfKind(kind).filter((i) => !exclude.has(i.id));
+/** Редкие предметы попадаются чаще с ростом уровня: 3 — с 3-го, 4 — с 5-го (раньше — изредка) */
+function floorWeight(q: number, floor: number): number {
+  if (q === 3 && floor < 3) return 0.2;
+  if (q === 4 && floor < 5) return 0.06;
+  return 1;
+}
+
+/** Случайный предмет нужного вида, исключая уже имеющиеся/выложенные; allow — доп. фильтр */
+export function rollItem(rng: RNG, kind: ItemKind, exclude: Set<string>, luck = 0, floor = 9, allow?: (it: ItemDef) => boolean): ItemDef | null {
+  const pool = itemsOfKind(kind).filter((i) => !exclude.has(i.id) && (!allow || allow(i)));
   if (!pool.length) return null;
-  return rng.weighted(pool, (i) => QUALITY_WEIGHT[i.quality] * (i.quality >= 3 ? 1 + luck * 0.3 : 1));
+  return rng.weighted(pool, (i) => QUALITY_WEIGHT[i.quality] * floorWeight(i.quality, floor) * (i.quality >= 3 ? 1 + luck * 0.3 : 1));
 }
 
 export function itemPrice(it: ItemDef): number {
+  if (it.kind === 'skeleton') return [0, 10, 20, 32, 45][it.skeletonClass ?? 1];
+  if (it.kind === 'backpack') return 14 + (it.capacity ?? 5) * 2;
   return [0, 15, 22, 30, 40][it.quality] + (it.kind === 'weapon' ? 3 : 0);
 }

@@ -3,7 +3,8 @@ import { registerContent } from '../src/content';
 import { ENEMIES } from '../src/content/enemies';
 import { BOSSES } from '../src/content/bosses';
 import { iconShapes } from '../src/gfx/icons';
-import { ITEMS, SYNERGIES, itemsOfKind } from '../src/game/items';
+import { ALL_SLOTS, ITEMS, SYNERGIES, itemsOfKind, type Slot } from '../src/game/items';
+import { LOOKS } from '../src/gfx/art/looks';
 import { Player } from '../src/game/player';
 
 beforeAll(() => registerContent());
@@ -19,8 +20,8 @@ describe('контент', () => {
   });
 
   it('не меньше 50 оружий, 50 имплантов, 30 модификаций (минимум первой версии, новые можно добавлять)', () => {
-    expect(itemsOfKind('weapon').length).toBeGreaterThanOrEqual(50);
-    expect(itemsOfKind('implant').length).toBeGreaterThanOrEqual(50);
+    expect(itemsOfKind('weapon').length + itemsOfKind('implant').filter((it) => it.weapon).length).toBeGreaterThanOrEqual(50);
+    expect(itemsOfKind('implant').filter((it) => !it.weapon).length).toBeGreaterThanOrEqual(50);
     expect(itemsOfKind('passive').length).toBeGreaterThanOrEqual(30);
     expect(itemsOfKind('passive').filter((p) => p.tags.includes('mutation')).length).toBeGreaterThanOrEqual(6);
   });
@@ -32,6 +33,24 @@ describe('контент', () => {
     expect(two).toBeGreaterThan(w.length * 0.25);
     expect(two).toBeLessThan(w.length * 0.75);
     expect(ITEMS.get('pistol')!.weapon!.hands ?? 1, 'стартовый пистолет одноручный').toBe(1);
+  });
+
+  it('у каждого модуля есть слот и деталь на спрайте; руки, скелеты и рюкзаки устроены верно', () => {
+    for (const it of itemsOfKind('implant')) {
+      expect(ALL_SLOTS, it.id).toContain(it.slot);
+      expect(LOOKS[it.id], `${it.id}: нет детали на спрайте`).toBeTruthy();
+      if (it.slot === 'armR') expect(it.weapon, `${it.id}: рука-оружие без оружия`).toBeTruthy();
+      if (it.slot === 'armL') expect(it.leftHand, `${it.id}: модуль левой руки без атаки на E`).toBeTruthy();
+      if (it.weapon) expect(it.slot, it.id).toBe('armR');
+    }
+    for (const slot of ALL_SLOTS) expect(itemsOfKind('implant').filter((it) => it.slot === slot).length, slot).toBeGreaterThanOrEqual(3);
+    const sk = itemsOfKind('skeleton');
+    expect(sk.filter((it) => it.skeletonClass === 1).map((it) => it.id)).toEqual(['skWorker']);
+    for (const c of [2, 3, 4]) expect(sk.some((it) => it.skeletonClass === c), `класс ${c}`).toBe(true);
+    for (const it of sk) expect(LOOKS[it.id], it.id).toBeTruthy();
+    for (const it of itemsOfKind('backpack')) expect(it.capacity!).toBeGreaterThan(3);
+    // оружие в руках + рука-оружие — не меньше 50 видов
+    expect(itemsOfKind('weapon').length + itemsOfKind('implant').filter((it) => it.weapon).length).toBeGreaterThanOrEqual(50);
   });
 
   it('названия предметов не повторяются', () => {
@@ -52,10 +71,13 @@ describe('контент', () => {
   });
 
   it('любое оружие и любой предмет дают корректные характеристики', () => {
-    for (const w of itemsOfKind('weapon')) {
+    const guns = [...itemsOfKind('weapon'), ...itemsOfKind('implant').filter((it) => it.weapon)];
+    for (const w of guns) {
       const p = new Player(w.id);
+      // все модули сразу (по одному в слот не влезут — ставим «в обход» правил, чтобы проверить характеристики)
+      let n = 0;
       for (const it of ITEMS.values()) {
-        if (it.kind === 'implant' && !it.active) p.implants.push(it.id);
+        if (it.kind === 'implant' && !it.weapon) p.slots[`x${n++}` as Slot] = it.id;
         if (it.kind === 'passive') p.passives.set(it.id, it.maxStacks ?? 1);
       }
       p.recalc();

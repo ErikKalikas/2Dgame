@@ -407,7 +407,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wHedgehog', kind: 'weapon', quality: 1, tags: ['mutation', 'kinetic'],
+    id: 'wHedgehog', kind: 'implant', slot: 'armR', quality: 1, tags: ['mutation', 'kinetic'],
     name: { ru: 'Костяной «Ёж»', en: 'Bone "Hedgehog"' },
     desc: {
       ru: 'Выстреливает из тела кольцо из 10 костяных шипов во все стороны. Шипы пробивают одного врага.',
@@ -432,7 +432,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wWeldingTorch', kind: 'weapon', quality: 1, tags: ['fire'],
+    id: 'wWeldingTorch', kind: 'implant', slot: 'armR', quality: 1, tags: ['fire'],
     name: { ru: 'Сварочный резак', en: 'Welding Cutter' },
     desc: {
       ru: 'Короткий (80) толстый луч режет и поджигает всех перед вами.',
@@ -518,7 +518,7 @@ export const WEAPONS: ItemDef[] = [
   // Необычное (качество 2)
 
   {
-    id: 'wArcThrower', kind: 'weapon', quality: 2, tags: ['electric'],
+    id: 'wArcThrower', kind: 'implant', slot: 'armR', quality: 2, tags: ['electric'],
     name: { ru: 'Дуговой разрядник', en: 'Arc Thrower' },
     desc: {
       ru: 'Рваные разряды на средней дистанции. Молния перескакивает ещё на 2 врагов и может оглушить.',
@@ -727,7 +727,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wAcidSpitter', kind: 'weapon', quality: 2, tags: ['mutation'],
+    id: 'wAcidSpitter', kind: 'implant', slot: 'armR', quality: 2, tags: ['mutation'],
     name: { ru: 'Кислотная железа', en: 'Acid Gland' },
     desc: {
       ru: 'Вживлённая железа плюётся виляющими сгустками кислоты: они разъедают (3 урона/с) и замедляют врагов на 30%.',
@@ -797,7 +797,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wMonowire', kind: 'weapon', quality: 2, tags: ['blade', 'stealth'],
+    id: 'wMonowire', kind: 'implant', slot: 'armR', quality: 2, tags: ['blade', 'stealth'],
     name: { ru: 'Мономолекулярная нить', en: 'Monowire' },
     desc: {
       ru: 'Невидимая нить хлещет узким ударом на большую дистанцию; разряд перескакивает на ещё одного врага.',
@@ -818,7 +818,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wPowerFist', kind: 'weapon', quality: 2, tags: ['heavy', 'kinetic'],
+    id: 'wPowerFist', kind: 'implant', slot: 'armR', quality: 2, tags: ['heavy', 'kinetic'],
     name: { ru: 'Гидрокулак «Пресс»', en: '"Press" Hydraulic Fist' },
     desc: {
       ru: 'Медленный сокрушительный удар (10 урона): мощно отбрасывает и бьёт ударной волной по соседям.',
@@ -1066,7 +1066,7 @@ export const WEAPONS: ItemDef[] = [
     },
   },
   {
-    id: 'wMantis', kind: 'weapon', quality: 3, tags: ['blade', 'mutation'],
+    id: 'wMantis', kind: 'implant', slot: 'armR', quality: 3, tags: ['blade', 'mutation'],
     name: { ru: 'Клинки «Кромка»', en: '"Edge" Arm Blades' },
     desc: {
       ru: 'Выдвижные клинки из предплечий: быстрые широкие взмахи, каждый бросает 2 режущие волны.',

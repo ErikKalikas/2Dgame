@@ -1,6 +1,7 @@
 import { C, PAL } from './palette';
 import { canvas, ctx2d, fromRows, silhouette, type Sprite } from './sprite';
 import { playerArt, type DirFrames } from './art/player';
+import { surgeryArt } from './art/surgery';
 
 // Игрок — рисованный вручную, см. art/player.ts
 export type { DirFrames };
@@ -318,12 +319,14 @@ export const SPR = {
   shotCache: new Map<string, Sprite>(),
   coin: [] as Sprite[],
   medkit: null as unknown as Sprite,
-  key: null as unknown as Sprite,
   /** Заряд сбоя (подбираемая ячейка) */
   glitchCell: null as unknown as Sprite,
   heart: null as unknown as Sprite,
   heartEmpty: null as unknown as Sprite,
-  keyIcon: null as unknown as Sprite,
+  /** Кресло операционной с роботом-хирургом (2 кадра) */
+  surgery: [] as Sprite[],
+  /** Рюкзак (HUD) */
+  packIcon: null as unknown as Sprite,
   coinIcon: null as unknown as Sprite,
   pedestal: null as unknown as Sprite,
   teleporter: [] as Sprite[],
@@ -362,11 +365,12 @@ export function initSprites() {
     SPR.bullets['rice:' + col] = rice(4, 2, ring, core);
     SPR.bullets['shard:' + col] = rice(4, 1.5, core, ring);
   }
+  // энергоячейка: маленький аккумулятор, заряд пробегает снизу вверх
   SPR.coin = [
-    fromRows(['.1111.', '1deed1', '1dccd1', '1deed1', '.1111.']),
-    fromRows(['.111.', '1ded1', '1dcd1', '1ded1', '.111.']),
-    fromRows(['.11.', '1ee1', '1dd1', '1ee1', '.11.']),
-    fromRows(['.111.', '1ded1', '1dcd1', '1ded1', '.111.']),
+    fromRows(['.11.', '1661', '1dd1', '1dd1', '1ee1', '1111']),
+    fromRows(['.11.', '1661', '1dd1', '1ee1', '1dd1', '1111']),
+    fromRows(['.11.', '1661', '1ee1', '1dd1', '1dd1', '1111']),
+    fromRows(['.11.', '1661', '1dd1', '1dd1', '1dd1', '1111']),
   ];
   SPR.medkit = fromRows([
     '.111111111.',
@@ -377,12 +381,12 @@ export function initSprites() {
     '13333333331',
     '.111111111.',
   ]);
-  SPR.key = fromRows(['.111.....', '1ded11111', '1d.deeee1', '1ded11e1e', '.111..1.1']);
   SPR.glitchCell = fromRows(['.1.1.1.', '1111111', '13fff31', '1f7ff71', '13fff31', '1111111', '.1.1.1.']);
   SPR.heart = fromRows(['.11.11.', '1aa1ba1', '1aaaaa1', '.19aa1.', '..191..', '...1...']);
   SPR.heartEmpty = fromRows(['.11.11.', '1331331', '1333331', '.13331.', '..131..', '...1...']);
-  SPR.keyIcon = fromRows(['.111.....', '1ded11111', '1d.deeee1', '.111.1e1e']);
-  SPR.coinIcon = fromRows(['.111.', '1ded1', '1dcd1', '1ded1', '.111.']);
+  SPR.surgery = surgeryArt();
+  SPR.packIcon = fromRows(['..111..', '.1cdc1.', '1cdddc1', '1c1d1c1', '1cdddc1', '.11111.']);
+  SPR.coinIcon = fromRows(['.11.', '1661', '1ee1', '1ed1', '1dd1', '1111']);
   SPR.pedestal = fromRows([
     '..1111111111..',
     '.144444444441.',
