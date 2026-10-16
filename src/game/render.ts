@@ -5,8 +5,9 @@ import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import { canvas, ctx2d, flipH, softCircle, type Sprite } from '../gfx/sprite';
 import { SPR, flashOf } from '../gfx/sprites';
+import { cutOf, envLayout, glowOf, lightLevel, lightValid, renderAmbient, signalPhase, transitSweep, vignetteOf, type Light } from '../gfx/env';
+import type { FloorTheme } from '../content/floors';
 import type { RoomMap } from '../world/room';
-import { T } from '../world/tiles';
 import { renderEBullets, renderPBullets } from './bullets';
 import { raycast } from './collision';
 import type { Enemy } from './enemy';
@@ -28,7 +29,6 @@ function glowSprite(rgb: string): Sprite {
   return s;
 }
 const flipped = new WeakMap<Sprite, Sprite>();
-const lampCache = new WeakMap<RoomMap, { x: number; y: number }[]>();
 
 function flipOf(s: Sprite): Sprite {
   let f = flipped.get(s);
@@ -39,20 +39,12 @@ function flipOf(s: Sprite): Sprite {
   return f;
 }
 
-/** Лампы на стенах — там, где рисуется светильник (см. roomrender) */
-function lamps(room: RoomMap): { x: number; y: number }[] {
-  let l = lampCache.get(room);
-  if (l) return l;
-  l = [];
-  for (let ty = 0; ty < room.th; ty++) {
-    for (let tx = 0; tx < room.tw; tx++) {
-      if (room.get(tx, ty) === T.Wall && tx % 7 === 3 && room.inside(tx, ty + 1) && room.get(tx, ty + 1) !== T.Wall) {
-        l.push({ x: tx * TILE + 8, y: ty * TILE + 14 });
-      }
-    }
-  }
-  lampCache.set(room, l);
-  return l;
+/**
+ * Источники света комнаты: лампы на стенах (ровно там, где их рисует roomrender), потолочные пятна
+ * и светящиеся элементы яруса. Раскладка общая — src/gfx/env/layout.ts, кэшируется по комнате.
+ */
+function lamps(room: RoomMap, theme: FloorTheme): Light[] {
+  return envLayout(room, theme).lights;
 }
 
 export function renderGame(g: Game, r: Renderer) {
@@ -63,26 +55,8 @@ export function renderGame(g: Game, r: Renderer) {
   // 1. статичный слой комнаты
   ctx.drawImage(g.roomCanvasFor(), -cx, -cy);
 
-  // 2. электропол
-  if (g.electroActive || g.electroWarning) {
-    const x0 = Math.max(0, Math.floor(cx / TILE)), x1 = Math.min(room.tw - 1, Math.floor((cx + VIEW_W) / TILE));
-    const y0 = Math.max(0, Math.floor(cy / TILE)), y1 = Math.min(room.th - 1, Math.floor((cy + VIEW_H) / TILE));
-    for (let ty = y0; ty <= y1; ty++) {
-      for (let tx = x0; tx <= x1; tx++) {
-        if (room.get(tx, ty) !== T.Electro) continue;
-        if (g.electroActive) {
-          ctx.fillStyle = Math.random() < 0.5 ? C.yellow : C.amber;
-          ctx.globalAlpha = 0.35 + Math.random() * 0.25;
-          ctx.fillRect(tx * TILE - cx + 1, ty * TILE - cy + 1, 14, 14);
-        } else if (Math.sin(g.time * 30) > 0) {
-          ctx.fillStyle = C.amberD;
-          ctx.globalAlpha = 0.5;
-          ctx.fillRect(tx * TILE - cx + 1, ty * TILE - cy + 1, 14, 14);
-        }
-      }
-    }
-    ctx.globalAlpha = 1;
-  }
+  // 2. анимированные детали окружения (электропол, капли, искры, огоньки)
+  renderAmbient(g, ctx, cx, cy);
 
   // 3. двери
   for (const d of room.doors) renderDoor(g, ctx, d, cx, cy);
@@ -165,23 +139,46 @@ export function renderGame(g: Game, r: Renderer) {
 function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   if (!lightCanvas) {
     lightCanvas = canvas(VIEW_W, VIEW_H);
-    lightSprite = softCircle(128);
+    lightSprite = cutOf();
   }
+  const th = g.theme, room = g.room, t = g.time;
   const lc = ctx2d(lightCanvas);
   const ls = lightSprite!;
+  const list = lamps(room, th);
+  const inView = (x: number, y: number, rad: number) =>
+    !(x + rad < cx || y + rad < cy || x - rad > cx + VIEW_W || y - rad > cy + VIEW_H);
+
+  // слой темноты с оттенком яруса и виньеткой
   lc.globalCompositeOperation = 'source-over';
+  lc.globalAlpha = 1;
   lc.clearRect(0, 0, VIEW_W, VIEW_H);
-  lc.fillStyle = `rgba(3,3,6,${g.theme.dark})`;
+  lc.fillStyle = `rgba(${th.shade},${th.dark})`;
   lc.fillRect(0, 0, VIEW_W, VIEW_H);
+  lc.drawImage(vignetteOf(th.shade), 0, 0);
   lc.globalCompositeOperation = 'destination-out';
   const light = (x: number, y: number, rad: number, a = 1) => {
-    if (x + rad < cx || y + rad < cy || x - rad > cx + VIEW_W || y - rad > cy + VIEW_H) return;
-    lc.globalAlpha = a;
+    if (a <= 0.01 || !inView(x, y, rad)) return;
+    lc.globalAlpha = Math.min(1, a);
     lc.drawImage(ls, x - cx - rad, y - cy - rad, rad * 2, rad * 2);
   };
   const p = g.player;
-  light(p.x, p.y, 120 + Math.sin(g.time * 3) * 3);
-  for (const l of lamps(g.room)) light(l.x, l.y, 64, 0.8);
+  light(p.x, p.y - 4, 118 + Math.sin(t * 3) * 3, 0.95);
+  for (const l of list) {
+    if (!lightValid(l, room)) continue;
+    light(l.x, l.y, l.r, l.a * lightLevel(l, t));
+  }
+  // электропол светится, когда бьёт током
+  const L = envLayout(room, th);
+  const zap = g.electroActive, warn = g.electroWarning && Math.sin(t * 30) > 0;
+  if (zap || warn) {
+    for (const i of L.electro) {
+      const x = (i % room.tw) * TILE + 8, y = ((i / room.tw) | 0) * TILE + 8;
+      light(x, y, zap ? 30 : 18, zap ? 0.55 + Math.random() * 0.2 : 0.3);
+    }
+  }
+  // Магистрали: по путям изредка проходит огонь состава
+  const sweep = transitSweep(g);
+  if (sweep) for (const s of sweep) light(s.x, s.y, 46, 0.5);
   for (const f of g.lightFlashes) light(f.x, f.y, f.r, Math.min(1, f.t * 6));
   for (const k of g.pickups) if (k.kind === 'item' || k.kind === 'teleporter') light(k.x, k.y, 40, 0.7);
   for (const e of g.enemies) if (e.def.boss) light(e.x, e.y, 80, 0.6);
@@ -189,14 +186,56 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
   lc.globalCompositeOperation = 'source-over';
   ctx.drawImage(lightCanvas, 0, 0);
 
-  // тёплое свечение ламп
+  // цветное свечение источников
   ctx.globalCompositeOperation = 'lighter';
-  const glow = glowSprite(g.theme.lamp);
-  for (const l of lamps(g.room)) {
+  const pool = glowSprite(th.lamp);
+  for (const l of list) {
+    if (!inView(l.x, l.y, l.r) || !lightValid(l, room)) continue;
+    const k = lightLevel(l, t);
+    if (k <= 0.01) continue;
     const x = l.x - cx, y = l.y - cy;
-    if (x < -40 || y < -40 || x > VIEW_W + 40 || y > VIEW_H + 40) continue;
-    ctx.globalAlpha = 0.12 + 0.02 * Math.sin(g.time * 7 + l.x);
-    ctx.drawImage(glow, x - 32, y - 26, 64, 64);
+    switch (l.kind) {
+      case 'lamp':
+        // широкое тёплое пятно, плотная середина и яркая точка у плафона
+        ctx.globalAlpha = 0.07 * k;
+        ctx.drawImage(glowOf(l.rgb), x - l.r, y - l.r * 0.8, l.r * 2, l.r * 1.8);
+        ctx.globalAlpha = 0.16 * k;
+        ctx.drawImage(glowOf(l.rgb), x - l.r * 0.5, y - l.r * 0.4, l.r, l.r);
+        ctx.globalAlpha = 0.4 * k;
+        ctx.drawImage(glowOf(l.rgb), x - 7, y - 10, 14, 14);
+        break;
+      case 'pool':
+        ctx.globalAlpha = 0.05 * k;
+        ctx.drawImage(pool, x - l.r * 0.7, y - l.r * 0.6, l.r * 1.4, l.r * 1.2);
+        break;
+      case 'signal': {
+        const rgb = signalPhase(l.blink, t) === 0 ? l.rgb : l.rgb2 ?? l.rgb;
+        ctx.globalAlpha = 0.22;
+        ctx.drawImage(glowOf(rgb), x - l.r * 0.6, y - l.r * 0.6, l.r * 1.2, l.r * 1.2);
+        break;
+      }
+      default: {
+        const a = l.kind === 'heat' ? 0.2 : l.kind === 'sign' ? 0.2 : 0.16;
+        ctx.globalAlpha = a * k;
+        ctx.drawImage(glowOf(l.rgb), x - l.r * 0.6, y - l.r * 0.6, l.r * 1.2, l.r * 1.2);
+      }
+    }
+  }
+  if (zap) {
+    const yel = glowOf('255,204,51');
+    for (const i of L.electro) {
+      const x = (i % room.tw) * TILE + 8 - cx, y = ((i / room.tw) | 0) * TILE + 8 - cy;
+      if (x < -24 || y < -24 || x > VIEW_W + 24 || y > VIEW_H + 24) continue;
+      ctx.globalAlpha = 0.11 + Math.random() * 0.06;
+      ctx.drawImage(yel, x - 16, y - 16, 32, 32);
+    }
+  }
+  if (sweep) {
+    const gl = glowOf(th.glow);
+    for (const s of sweep) {
+      ctx.globalAlpha = 0.12;
+      ctx.drawImage(gl, s.x - cx - 30, s.y - cy - 18, 60, 36);
+    }
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
