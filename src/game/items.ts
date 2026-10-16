@@ -16,6 +16,7 @@ export interface HitInfo {
   y: number;
   dmg: number;
   source: 'bullet' | 'beam' | 'melee' | 'other';
+  crit?: boolean;
 }
 
 /** События, на которые могут реагировать предметы */

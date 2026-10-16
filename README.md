@@ -22,6 +22,11 @@ npm start        # запускает игру и открывает брауз�
 | `npm test` | автотесты логики (генерация мира, характеристики, контент) |
 | `npm run build` | сборка в папку `dist/` |
 | `npm run typecheck` | проверка типов |
+| `npm run app` | запуск как ПК-приложение (окно Electron) |
+| `npm run dist:win` | сборка `release/BLACK-ICE-…-portable.exe` для Windows |
+| `npm run dist:linux` | сборка `release/BLACK-ICE-….AppImage` для Linux |
+
+Exe и AppImage работают без установки: скачал и запустил. F11 переключает полноэкранный режим.
 
 ## Управление
 

@@ -10,15 +10,48 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "app": "vite build && electron .",
+    "dist:win": "vite build && electron-builder --win portable --x64",
+    "dist:linux": "vite build && electron-builder --linux AppImage --x64"
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0"
   },
   "devDependencies": {
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
     "playwright": "^1.56.1",
     "typescript": "^5.8.3",
     "vite": "^7.0.6",
     "vitest": "^3.2.4"
+  },
+  "main": "electron/main.cjs",
+  "author": "ErikKalikas",
+  "build": {
+    "appId": "com.erikkalikas.blackice",
+    "productName": "BLACK ICE",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "signAndEditExecutable": false
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Game"
+    },
+    "portable": {
+      "artifactName": "BLACK-ICE-${version}-portable.exe"
+    },
+    "appImage": {
+      "artifactName": "BLACK-ICE-${version}.AppImage"
+    }
   }
 }

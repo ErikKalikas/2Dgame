@@ -47,7 +47,7 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
     e.kx += Math.cos(a) * o.knockback;
     e.ky += Math.sin(a) * o.knockback;
   }
-  if (!o.silent) g.player.emit('onHit', g, e, { x: e.x, y: e.y, dmg, source: o.source ?? 'other' });
+  if (!o.silent) g.player.emit('onHit', g, e, { x: e.x, y: e.y, dmg, source: o.source ?? 'other', crit: o.crit });
   if (e.def.boss) g.checkBossPhase(e);
   if (e.hp <= 0) g.killEnemy(e, true);
 }
@@ -91,18 +91,22 @@ export function chainLightning(g: Game, from: Enemy, jumps: number, dmg: number)
   }
 }
 
+let spiralSign = 1;
+
 /** Создать снаряд игрока по текущим характеристикам */
 export function spawnShot(g: Game, angle: number, s: Stats, over: Partial<PBullet> = {}): PBullet {
   const p = g.player;
   const life = s.range / Math.max(60, s.shotSpeed);
   const crit = Math.random() < s.crit;
+  // спираль закручивается поочерёдно в разные стороны — так легче попадать
+  spiralSign = -spiralSign;
   const b: PBullet = {
     x: p.x, y: p.y - 3, bx: p.x, by: p.y - 3,
     angle, speed: s.shotSpeed, r: 2.5 * s.size, dmg: finalDamage(s),
     life, maxLife: life, t: 0,
     pierce: s.pierce, bounce: s.bounce, homing: s.homing,
     wave: s.wave, waveFreq: s.waveFreq, phase: Math.random() < 0.5 ? 0 : Math.PI,
-    spiral: s.spiral, orbitR: s.orbit, orbitA: angle,
+    spiral: s.spiral * spiralSign, orbitR: s.orbit, orbitA: angle,
     boomerang: s.boomerang, returning: false, spectral: s.spectral,
     accel: s.accel, grow: s.grow,
     split: s.split, explode: s.explode, chain: s.chain,

@@ -18,6 +18,15 @@ export const qualityColor = (q: number) => QUALITY_COLOR[q];
 
 let lightCanvas: HTMLCanvasElement | null = null;
 let lightSprite: Sprite | null = null;
+const glowCache = new Map<string, Sprite>();
+function glowSprite(rgb: string): Sprite {
+  let s = glowCache.get(rgb);
+  if (!s) {
+    s = softCircle(64, rgb);
+    glowCache.set(rgb, s);
+  }
+  return s;
+}
 const flipped = new WeakMap<Sprite, Sprite>();
 const lampCache = new WeakMap<RoomMap, { x: number; y: number }[]>();
 
@@ -182,14 +191,12 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
 
   // тёплое свечение ламп
   ctx.globalCompositeOperation = 'lighter';
+  const glow = glowSprite(g.theme.lamp);
   for (const l of lamps(g.room)) {
     const x = l.x - cx, y = l.y - cy;
     if (x < -40 || y < -40 || x > VIEW_W + 40 || y > VIEW_H + 40) continue;
-    ctx.globalAlpha = 0.07;
-    ctx.fillStyle = `rgb(${g.theme.lamp})`;
-    ctx.beginPath();
-    ctx.arc(x, y + 6, 26, 0, TAU);
-    ctx.fill();
+    ctx.globalAlpha = 0.12 + 0.02 * Math.sin(g.time * 7 + l.x);
+    ctx.drawImage(glow, x - 32, y - 26, 64, 64);
   }
   ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';

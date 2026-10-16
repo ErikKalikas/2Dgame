@@ -120,9 +120,9 @@ export class Game {
     this.keyRoom = n >= 2 && normals.length ? frng.pick(normals).id : -1;
     const start = this.plan.rooms[this.plan.startId];
     this.enterRoom(start, null);
-    const c = this.room.centerPoint();
-    this.player.x = c.x;
-    this.player.y = c.y;
+    const c = nearestWalkable(this.room, this.room.pxW / 2, this.room.pxH / 2);
+    this.player.x = this.player.safeX = c.x;
+    this.player.y = this.player.safeY = c.y;
     this.snapCamera();
     this.player.bombs = Math.max(this.player.bombs, this.player.stats.startBombs);
   }
@@ -164,8 +164,8 @@ export class Game {
       const [dx, dy] = DIRS[from.dir];
       const back = this.room.doors.find((d) => d.cx === from.cx + dx && d.cy === from.cy + dy && d.dir === OPPOSITE[from.dir]);
       const p = this.room.doorEntry(back ?? this.room.doors[0]);
-      this.player.x = p.x;
-      this.player.y = p.y;
+      this.player.x = this.player.safeX = p.x;
+      this.player.y = this.player.safeY = p.y;
     }
     if (firstVisit) {
       furnishRoom(this);

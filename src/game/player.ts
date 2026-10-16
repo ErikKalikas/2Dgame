@@ -2,7 +2,7 @@ import { input } from '../core/input';
 import { SPR } from '../gfx/sprites';
 import type { Sprite } from '../gfx/sprite';
 import { T, walkable } from '../world/tiles';
-import { moveBody } from './collision';
+import { moveBody, overlaps } from './collision';
 import type { Game } from './game';
 import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type SynergyDef, type Tag } from './items';
 import { baseStats, finalFireDelay, type Stats } from './stats';
@@ -43,6 +43,9 @@ export class Player {
   activeCd = 0;
   /** Оставшиеся заряды щита в текущей комнате */
   shieldLeft = 0;
+  /** Последняя точка на твёрдом полу (если рывок закончился над ямой) */
+  safeX = 0;
+  safeY = 0;
   droneT = 0;
   /** Анимация подбора предмета (как в Isaac — предмет поднимается над головой) */
   holdItem: ItemDef | null = null;
@@ -170,6 +173,18 @@ export class Player {
     moveBody(g.room, body, vx * dt, vy * dt, (t, tx, ty) => g.playerSolid(t, tx, ty, this.dashT > 0));
     this.x = body.x;
     this.y = body.y;
+    if (this.dashT <= 0) {
+      const solid = (t: number, tx: number, ty: number) => g.playerSolid(t, tx, ty, false);
+      if (overlaps(g.room, body, solid)) {
+        // рывок закончился над ямой — возвращаемся на край
+        this.x = this.safeX;
+        this.y = this.safeY;
+        g.fx.burst(this.x, this.y, '#595968', 6, 40, 0.3);
+      } else {
+        this.safeX = this.x;
+        this.safeY = this.y;
+      }
+    }
     if (this.moving) this.anim += dt;
 
     // --- стрельба стрелками (как в Isaac), 8 направлений
