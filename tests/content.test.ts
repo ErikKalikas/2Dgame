@@ -18,16 +18,16 @@ describe('контент', () => {
     }
   });
 
-  it('50 оружий, 50 имплантов, 30 модификаций (критерий готовности из ТЗ)', () => {
-    expect(itemsOfKind('weapon')).toHaveLength(50);
-    expect(itemsOfKind('implant')).toHaveLength(50);
-    expect(itemsOfKind('passive')).toHaveLength(30);
+  it('не меньше 50 оружий, 50 имплантов, 30 модификаций (минимум первой версии, новые можно добавлять)', () => {
+    expect(itemsOfKind('weapon').length).toBeGreaterThanOrEqual(50);
+    expect(itemsOfKind('implant').length).toBeGreaterThanOrEqual(50);
+    expect(itemsOfKind('passive').length).toBeGreaterThanOrEqual(30);
     expect(itemsOfKind('passive').filter((p) => p.tags.includes('mutation')).length).toBeGreaterThanOrEqual(6);
   });
 
-  it('16 врагов и 8 боссов', () => {
-    expect(ENEMIES).toHaveLength(16);
-    expect(BOSSES).toHaveLength(8);
+  it('не меньше 16 врагов и 8 боссов', () => {
+    expect(ENEMIES.length).toBeGreaterThanOrEqual(16);
+    expect(BOSSES.length).toBeGreaterThanOrEqual(8);
     for (const b of BOSSES) expect(b.phases!.length).toBeGreaterThanOrEqual(2);
   });
 
