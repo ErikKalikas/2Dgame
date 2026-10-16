@@ -1,40 +1,40 @@
 import type { Sprite } from '../sprite';
-import { Grid, Mask, hash, type ShadeOpts } from './pix';
+import { Grid, Mask, type ShadeOpts } from './pix';
 
-// Боссы «Нижнего яруса»: семь мини-боссов ярусов улья и финальный — Диспетчер.
+// Боссы «Нижнего яруса»: семь мини-боссов ярусов улья. Диспетчер — в dispatcher.ts.
 // Каждый собирается из масок: плоские детали — с фаской (свет сверху-слева), круглые —
 // объёмной заливкой по рампе с дизерингом. В конце общая чёрная обводка, затем
 // «светящиеся» детали без обводки (лампы, блики, лопасти).
 //
 // Кадры: [0] — покой, [1..4] — цикл движения (рендер крутит их по e.anim).
 
-type Mat = [base: number, hi: number, lo: number, line?: number];
-const STEEL: Mat = [4, 5, 3, 1];
-const METAL: Mat = [3, 4, 2, 1];
-const DARK: Mat = [2, 3, 1, 1];
-const CHROME: Mat = [6, 7, 4, 1];
-const RED: Mat = [9, 10, 8, 1];
-const AMBER: Mat = [12, 13, 8, 1];
-const PAINT: Mat = [13, 14, 12, 1];
-const CONC: Mat = [5, 6, 4, 1];
-const WHITE: Mat = [6, 7, 5, 1];
-const GREY: Mat = [5, 6, 3, 1];
+export type Mat = [base: number, hi: number, lo: number, line?: number];
+export const STEEL: Mat = [4, 5, 3, 1];
+export const METAL: Mat = [3, 4, 2, 1];
+export const DARK: Mat = [2, 3, 1, 1];
+export const CHROME: Mat = [6, 7, 4, 1];
+export const RED: Mat = [9, 10, 8, 1];
+export const AMBER: Mat = [12, 13, 8, 1];
+export const PAINT: Mat = [13, 14, 12, 1];
+export const CONC: Mat = [5, 6, 4, 1];
+export const WHITE: Mat = [6, 7, 5, 1];
+export const GREY: Mat = [5, 6, 3, 1];
 
 // рампы для объёмной заливки (тёмный → светлый)
-const R_STEEL = [1, 2, 3, 4, 5];
-const R_METAL = [1, 2, 3, 4];
-const R_CHROME = [3, 4, 5, 6, 7];
+export const R_STEEL = [1, 2, 3, 4, 5];
+export const R_METAL = [1, 2, 3, 4];
+export const R_CHROME = [3, 4, 5, 6, 7];
 const R_CONC = [3, 4, 5, 6];
 const R_BONE = [5, 6, 7];
 const R_TARP = [1, 2, 3];
-const R_RED = [8, 9, 10, 11];
-const R_HOT = [9, 10, 11, 14];
+export const R_RED = [8, 9, 10, 11];
+export const R_HOT = [9, 10, 11, 14];
 const R_AMBER = [12, 13, 14];
 
 /** Покой + четыре кадра цикла */
-const FRAMES = [0, 1, 2, 3, 4];
+export const FRAMES = [0, 1, 2, 3, 4];
 
-interface Ctx {
+export interface Ctx {
   g: Grid;
   W: number;
   H: number;
@@ -45,7 +45,7 @@ interface Ctx {
   S: (m: Mask, ramp: number[], o?: ShadeOpts) => void;
 }
 
-function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ctx) => void): Sprite {
+export function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ctx) => void): Sprite {
   const g = new Grid(W, H);
   const c: Ctx = {
     g, W, H,
@@ -60,7 +60,7 @@ function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ctx) => v
 }
 
 /** Пиксели строками поверх (детали), x/y — левый верхний угол */
-function px(g: Grid, rows: string[], x: number, y: number) {
+export function px(g: Grid, rows: string[], x: number, y: number) {
   g.rows(rows, x, y);
 }
 
@@ -77,7 +77,7 @@ function chain(g: Grid, x0: number, y0: number, x1: number, y1: number, a = 6, b
 }
 
 /** Заклёпка: светлая точка с тенью снизу-справа */
-function rivet(g: Grid, x: number, y: number, c = 5, sh = 2) {
+export function rivet(g: Grid, x: number, y: number, c = 5, sh = 2) {
   g.set(x, y, c);
   g.set(x + 1, y + 1, sh);
 }
@@ -718,150 +718,3 @@ export function gunshipArt(): Sprite[] {
     }),
   );
 }
-
-// ---------------------------------------------------------------------------
-// 8. ДИСПЕТЧЕР — подвесной узел управления над ареной: гроздь серверных стоек,
-//    экраны и антенны, стерильный белый/серый с красными индикаторами; снизу
-//    свисают и качаются десятки кабелей-«поводков».
-export function dispatcherArt(): Sprite[] {
-  // кабели-поводки: x, y, длина, материал, толщина, наконечник (0 штекер, 1 зажим, 2 оголённый, 3 ошейник)
-  const cables: [x: number, y: number, len: number, mat: Mat, t: number, end: number][] = [
-    [8, 41, 13, DARK, 2, 0], [11, 41, 19, GREY, 1.5, 3], [15, 41, 9, METAL, 2, 2],
-    [21, 46, 15, DARK, 2, 1], [24, 47, 11, WHITE, 1.5, 0], [27, 47, 17, RED, 1.5, 2],
-    [30, 47, 13, DARK, 2.5, 3], [34, 47, 16, DARK, 2.5, 1], [37, 47, 11, GREY, 1.5, 0],
-    [40, 47, 17, RED, 1.5, 2], [43, 46, 14, WHITE, 1.5, 3], [49, 41, 9, METAL, 2, 0],
-    [53, 41, 19, DARK, 1.5, 3], [56, 41, 12, GREY, 2, 1],
-  ];
-  return FRAMES.map((f) => {
-    const p = f - 1;
-    const ph = p < 0 ? 0.6 : (p * Math.PI) / 2;
-    const tip = (x0: number, len: number, i: number) => x0 + Math.sin(ph + i * 1.3) * (1 + len / 8);
-    return boss(64, 64, ({ g, M, F, S }) => {
-      // гало-кольцо подвеса (за корпусом)
-      const ring = M().ellipse(32, 9, 29, 6).sub(M().ellipse(32, 9, 26.5, 4));
-      F(ring, GREY);
-      // провисающие петли между стойками и воронкой
-      F(M().bez(14, 41, 17, 54, 23, 46, 2), DARK);
-      F(M().bez(50, 41, 47, 52, 41, 46, 2), METAL);
-      // кабели-поводки
-      cables.forEach(([x0, y0, len, mat, t], i) => {
-        const x1 = tip(x0, len, i);
-        F(M().bez(x0, y0, (x0 * 2 + x1) / 3, y0 + len * 0.6, x1, Math.min(62, y0 + len), t, 10), mat);
-      });
-      // подвес: три троса сходятся к муфте под потолком
-      for (const [x0, x1] of [[24, 29], [32, 32], [40, 35]]) F(M().line(x0, 11, x1, 0, 2.6), DARK);
-      F(M().rect(27, 0, 10, 4), STEEL);
-      g.rect(28, 1, 8, 1, 6);
-      F(M().rect(19, 7, 26, 4), STEEL);
-      for (let x = 21; x < 44; x += 4) rivet(g, x, 8, 6, 3);
-      // антенны
-      const ant = M().line(10, 15, 2, 5, 1).line(54, 15, 62, 5, 1).line(16, 13, 14, 2, 1).line(48, 13, 50, 2, 1)
-        .line(3, 9, 7, 9, 1).line(57, 9, 61, 9, 1);
-      F(ant, GREY);
-      // серверные стойки: по два модуля с каждой стороны, со сдвигом
-      const racks: [number, number, number, number][] = [[5, 14, 13, 15], [7, 29, 11, 11], [46, 13, 13, 18], [47, 31, 10, 9]];
-      for (const [x0, y0, w, h] of racks) {
-        F(M().rect(x0, y0, w, h), GREY);
-        for (let y = y0 + 2; y < y0 + h - 1; y += 3) {
-          g.rect(x0 + 1, y, w - 2, 1, 3);
-          g.rect(x0 + (x0 < 32 ? w - 6 : 2), y + 1, 4, 1, 4);
-        }
-        g.rect(x0 < 32 ? x0 + 1 : x0 + w - 2, y0 + 1, 1, h - 2, 4);
-      }
-      F(M().rect(8, 40, 9, 2), STEEL);
-      F(M().rect(47, 40, 9, 2), STEEL);
-      // центральный корпус — стерильно-белый
-      const core = M().poly([22, 10, 42, 10, 48, 16, 48, 37, 42, 42, 22, 42, 16, 37, 16, 16]);
-      F(core, WHITE);
-      g.rect(17, 30, 31, 1, 5);
-      g.rect(24, 38, 17, 1, 5);
-      g.rect(22, 11, 21, 1, 7);
-      // красная полоса-маркировка
-      g.rect(17, 39 - 3, 4, 1, 10);
-      g.rect(44, 39 - 3, 4, 1, 10);
-      for (const [x, y] of [[19, 14], [44, 14], [19, 33], [44, 33]]) rivet(g, x, y, 7, 5);
-      // вентиляция на скосах
-      for (let k = 0; k < 3; k++) {
-        g.set(18 + k, 22 + k * 2, 4);
-        g.set(46 - k, 22 + k * 2, 4);
-      }
-      // главный экран: карта маршрутов
-      F(M().rect(22, 14, 21, 14), [4, 5, 3, 1]);
-      g.rect(23, 15, 19, 12, 1);
-      for (let y = 16; y < 27; y += 2) g.rect(23, y, 19, 1, 2);
-      // боковые узкие дисплеи
-      F(M().rect(18, 17, 3, 11), DARK);
-      F(M().rect(44, 17, 3, 11), DARK);
-      // сенсорная щель с тремя объективами
-      F(M().rect(23, 31, 19, 5), DARK);
-      for (const x of [26, 32.5, 39]) S(M().ellipse(x, 33.5, x === 32.5 ? 2.6 : 2, 2), R_RED.slice(0, 3), { line: 0, k: 0.6 });
-      // воронка снизу с портами
-      F(M().poly([20, 41, 44, 41, 41, 48, 23, 48]), GREY);
-      g.rect(22, 43, 20, 1, 4);
-      for (let x = 22; x <= 42; x += 3) g.set(x, 47, 1);
-    }, ({ g }) => {
-      // огни гало-кольца: бегущая цепочка
-      for (let k = 0; k < 16; k++) {
-        const a = (k / 16) * Math.PI * 2;
-        const x = 32 + Math.cos(a) * 28.3, y = 9 + Math.sin(a) * 5.2;
-        const on = (k + (p < 0 ? 0 : p)) % 4 === 0;
-        if (g.get(Math.floor(x), Math.floor(y)) >= 0) g.set(x - 0.5, y - 0.5, on ? 11 : 9);
-      }
-      // наконечники кабелей
-      cables.forEach(([x0, y0, len, , , kind], i) => {
-        const x = Math.round(tip(x0, len, i)), y = Math.min(62, y0 + len) + 1;
-        if (kind === 0) {
-          g.rect(x - 1, y - 1, 2, 2, 5);
-          g.set(x - 1, y, 1);
-          g.set(x, y, 11);
-        } else if (kind === 1) {
-          g.rect(x - 1, y - 1, 3, 1, 6);
-          g.set(x - 1, y, 1);
-          g.set(x + 1, y, 1);
-        } else if (kind === 2) {
-          g.set(x - 1, y, 13);
-          g.set(x, y, 14);
-        } else {
-          // ошейник-«поводок»: разомкнутое кольцо
-          px(g, ['.666.', '6...6', '6...6', '.6.6.'], x - 2, Math.min(60, y - 1));
-          g.set(x, Math.min(60, y - 1), 10);
-        }
-      });
-      // огоньки антенн
-      g.light(2, 5, f % 2 ? 11 : 9, -1);
-      g.light(62, 5, f % 2 ? 9 : 11, -1);
-      g.set(14, 2, 10);
-      g.set(50, 2, 10);
-      // индикаторы стоек
-      const racks: [number, number, number, number][] = [[5, 14, 13, 15], [7, 29, 11, 11], [46, 13, 13, 18], [47, 31, 10, 9]];
-      for (const [x0, y0, w, h] of racks)
-        for (let y = y0 + 3; y < y0 + h - 1; y += 3)
-          for (let k = 0; k < 3; k++) {
-            const lx = x0 < 32 ? x0 + 2 + k : x0 + w - 3 - k;
-            const on = hash(lx, y, f) < 0.45;
-            g.set(lx, y, on ? (hash(lx, y, 99) < 0.2 ? 13 : 11) : 9);
-          }
-      // карта маршрутов: узлы и связи, бегущий курсор
-      const nodes = [[25, 18], [30, 23], [35, 17], [39, 22], [33, 25], [27, 24]];
-      const links = [[0, 1], [1, 2], [2, 3], [1, 4], [4, 3], [5, 1]];
-      for (const [a, b] of links) {
-        const [x0, y0] = nodes[a], [x1, y1] = nodes[b];
-        const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
-        for (let i = 0; i <= n; i++) g.set(x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, 9);
-      }
-      nodes.forEach(([x, y], i) => g.set(x, y, i === (p < 0 ? 1 : (p + 1) % 6) ? 14 : 10));
-      g.rect(24, 15, 6, 1, 10);
-      g.rect(38, 15, 3, 1, f % 2 ? 11 : 9);
-      // столбики на узких дисплеях
-      for (const [x, s] of [[19, 0], [45, 3]]) {
-        const lv = [3, 6, 4, 8, 5][(f + s) % 5];
-        for (let y = 0; y < lv; y++) g.set(x, 27 - y, y > 5 ? 11 : 10);
-      }
-      // объективы
-      for (const x of [26, 39]) g.set(x - 1, 33, 11);
-      g.rect(32, 33, 2, 2, 11);
-      g.set(32, 32, 7);
-    });
-  });
-}
-

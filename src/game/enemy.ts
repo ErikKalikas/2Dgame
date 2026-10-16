@@ -39,6 +39,11 @@ export interface EnemyDef {
   /** Модификатор входящего урона (например, щит спереди) */
   damageTaken?(e: Enemy, g: Game, dmg: number, fromX: number, fromY: number): number;
   onDeath?(e: Enemy, g: Game): void;
+  /**
+   * Своя отрисовка из нескольких частей (вместо одного кадра). x, y — левый верхний угол
+   * кадра frames[0] на экране; fx — преобразование спрайта (вспышка попадания).
+   */
+  draw?(e: Enemy, g: Game, ctx: CanvasRenderingContext2D, x: number, y: number, fx: (s: Sprite) => Sprite): void;
 }
 
 let NEXT_ID = 1;

@@ -50,7 +50,7 @@ export function populateRoom(g: Game) {
   if (info.type === 'boss') {
     const def = BOSSES.find((b) => b.id === g.theme.boss) ?? BOSSES[0];
     const c = g.room.centerPoint();
-    const p = nearestWalkable(g.room, c.x, c.y - 30);
+    const p = nearestWalkable(g.room, c.x, c.y - (def.id === 'dispatcher' ? 8 : 30));
     const hpMult = g.hpMult * (g.hard ? 1.15 : 1);
     if (def.id === 'twins') {
       // близнецы — два босса

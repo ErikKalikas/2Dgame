@@ -360,6 +360,8 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
   }
 }
 
+const same = (s: Sprite) => s;
+
 function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: number, cy: number) {
   if (e.hidden) return;
   const frames = e.frames;
@@ -384,14 +386,17 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
     ctx.globalAlpha = 0.5 * (1 - Math.max(0, k));
     ctx.fillRect(Math.round(e.x - cx) - 2, 0, 4, Math.round(e.y - cy));
     ctx.globalAlpha = Math.max(0, Math.min(1, k));
-    ctx.drawImage(s, x, y);
+    if (e.def.draw) e.def.draw(e, g, ctx, x, y, same);
+    else ctx.drawImage(s, x, y);
     ctx.globalAlpha = 1;
     return;
   }
-  ctx.drawImage(e.flash > 0 ? flashOf(s) : s, x, y);
+  if (e.def.draw) e.def.draw(e, g, ctx, x, y, e.flash > 0 ? flashOf : same);
+  else ctx.drawImage(e.flash > 0 ? flashOf(s) : s, x, y);
   if (e.mem.invuln > 0 && Math.floor(g.time * 20) % 2 === 0) {
     ctx.globalAlpha = 0.5;
-    ctx.drawImage(flashOf(s), x, y);
+    if (e.def.draw) e.def.draw(e, g, ctx, x, y, flashOf);
+    else ctx.drawImage(flashOf(s), x, y);
     ctx.globalAlpha = 1;
   }
   // луч лечения ремонтного дрона
