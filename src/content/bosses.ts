@@ -319,7 +319,7 @@ export const BOSSES: EnemyDef[] = [
     update() {},
     phases: [
       {
-        name: { ru: 'Клинки-богомолы', en: 'Mantis Blades' }, until: 0.66,
+        name: { ru: 'Выкидные клинки', en: 'Switch Blades' }, until: 0.66,
         update(e, g, dt) {
           if (e.mem.rest > 0) {
             e.mem.rest -= dt;
@@ -333,7 +333,7 @@ export const BOSSES: EnemyDef[] = [
         },
       },
       {
-        name: { ru: 'Клетка Сандевистана', en: 'Sandevistan Cage' }, until: 0.33,
+        name: { ru: 'Клетка ускорения', en: 'Overclock Cage' }, until: 0.33,
         update(e, g, dt) {
           drift(e, g, dt, 35, 0.8);
           if (every(e, g, 'a', 2.6, dt)) {
@@ -360,14 +360,14 @@ export const BOSSES: EnemyDef[] = [
   // 8 ---------------------------------------------------------------------
   {
     ...BOSS_BASE,
-    id: 'blackice',
-    name: { ru: 'ИСКИН «ЧЁРНЫЙ ЛЁД»', en: 'AI "BLACK ICE"' },
+    id: 'dispatcher',
+    name: { ru: 'ДИСПЕТЧЕР', en: 'THE DISPATCHER' },
     hp: 1700, speed: 20, r: 20, flying: true, xp: 0,
     frames: () => blackIceArt(),
     update() {},
     phases: [
       {
-        name: { ru: 'Дождь данных', en: 'Data Rain' }, until: 0.8,
+        name: { ru: 'Поток нарядов', en: 'Work Order Flood' }, until: 0.8,
         update(e, g, dt) {
           drift(e, g, dt, 15, 0.3);
           if (every(e, g, 'a', 0.07, dt)) {
@@ -378,7 +378,7 @@ export const BOSSES: EnemyDef[] = [
         },
       },
       {
-        name: { ru: 'Решётка', en: 'Lattice' }, until: 0.6,
+        name: { ru: 'Сетка маршрутов', en: 'Route Grid' }, until: 0.6,
         update(e, g, dt) {
           e.mem.a = (e.mem.a ?? 0) + dt * 0.9;
           if (every(e, g, 'a', 0.16, dt)) {
@@ -390,7 +390,7 @@ export const BOSSES: EnemyDef[] = [
         },
       },
       {
-        name: { ru: 'Ледяные осколки', en: 'Ice Shards' }, until: 0.4,
+        name: { ru: 'Протокол утилизации', en: 'Disposal Protocol' }, until: 0.4,
         update(e, g, dt) {
           drift(e, g, dt, 20, 0.35);
           if (every(e, g, 'a', 1.5, dt)) {
@@ -406,7 +406,7 @@ export const BOSSES: EnemyDef[] = [
         },
       },
       {
-        name: { ru: 'Чистка системы', en: 'System Purge' }, until: 0.2,
+        name: { ru: 'Очистка реестра', en: 'Registry Purge' }, until: 0.2,
         update(e, g, dt) {
           e.mem.a = (e.mem.a ?? 0) + dt * 0.5;
           if (every(e, g, 'a', 0.5, dt)) flower(g, e.x, e.y, 7, 3, 85, e.mem.a, { skin: 'small', color: 'amber' });
@@ -418,7 +418,7 @@ export const BOSSES: EnemyDef[] = [
         },
       },
       {
-        name: { ru: 'Последний протокол', en: 'Final Protocol' }, until: 0,
+        name: { ru: 'Последний наряд', en: 'The Final Order' }, until: 0,
         update(e, g, dt) {
           e.mem.a = (e.mem.a ?? 0) + dt * 2.6;
           if (every(e, g, 'a', 0.06, dt)) {

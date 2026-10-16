@@ -1,4 +1,4 @@
-# BLACK ICE
+# Lower Tier
 
 
 ## Запуск
@@ -18,8 +18,8 @@ npm start        # запускает игру и открывает брауз�
 | `npm run build` | сборка в папку `dist/` |
 | `npm run typecheck` | проверка типов |
 | `npm run app` | запуск как ПК-приложение (окно Electron) |
-| `npm run dist:win` | сборка `release/BLACK-ICE-…-portable.exe` для Windows |
-| `npm run dist:linux` | сборка `release/BLACK-ICE-….AppImage` для Linux |
+| `npm run dist:win` | сборка `release/Lower-Tier-…-portable.exe` для Windows |
+| `npm run dist:linux` | сборка `release/Lower-Tier-….AppImage` для Linux |
 
 Exe и AppImage работают без установки: скачал и запустил. F11 переключает полноэкранный режим.
 

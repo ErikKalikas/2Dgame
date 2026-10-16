@@ -6,5 +6,5 @@ export const TILE = 16;
 export const CELL_W = 30;
 export const CELL_H = 18;
 export const STEP = 1 / 60;
-export const FLOORS = 8;
+export const FLOORS = 9;
 export const FONT = '"Press Start 2P", monospace';

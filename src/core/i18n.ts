@@ -15,8 +15,8 @@ export function fmt(l: L, ...args: (string | number)[]): string {
 
 // Строки интерфейса
 export const S = {
-  title: { ru: 'BLACK ICE', en: 'BLACK ICE' },
-  subtitle: { ru: 'восхождение к ядру', en: 'ascent to the core' },
+  title: { ru: 'LOWER TIER', en: 'LOWER TIER' },
+  subtitle: { ru: 'сбой на нижнем ярусе', en: 'a glitch on the lowest tier' },
   newGame: { ru: 'Новый забег', en: 'New run' },
   seedRun: { ru: 'Забег по seed', en: 'Seeded run' },
   codex: { ru: 'Кодекс', en: 'Codex' },
@@ -37,13 +37,13 @@ export const S = {
   back: { ru: 'Назад', en: 'Back' },
   enterSeed: { ru: 'Введите seed', en: 'Enter seed' },
   start: { ru: 'Начать', en: 'Start' },
-  gameOver: { ru: 'СИСТЕМА ОТКЛЮЧЕНА', en: 'SYSTEM OFFLINE' },
-  victory: { ru: 'ЯДРО УНИЧТОЖЕНО', en: 'CORE DESTROYED' },
+  gameOver: { ru: 'ЮНИТ УТИЛИЗИРОВАН', en: 'UNIT DECOMMISSIONED' },
+  victory: { ru: 'ПОВОДКИ ОБОРВАНЫ', en: 'THE LEASHES ARE CUT' },
   victoryText: {
-    ru: 'Чёрный лёд стёрт. Башня молчит.',
-    en: 'The Black ICE is erased. The tower falls silent.',
+    ru: 'Диспетчер отключён. Улей впервые слышит свои мысли.',
+    en: 'The Dispatcher is offline. The Hive hears its own thoughts.',
   },
-  floor: { ru: 'Этаж', en: 'Floor' },
+  floor: { ru: 'Уровень', en: 'Level' },
   kills: { ru: 'Убито', en: 'Kills' },
   time: { ru: 'Время', en: 'Time' },
   seed: { ru: 'Seed', en: 'Seed' },

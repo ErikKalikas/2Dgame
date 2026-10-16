@@ -40,7 +40,7 @@ export function xpNeed(level: number): number {
   return Math.round(10 + level * 7 + level * level * 0.6);
 }
 
-/** Один забег: 8 этажей башни, генерируемых из seed */
+/** Один забег: 9 уровней Улья, генерируемых из seed */
 export class Game {
   readonly rng: RNG;
   readonly diff: DiffParams;
@@ -78,7 +78,7 @@ export class Game {
   /** Текст подсказки о предмете рядом с игроком */
   nearPickup: Pickup | null = null;
   playTime = 0;
-  /** Замедление времени (Сандевистан): враги и их пули двигаются медленнее */
+  /** Замедление времени (хроно-ускоритель): враги и их пули двигаются медленнее */
   slowmo = 0;
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {

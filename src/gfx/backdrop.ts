@@ -98,10 +98,10 @@ export class Backdrop {
     ctx.lineTo(cx + 18, top + 20);
     ctx.lineTo(cx + 24, VIEW_H);
     ctx.fill();
-    // 8 этажей-сегментов
-    for (let i = 0; i < 8; i++) {
-      const y = top + 30 + i * 20;
-      ctx.fillStyle = i === 7 ? C.redD : C.blood;
+    // 9 уровней-сегментов
+    for (let i = 0; i < 9; i++) {
+      const y = top + 30 + i * 18;
+      ctx.fillStyle = i === 8 ? C.redD : C.blood;
       ctx.fillRect(cx - 16 + i * 0.4, y, 32 - i * 0.8, 1);
     }
     const pulse = 0.5 + 0.5 * Math.sin(this.t * 2);

@@ -62,7 +62,7 @@ export const IMPLANTS: ItemDef[] = [
   // ================================================================ исходные
   {
     id: 'smartlink', kind: 'implant', quality: 2, tags: ['smart', 'neural'],
-    name: { ru: 'Смарт-линк', en: 'Smartlink' },
+    name: { ru: 'Прицельный контур', en: 'Targeting Loop' },
     desc: { ru: 'Снаряды доворачивают к ближайшему врагу.', en: 'Shots curve toward the nearest enemy.' },
     icon: { shape: 'crosshair', color: C.steel, accent: C.red },
     stats: (s) => {
@@ -318,7 +318,7 @@ export const IMPLANTS: ItemDef[] = [
   },
   {
     id: 'iMantisBlades', kind: 'implant', quality: 2, tags: ['blade'],
-    name: { ru: 'Клинки-богомолы', en: 'Mantis Blades' },
+    name: { ru: 'Выкидные клинки', en: 'Switch Blades' },
     desc: { ru: 'Выдвижные клинки 4 раза в секунду режут врагов вплотную (радиус 24) на 80% урона.', en: 'Retractable blades slash adjacent enemies (24 px) 4 times per second for 80% damage.' },
     icon: { shape: 'claw', color: C.steelL, accent: C.red },
     hooks: {

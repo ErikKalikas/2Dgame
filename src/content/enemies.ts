@@ -102,7 +102,7 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'netrunner',
-    name: { ru: 'Нетраннер', en: 'Netrunner' },
+    name: { ru: 'Сигнальщик', en: 'Signalman' },
     hp: 18, speed: 30, r: 6, xp: 4, coins: 1, minFloor: 3, weight: 6, cost: 3,
     frames: () => netrunnerArt(),
     contact: false,
@@ -144,7 +144,7 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'mantis',
-    name: { ru: 'Убийца-богомол', en: 'Mantis Assassin' },
+    name: { ru: 'Резчик', en: 'Cutter' },
     hp: 25, speed: 60, r: 6, xp: 5, coins: 1.2, minFloor: 4, weight: 6, cost: 3,
     frames: () => mantisArt(),
     update(e, g, dt) {
@@ -262,7 +262,7 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'psycho',
-    name: { ru: 'Киберпсих', en: 'Cyberpsycho' },
+    name: { ru: 'Сорванный', en: 'Unleashed' },
     hp: 85, speed: 55, r: 8, xp: 10, coins: 2.5, minFloor: 6, weight: 4, cost: 6, heavy: true,
     frames: () => psychoArt(),
     update(e, g, dt) {

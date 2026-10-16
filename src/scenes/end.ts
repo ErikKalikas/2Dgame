@@ -43,7 +43,7 @@ export class EndScene implements Scene {
     r.panel(VIEW_W / 2 - 100, 70, 200, 70);
     const min = Math.floor(g.playTime / 60), sec = Math.floor(g.playTime % 60);
     const rows: [string, string][] = [
-      [tr(S.floor), `${g.floorNum} · ${tr(g.theme.name)}`],
+      [tr(S.floor), `${g.floorNum} · ${tr(g.theme.tierName)}`],
       [tr(S.level), String(p.level)],
       [tr(S.kills), String(p.kills)],
       [tr(S.time), `${min}:${String(sec).padStart(2, '0')}`],

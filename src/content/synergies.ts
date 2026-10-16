@@ -154,7 +154,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'smartRicochet',
     name: { ru: 'Умный рикошет', en: 'Smart Ricochet' },
-    desc: { ru: 'Смарт-линк + Рикошет: отскочившие снаряды наводятся сильнее, +1 отскок.', en: 'Smartlink + Ricochet: bounced shots home harder, +1 bounce.' },
+    desc: { ru: 'Прицельный контур + Рикошет: отскочившие снаряды наводятся сильнее, +1 отскок.', en: 'Targeting Loop + Ricochet: bounced shots home harder, +1 bounce.' },
     requires: (has) => has('smartlink') && has('ricochet'),
     stats: (s) => {
       s.bounce += 1;
@@ -173,7 +173,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synSamurai',
     name: { ru: 'Уличный самурай', en: 'Street Samurai' },
-    desc: { ru: 'Термокатана + Клинки-богомолы: урон +25%, удар шире, поджог сильнее.', en: 'Thermal Katana + Mantis Blades: damage +25%, wider slash, stronger burn.' },
+    desc: { ru: 'Термокатана + Выкидные клинки: урон +25%, удар шире, поджог сильнее.', en: 'Thermal Katana + Switch Blades: damage +25%, wider slash, stronger burn.' },
     requires: (has) => has('katana') && has('iMantisBlades'),
     stats: (s) => {
       s.damageMult *= 1.25;
@@ -292,7 +292,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synExecutioner',
     name: { ru: 'Палач', en: 'Executioner' },
-    desc: { ru: 'Кора палача + Клинки-богомолы: крит +15%, урон крита +100%.', en: 'Execution Cortex + Mantis Blades: crit +15%, crit damage +100%.' },
+    desc: { ru: 'Кора палача + Выкидные клинки: крит +15%, урон крита +100%.', en: 'Execution Cortex + Switch Blades: crit +15%, crit damage +100%.' },
     requires: (has) => has('iExecutionCortex') && has('iMantisBlades'),
     stats: (s) => {
       s.crit += 0.15;
@@ -334,7 +334,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synCyberNinja',
     name: { ru: 'Кибер-ниндзя', en: 'Cyber Ninja' },
-    desc: { ru: 'Мономолекулярная нить + Клинки-богомолы: досягаемость +25%, крит +10%.', en: 'Monowire + Mantis Blades: reach +25%, crit +10%.' },
+    desc: { ru: 'Мономолекулярная нить + Выкидные клинки: досягаемость +25%, крит +10%.', en: 'Monowire + Switch Blades: reach +25%, crit +10%.' },
     requires: (has) => has('wMonowire') && has('iMantisBlades'),
     stats: (s) => {
       s.size *= 1.25;
@@ -353,7 +353,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synViralStrain',
     name: { ru: 'Вирусный штамм', en: 'Viral Strain' },
-    desc: { ru: 'Вирус «Чёрный лёд» + Паразитный код: снаряды сильнее наводятся и взламывают цель на +20%.', en: '"Black ICE" Virus + Parasitic Code: stronger homing, targets take +20% damage.' },
+    desc: { ru: 'Вирус «Сбой» + Паразитный код: снаряды сильнее наводятся и взламывают цель на +20%.', en: '"Glitch" Virus + Parasitic Code: stronger homing, targets take +20% damage.' },
     requires: (has) => has('wBlackIce') && has('pMutParasiticCode'),
     stats: (s) => {
       s.homing += 2;
@@ -373,7 +373,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synSmartGun',
     name: { ru: 'Умный ствол', en: 'Smart Barrel' },
-    desc: { ru: 'Умный пистолет «Поводок» + Смарт-линк: самонаведение +2, крит +8%.', en: '"Leash" Smart Pistol + Smartlink: homing +2, crit +8%.' },
+    desc: { ru: 'Умный пистолет «Ищейка» + Прицельный контур: самонаведение +2, крит +8%.', en: '"Bloodhound" Smart Pistol + Targeting Loop: homing +2, crit +8%.' },
     requires: (has) => has('wSmartPistol') && has('smartlink'),
     stats: (s) => {
       s.homing += 2;

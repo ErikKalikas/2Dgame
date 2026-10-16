@@ -9,7 +9,7 @@ function createWindow() {
     minWidth: 640,
     minHeight: 360,
     backgroundColor: '#050508',
-    title: 'BLACK ICE',
+    title: 'Lower Tier',
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true },
   });

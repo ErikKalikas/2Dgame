@@ -1,4 +1,4 @@
-import { TILE } from '../config';
+import { FLOORS, TILE } from '../config';
 import { ENEMIES } from '../content/enemies';
 import { BOSSES } from '../content/bosses';
 import { nearestWalkable } from '../world/room';
@@ -48,7 +48,7 @@ export function populateRoom(g: Game) {
   const info = g.room.info;
   if (info.cleared) return;
   if (info.type === 'boss') {
-    const def = BOSSES[Math.min(BOSSES.length - 1, g.floorNum - 1)];
+    const def = BOSSES.find((b) => b.id === g.theme.boss) ?? BOSSES[0];
     const c = g.room.centerPoint();
     const p = nearestWalkable(g.room, c.x, c.y - 30);
     const hpMult = g.hpMult * (g.hard ? 1.15 : 1);
@@ -149,7 +149,7 @@ export function furnishRoom(g: Game) {
 /** После победы над боссом: выбор из двух предметов, аптечка и телепорт */
 export function bossReward(g: Game) {
   const c = g.room.centerPoint();
-  if (g.floorNum >= 8) return;
+  if (g.floorNum >= FLOORS) return;
   placeItems(g, ['implant', g.rng.chance(0.5) ? 'weapon' : 'implant'], c.x, c.y - 30, { choice: true });
   const m = nearestWalkable(g.room, c.x, c.y + 40);
   g.pickups.push(makePickup('medkit', m.x, m.y));

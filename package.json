@@ -1,8 +1,8 @@
 {
-  "name": "black-ice",
+  "name": "lower-tier",
   "private": true,
   "version": "0.1.0",
-  "description": "BLACK ICE — тёмный киберпанк-рогалик с элементами bullet hell",
+  "description": "Lower Tier — тёмный индустриальный рогалик с элементами bullet hell",
   "type": "module",
   "scripts": {
     "start": "vite --open",
@@ -29,8 +29,8 @@
   "main": "electron/main.cjs",
   "author": "ErikKalikas",
   "build": {
-    "appId": "com.erikkalikas.blackice",
-    "productName": "BLACK ICE",
+    "appId": "com.erikkalikas.lowertier",
+    "productName": "Lower Tier",
     "directories": {
       "output": "release"
     },
@@ -48,10 +48,10 @@
       "category": "Game"
     },
     "portable": {
-      "artifactName": "BLACK-ICE-${version}-portable.exe"
+      "artifactName": "Lower-Tier-${version}-portable.exe"
     },
     "appImage": {
-      "artifactName": "BLACK-ICE-${version}.AppImage"
+      "artifactName": "Lower-Tier-${version}.AppImage"
     }
   }
 }

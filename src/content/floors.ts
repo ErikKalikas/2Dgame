@@ -1,7 +1,18 @@
 import type { L } from '../core/i18n';
 
+/** Ярус мегаполиса-улья. От него зависят графика, механики окружения и пул врагов */
+export type Tier = 'sump' | 'foundry' | 'hab' | 'transit' | 'spire';
+
 export interface FloorTheme {
+  tier: Tier;
+  /** Название яруса */
+  tierName: L;
+  /** Название конкретного уровня (подбиом) */
   name: L;
+  /** Босс в конце уровня (id из bosses.ts) */
+  boss: string;
+  /** Босс яруса (true) или мини-босс (false) */
+  tierBoss: boolean;
   floorA: string;
   floorB: string;
   line: string;
@@ -14,46 +25,58 @@ export interface FloorTheme {
   dark: number;
 }
 
-// 8 этажей башни корпорации снизу вверх
+const SUMP: L = { ru: 'Отстойник', en: 'The Sump' };
+const FOUNDRY: L = { ru: 'Цеха', en: 'Foundry' };
+const HAB: L = { ru: 'Жилые соты', en: 'Hab Cells' };
+const TRANSIT: L = { ru: 'Магистрали', en: 'Transit' };
+const SPIRE: L = { ru: 'Шпиль', en: 'The Spire' };
+
+// 9 уровней Улья снизу вверх: 4 яруса по 2 уровня + Шпиль.
+// Боссы временные (из первой версии), пока не сделаны боссы ярусов — см. заметки «Мир и районы».
 export const FLOOR_THEMES: FloorTheme[] = [
   {
-    name: { ru: 'Коллектор под башней', en: 'Undercity Sewers' },
-    floorA: '#121216', floorB: '#15151a', line: '#0b0b0f', wall: '#1d1b1e', wallTop: '#2c292c',
+    tier: 'sump', tierName: SUMP, name: { ru: 'Свалка', en: 'Scrapyard' }, boss: 'sentinel', tierBoss: false,
+    floorA: '#14120f', floorB: '#171410', line: '#0b0a08', wall: '#1f1b16', wallTop: '#2e2820',
     accent: '#4f3006', lamp: '184,122,12', dark: 0.55,
   },
   {
-    name: { ru: 'Подземный гараж', en: 'Sub-level Garage' },
+    tier: 'sump', tierName: SUMP, name: { ru: 'Коллектор', en: 'Collector' }, boss: 'arachna', tierBoss: true,
+    floorA: '#121214', floorB: '#151517', line: '#0a0a0c', wall: '#1d1b1e', wallTop: '#2c292c',
+    accent: '#4f3006', lamp: '184,122,12', dark: 0.6,
+  },
+  {
+    tier: 'foundry', tierName: FOUNDRY, name: { ru: 'Сборочная линия', en: 'Assembly Line' }, boss: 'hive', tierBoss: false,
     floorA: '#16161b', floorB: '#191920', line: '#0e0e12', wall: '#22222a', wallTop: '#33333d',
-    accent: '#b87a0c', lamp: '210,190,140', dark: 0.5,
+    accent: '#b87a0c', lamp: '255,170,90', dark: 0.5,
   },
   {
-    name: { ru: 'Логистический узел', en: 'Logistics Hub' },
-    floorA: '#17140f', floorB: '#1b1711', line: '#0f0c08', wall: '#241f17', wallTop: '#352d21',
-    accent: '#b87a0c', lamp: '255,190,90', dark: 0.5,
+    tier: 'foundry', tierName: FOUNDRY, name: { ru: 'Литейная', en: 'Smeltery' }, boss: 'goliath', tierBoss: true,
+    floorA: '#181312', floorB: '#1c1514', line: '#0f0a0a', wall: '#261a18', wallTop: '#3a2522',
+    accent: '#a3161f', lamp: '255,110,50', dark: 0.5,
   },
   {
-    name: { ru: 'Лаборатории имплантов', en: 'Implant Labs' },
-    floorA: '#17171c', floorB: '#1b1b21', line: '#101014', wall: '#26262e', wallTop: '#3a3a46',
-    accent: '#a3161f', lamp: '220,215,205', dark: 0.42,
+    tier: 'hab', tierName: HAB, name: { ru: 'Капсульные блоки', en: 'Capsule Blocks' }, boss: 'twins', tierBoss: false,
+    floorA: '#151517', floorB: '#18181b', line: '#0c0c0e', wall: '#222226', wallTop: '#333338',
+    accent: '#a3161f', lamp: '220,200,170', dark: 0.48,
   },
   {
-    name: { ru: 'Казармы охраны', en: 'Security Barracks' },
-    floorA: '#181213', floorB: '#1c1415', line: '#0f0a0b', wall: '#271a1c', wallTop: '#3a2427',
-    accent: '#a3161f', lamp: '255,80,60', dark: 0.5,
+    tier: 'hab', tierName: HAB, name: { ru: 'Нижний рынок', en: 'Low Market' }, boss: 'executioner', tierBoss: true,
+    floorA: '#161214', floorB: '#191416', line: '#0d0a0b', wall: '#241b1f', wallTop: '#36272d',
+    accent: '#6b2d8a', lamp: '255,90,70', dark: 0.52,
   },
   {
-    name: { ru: 'Этаж руководства', en: 'Executive Floor' },
-    floorA: '#121114', floorB: '#151418', line: '#0a090b', wall: '#1e1c20', wallTop: '#2e2a2f',
-    accent: '#ffcc33', lamp: '255,204,120', dark: 0.45,
+    tier: 'transit', tierName: TRANSIT, name: { ru: 'Грузовые пути', en: 'Freight Lines' }, boss: 'sentinel', tierBoss: false,
+    floorA: '#121216', floorB: '#141419', line: '#09090c', wall: '#1c1c22', wallTop: '#2a2a33',
+    accent: '#ffcc33', lamp: '255,204,120', dark: 0.56,
   },
   {
-    name: { ru: 'Серверные хранилища', en: 'Server Vaults' },
-    floorA: '#100f15', floorB: '#13111a', line: '#09080d', wall: '#1b1824', wallTop: '#2b2538',
-    accent: '#6b2d8a', lamp: '150,90,190', dark: 0.58,
+    tier: 'transit', tierName: TRANSIT, name: { ru: 'Лифтовые шахты', en: 'Lift Shafts' }, boss: 'gunship', tierBoss: true,
+    floorA: '#111114', floorB: '#131317', line: '#08080a', wall: '#1a1a20', wallTop: '#28282f',
+    accent: '#a3161f', lamp: '255,58,46', dark: 0.6,
   },
   {
-    name: { ru: 'Ядро ИИ', en: 'AI Core' },
-    floorA: '#140b0d', floorB: '#180d10', line: '#0b0506', wall: '#220f13', wallTop: '#36151b',
-    accent: '#ff3a2e', lamp: '255,58,46', dark: 0.6,
+    tier: 'spire', tierName: SPIRE, name: { ru: 'Ядро Диспетчера', en: "Dispatcher's Core" }, boss: 'dispatcher', tierBoss: true,
+    floorA: '#1a1a1e', floorB: '#1d1d22', line: '#121216', wall: '#26262c', wallTop: '#3a3a44',
+    accent: '#ff3a2e', lamp: '230,225,215', dark: 0.35,
   },
 ];

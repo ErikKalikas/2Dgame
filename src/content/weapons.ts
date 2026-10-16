@@ -47,8 +47,8 @@ const wells = new WeakSet<PBullet>();
 export const WEAPONS: ItemDef[] = [
   {
     id: 'pistol', kind: 'weapon', quality: 1, tags: ['kinetic'],
-    name: { ru: 'Пистолет «Хром»', en: '"Chrome" Pistol' },
-    desc: { ru: 'Надёжный табельный пистолет. Ничего лишнего.', en: 'A reliable sidearm. Nothing fancy.' },
+    name: { ru: 'Клепальный пистолет', en: 'Rivet Gun' },
+    desc: { ru: 'Рабочий инструмент Т-417: забивает заклёпки. Оказалось, не только в металл.', en: "T-417's work tool: drives rivets. Turns out, not only into metal." },
     icon: { shape: 'pistol', color: C.steelL, accent: C.yellow },
     weapon: { mode: 'bullet', stats: () => {} },
   },
@@ -262,7 +262,7 @@ export const WEAPONS: ItemDef[] = [
   },
   {
     id: 'wSmartPistol', kind: 'weapon', quality: 1, tags: ['smart'],
-    name: { ru: 'Умный пистолет «Поводок»', en: '"Leash" Smart Pistol' },
+    name: { ru: 'Умный пистолет «Ищейка»', en: '"Bloodhound" Smart Pistol' },
     desc: {
       ru: 'Медленные пули с микродвигателями сами доворачивают к ближайшему врагу.',
       en: 'Slow micro-thruster rounds steer themselves toward the nearest enemy.',
@@ -1067,7 +1067,7 @@ export const WEAPONS: ItemDef[] = [
   },
   {
     id: 'wMantis', kind: 'weapon', quality: 3, tags: ['blade', 'mutation'],
-    name: { ru: 'Клинки «Богомол»', en: '"Mantis" Arm Blades' },
+    name: { ru: 'Клинки «Резак»', en: '"Cutter" Arm Blades' },
     desc: {
       ru: 'Выдвижные клинки из предплечий: быстрые широкие взмахи, каждый бросает 2 режущие волны.',
       en: 'Forearm blades: fast, wide slashes that each throw 2 cutting waves.',
@@ -1144,7 +1144,7 @@ export const WEAPONS: ItemDef[] = [
 
   {
     id: 'wBlackIce', kind: 'weapon', quality: 4, tags: ['neural', 'smart'],
-    name: { ru: 'Вирус «Чёрный лёд»', en: '"Black ICE" Virus' },
+    name: { ru: 'Вирус «Сбой»', en: '"Glitch" Virus' },
     desc: {
       ru: 'Самонаводящиеся пакеты взламывают цель (+30% урона по ней). Убитый враг выбрасывает 4 самонаводящихся осколка вируса.',
       en: 'Homing packets hack the target (+30% damage taken). Slain enemies burst into 4 homing virus shards.',

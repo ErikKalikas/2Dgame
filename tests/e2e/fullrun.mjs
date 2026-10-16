@@ -1,4 +1,4 @@
-// Прохождение всех 8 этажей с "читами" через тестовый хук: проверяет боссов, фазы, телепорты и экран победы.
+// Прохождение всех 9 уровней с "читами" через тестовый хук: проверяет боссов, фазы, телепорты и экран победы.
 import { chromium } from 'playwright';
 const url = process.argv[2] ?? 'http://localhost:5173';
 const out = process.argv[3] ?? '.';
@@ -11,7 +11,7 @@ await page.goto(url);
 await page.waitForTimeout(800);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(400);
-for (let floor = 1; floor <= 8; floor++) {
+for (let floor = 1; floor <= 9; floor++) {
   await page.evaluate(() => {
     const g = window.__game.scene.game;
     g.player.invuln = 9999;

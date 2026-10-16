@@ -1,4 +1,4 @@
-import { VIEW_H, VIEW_W } from '../config';
+import { FLOORS, VIEW_H, VIEW_W } from '../config';
 import { S, tr } from '../core/i18n';
 import { icon } from '../gfx/icons';
 import { C } from '../gfx/palette';
@@ -46,7 +46,7 @@ export function renderHud(g: Game, r: Renderer) {
   r.rect(bx, 5, Math.round((bw * p.xp) / xpNeed(p.level)), 5, C.redD);
   r.rect(bx, 5, Math.round((bw * p.xp) / xpNeed(p.level)), 1, C.red);
 
-  r.text(`${tr(S.floor)} ${g.floorNum} · ${tr(g.theme.name)}`, VIEW_W - 5, 6, { size: 5, color: C.steelL, align: 'right' });
+  r.text(`${tr(g.theme.tierName)} · ${tr(g.theme.name)} · ${g.floorNum}/${FLOORS}`, VIEW_W - 5, 6, { size: 5, color: C.steelL, align: 'right' });
   renderMinimap(g, r);
   renderLoadout(g, r);
   renderBossBar(g, r);

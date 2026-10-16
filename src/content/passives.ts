@@ -133,7 +133,7 @@ export const PASSIVES: ItemDef[] = [
   },
   {
     id: 'pMutCyberPsychosis', kind: 'passive', quality: 3, tags: ['mutation', 'neural'], maxStacks: 2,
-    name: { ru: 'Мутация: киберпсихоз', en: 'Mutation: Cyberpsychosis' },
+    name: { ru: 'Мутация: сорванный поводок', en: 'Mutation: Snapped Leash' },
     desc: {
       ru: '+1 снаряд в веере, скорострельность +12%, снаряды дёргаются волной. Сильный разброс, урон −8%.',
       en: '+1 shot in the fan, fire rate +12%, shots twitch in a wave. Wild spread, damage −8%.',
