@@ -18,6 +18,8 @@ interface Arm {
   wx: number;
   wy: number;
   open: boolean;
+  /** Скорость подтягивания к цели в этом шаге (1/с) */
+  spd: number;
   /** Индексы углов плеча и предплечья */
   ui: number;
   fi: number;
@@ -50,7 +52,7 @@ function rig(e: Enemy): Rig {
   if (!r) {
     const mk = (side: number): Arm => {
       const p = idle(side, 0);
-      return { x: p.x, y: p.y, wx: p.x, wy: p.y, open: false, ui: 0, fi: 0, hx: e.x, hy: e.y };
+      return { x: p.x, y: p.y, wx: p.x, wy: p.y, open: false, spd: 9, ui: 0, fi: 0, hx: e.x, hy: e.y };
     };
     r = { arms: [mk(0), mk(1)] };
     RIGS.set(e, r);
@@ -65,13 +67,28 @@ function shoulder(e: Enemy, side: number) {
   return { x: e.x + SX[side], y: e.y + SY - HOVER };
 }
 
-/** Задать на этот шаг цель ладони в мировых координатах */
-export function reach(e: Enemy, side: number, wx: number, wy: number, open = true) {
+/** Задать на этот шаг цель ладони в мировых координатах; spd — резкость движения (рывок — 20+) */
+export function reach(e: Enemy, side: number, wx: number, wy: number, open = true, spd = 9) {
   const a = rig(e).arms[side];
   const s = shoulder(e, side);
   a.wx = wx - s.x;
   a.wy = wy - s.y;
   a.open = open;
+  a.spd = spd;
+}
+
+/** Цель ладони относительно плечевого шарнира; dx зеркалится для правой руки (наружу — плюс) */
+export function reachRel(e: Enemy, side: number, dx: number, dy: number, open = true, spd = 9) {
+  const s = shoulder(e, side);
+  reach(e, side, s.x + SIDE[side] * dx, s.y + dy, open, spd);
+}
+
+/** Отдача: ладонь отскакивает к плечу на px пикселей и возвращается сама */
+export function kick(e: Enemy, side: number, px = 6) {
+  const a = rig(e).arms[side];
+  const d = Math.hypot(a.x, a.y) || 1;
+  a.x -= (a.x / d) * px;
+  a.y -= (a.y / d) * px;
 }
 
 /** Направить руку на точку (ладонь на вытянутой руке в её сторону) */
@@ -98,7 +115,7 @@ export function hand(e: Enemy, side: number) {
 export function stepArms(e: Enemy, g: Game, dt: number) {
   const r = rig(e);
   r.arms.forEach((a, side) => {
-    const k = Math.min(1, dt * 9);
+    const k = Math.min(1, dt * a.spd);
     a.x += (a.wx - a.x) * k;
     a.y += (a.wy - a.y) * k;
     solve(e, a, side);
@@ -106,6 +123,7 @@ export function stepArms(e: Enemy, g: Game, dt: number) {
     a.wx = p.x;
     a.wy = p.y;
     a.open = false;
+    a.spd = 9;
   });
 }
 
