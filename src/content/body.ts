@@ -165,6 +165,13 @@ const LEFT: Record<string, LeftHandSpec> = {
 };
 
 export const BODY_ITEMS: ItemDef[] = [
+  // ---------------------------------------------------------------- дроп с врагов (этап 12)
+  {
+    id: 'iScrapScanner', kind: 'implant', slot: 'head', quality: 2, tags: ['optic'],
+    name: { ru: 'Сканер утильщика', en: "Scrapper's Scanner" },
+    desc: { ru: 'Шанс выпадения предметов с врагов +20%. Над врагами виден шанс.', en: 'Enemy item drop chance +20%. Shows the chance above enemies.' },
+    icon: { shape: 'eye', color: C.yellow, accent: C.amber },
+  },
   // ---------------------------------------------------------------- скелеты
   {
     id: 'skWorker', kind: 'skeleton', skeletonClass: 1, quality: 1, tags: ['kinetic'],

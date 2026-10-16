@@ -7,11 +7,15 @@ export interface Settings {
   lang: Lang;
   difficulty: Difficulty;
   fullscreen: boolean;
+  /** Метка над врагом с несобранным набором (этап 12) */
+  setMarkers: boolean;
+  /** Помехи интерфейса при высокой нестабильности */
+  instabilityFx: boolean;
 }
 
 const KEY = 'black-ice-settings-v1';
 
-const DEFAULTS: Settings = { lang: 'ru', difficulty: 'normal', fullscreen: false };
+const DEFAULTS: Settings = { lang: 'ru', difficulty: 'normal', fullscreen: false, setMarkers: true, instabilityFx: true };
 
 export const settings: Settings = load();
 

@@ -10,11 +10,16 @@ import { aim, flower, ring, shoot, spread, stream } from '../game/patterns';
 import { lineOfSight } from '../game/collision';
 
 // 16 типов врагов. Вдохновлены уличными бандами, корпоративной охраной и боевыми роботами.
+// Этап 12: тип (киборг/робот), класс ценности I–IV и набор предметов — см. заметку «Наборы врагов».
+// Первые три id набора — «ядро» (первая ступень синергии). Предметы наборов появятся в 12б;
+// пока их нет в ITEMS, удачный дроп даёт горсть энергоячеек.
 
 export const ENEMIES: EnemyDef[] = [
   {
     id: 'scav',
     name: { ru: 'Падальщик', en: 'Scavenger' },
+    kind: 'cyborg', value: 1,
+    drops: ['wScavHook', 'iScavLegs', 'iScavCrate'],
     hp: 10, speed: 72, r: 6, xp: 2, coins: 0.6, minFloor: 1, weight: 10, cost: 1, group: [1, 3],
     frames: () => scavArt(),
     update(e, g, dt) {
@@ -23,7 +28,9 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'punk',
-    name: { ru: 'Бандит-стрелок', en: 'Gang Gunner' },
+    name: { ru: 'Трубач', en: 'Pipe Gunner' },
+    kind: 'cyborg', value: 1,
+    drops: ['wPunkPipe', 'iPunkSoles', 'iPunkBandolier'],
     hp: 12, speed: 48, r: 6, xp: 3, coins: 0.8, minFloor: 1, weight: 10, cost: 2,
     frames: () => punkArt(),
     update(e, g, dt) {
@@ -36,6 +43,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'drone',
     name: { ru: 'Дрон-наблюдатель', en: 'Watcher Drone' },
+    kind: 'robot', value: 1,
+    drops: ['pDroneRing', 'pDroneRange', 'pDroneScan'],
     hp: 8, speed: 58, r: 6, flying: true, xp: 2, coins: 0.5, minFloor: 1, weight: 8, cost: 2,
     frames: () => watcherArt(),
     contact: false,
@@ -47,6 +56,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'spiderMine',
     name: { ru: 'Паук-мина', en: 'Spider Mine' },
+    kind: 'robot', value: 1,
+    drops: ['pSpiderSticky', 'pSpiderCrawlers', 'pSpiderWeb'],
     hp: 6, speed: 105, r: 5, xp: 2, coins: 0.3, minFloor: 2, weight: 6, cost: 1, group: [2, 3],
     frames: () => spiderMineArt(),
     update(e, g, dt) {
@@ -68,6 +79,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'turret',
     name: { ru: 'Автотурель', en: 'Auto-turret' },
+    kind: 'robot', value: 2,
+    drops: ['pTurretSwivel', 'pTurretThermo', 'pTurretSpinners', 'pTurretSentry'],
     hp: 26, speed: 0, r: 7, xp: 3, coins: 0.8, minFloor: 2, weight: 5, cost: 2, heavy: true,
     frames: () => turretArt(),
     update(e, g, dt) {
@@ -81,7 +94,9 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'guard',
-    name: { ru: 'Корпоративный страж', en: 'Corporate Guard' },
+    name: { ru: 'Вахтёр', en: 'Gatekeeper' },
+    kind: 'cyborg', value: 2,
+    drops: ['iGuardPlate', 'iGuardVisor', 'wGuardTurnstile', 'iGuardKeys'],
     hp: 30, speed: 40, r: 7, xp: 4, coins: 1.2, minFloor: 3, weight: 8, cost: 3,
     frames: () => guardArt(),
     update(e, g, dt) {
@@ -102,7 +117,9 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'netrunner',
-    name: { ru: 'Сигнальщик', en: 'Signalman' },
+    name: { ru: 'Мигун', en: 'Blinker' },
+    kind: 'cyborg', value: 2,
+    drops: ['wBlinkFive', 'iBlinkAntenna', 'iBlinkTorso', 'iBlinkLegs'],
     hp: 18, speed: 30, r: 6, xp: 4, coins: 1, minFloor: 3, weight: 6, cost: 3,
     frames: () => netrunnerArt(),
     contact: false,
@@ -131,6 +148,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'heavy',
     name: { ru: 'Тяжёлый штурмовик', en: 'Heavy Trooper' },
+    kind: 'cyborg', value: 3,
+    drops: ['wHeavyRampart', 'iHeavyBelt', 'iHeavyPlates', 'iHeavyBraces', 'iHeavyLoader'],
     hp: 60, speed: 30, r: 8, xp: 6, coins: 1.6, minFloor: 4, weight: 6, cost: 4, heavy: true,
     frames: () => heavyArt(),
     update(e, g, dt) {
@@ -145,6 +164,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'mantis',
     name: { ru: 'Резчик', en: 'Cutter' },
+    kind: 'cyborg', value: 3,
+    drops: ['iCutterSickle', 'iCutterTrail', 'iCutterSensor', 'iCutterSheath', 'wCutterAwl'],
     hp: 25, speed: 60, r: 6, xp: 5, coins: 1.2, minFloor: 4, weight: 6, cost: 3,
     frames: () => mantisArt(),
     update(e, g, dt) {
@@ -176,7 +197,9 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'gekko',
-    name: { ru: 'Прыгун «Гекко»', en: 'Gekko Walker' },
+    name: { ru: 'Прыгун «Блоха»', en: '“Flea” Hopper' },
+    kind: 'robot', value: 3,
+    drops: ['pFleaHop', 'pFleaLob', 'pFleaCatapult', 'pFleaItch', 'pFleaBite'],
     hp: 45, speed: 40, r: 8, xp: 6, coins: 1.4, minFloor: 5, weight: 5, cost: 4,
     frames: () => gekkoArt(),
     update(e, g, dt) {
@@ -218,6 +241,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'sniper',
     name: { ru: 'Снайпер', en: 'Sniper' },
+    kind: 'cyborg', value: 2,
+    drops: ['wSniperPlumb', 'iSniperRange', 'iSniperTripod', 'iSniperSpotter'],
     hp: 20, speed: 40, r: 6, xp: 5, coins: 1.2, minFloor: 3, weight: 5, cost: 3,
     frames: () => sniperArt(),
     update(e, g, dt) {
@@ -246,7 +271,9 @@ export const ENEMIES: EnemyDef[] = [
   },
   {
     id: 'flamer',
-    name: { ru: 'Огнемётчик', en: 'Flamer' },
+    name: { ru: 'Кочегар', en: 'Stoker' },
+    kind: 'cyborg', value: 3,
+    drops: ['iStokerSprayer', 'iStokerSoles', 'iStokerTank', 'iStokerPoker', 'iStokerFurnace'],
     hp: 40, speed: 46, r: 7, xp: 5, coins: 1.3, minFloor: 4, weight: 5, cost: 3,
     frames: () => flamerArt(),
     update(e, g, dt) {
@@ -263,6 +290,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'psycho',
     name: { ru: 'Сорванный', en: 'Unleashed' },
+    kind: 'cyborg', value: 4,
+    drops: ['iSnapLoop', 'iSnapRam', 'iSnapSocket', 'iSnapDebt', 'iSnapLeash', 'wSnapChain'],
     hp: 85, speed: 55, r: 8, xp: 10, coins: 2.5, minFloor: 6, weight: 4, cost: 6, heavy: true,
     frames: () => psychoArt(),
     update(e, g, dt) {
@@ -284,6 +313,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'mechanoid',
     name: { ru: 'Механоид', en: 'Mechanoid' },
+    kind: 'robot', value: 4,
+    drops: ['pMechFork', 'pMechColumn', 'pMechBearing', 'pMechAps', 'pMechBarrage', 'pMechAmmo'],
     hp: 95, speed: 24, r: 10, xp: 10, coins: 2.5, minFloor: 6, weight: 4, cost: 6, heavy: true,
     frames: () => mechanoidArt(),
     update(e, g, dt) {
@@ -299,6 +330,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'swarm',
     name: { ru: 'Рой-бот', en: 'Swarm Bot' },
+    kind: 'robot', value: 1,
+    drops: ['pSwarmFlock', 'pSwarmPocket', 'pSwarmInterceptors'],
     hp: 4, speed: 92, r: 4, flying: true, xp: 1, coins: 0.2, minFloor: 5, weight: 5, cost: 2, group: [4, 6],
     frames: () => swarmArt(),
     update(e, g, dt) {
@@ -314,6 +347,8 @@ export const ENEMIES: EnemyDef[] = [
   {
     id: 'repair',
     name: { ru: 'Ремонтный дрон', en: 'Repair Drone' },
+    kind: 'robot', value: 2,
+    drops: ['pRepairPatch', 'pRepairDaisy', 'pRepairTether', 'pRepairSalvage'],
     hp: 14, speed: 45, r: 6, flying: true, xp: 4, coins: 1, minFloor: 5, weight: 4, cost: 3, contact: false,
     frames: () => repairArt(),
     update(e, g, dt) {

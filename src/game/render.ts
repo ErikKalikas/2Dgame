@@ -137,7 +137,7 @@ export function renderGame(g: Game, r: Renderer) {
 
   // заряд оружия
   if (p.charge > 0) {
-    const w = p.weapon.weapon!;
+    const w = p.gun.weapon!;
     const k = Math.min(1, p.charge / ((w.chargeTime ?? 1) / p.stats.fireRateMult));
     ctx.fillStyle = C.void;
     ctx.fillRect(Math.round(p.x - cx - 8), Math.round(p.y - cy + 6), 16, 3);

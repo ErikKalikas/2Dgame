@@ -8,6 +8,9 @@ import { xpNeed, type Game } from './game';
 import { HACK_TIME } from './game';
 import { SLOT_NAME, item, type ItemDef } from './items';
 import { qualityColor } from './render';
+import { settings } from '../core/storage';
+import { SCANNER, hasOpenSet } from './drops';
+import { playerUnstableLevel } from './instability';
 
 export function kindLabel(it: ItemDef): string {
   switch (it.kind) {
@@ -74,7 +77,10 @@ export function renderHud(g: Game, r: Renderer) {
   renderLog(g, r);
   renderHack(g, r);
   renderPrices(g, r);
+  renderEnemyMarks(g, r);
+  renderUnstable(g, r);
   renderTooltip(g, r);
+  renderHudGlitch(g, r);
 
   if (g.state === 'play' && g.bossIntro > 0 && g.boss) {
     const a = Math.min(1, g.bossIntro * 2);
@@ -185,6 +191,61 @@ function renderPrices(g: Game, r: Renderer) {
     const x = k.x - g.camX, y = k.y - g.camY + 8;
     if (x < -20 || y < -20 || x > VIEW_W + 20 || y > VIEW_H + 20) continue;
     r.text(String(k.price), x, y, { size: 5, color: g.player.coins >= k.price ? C.yellow : C.redD, align: 'center' });
+  }
+}
+
+/** Метка над врагом с несобранным набором и шанс дропа (со «Сканером утильщика») */
+function renderEnemyMarks(g: Game, r: Renderer) {
+  const scanner = g.player.has(SCANNER);
+  if (!settings.setMarkers && !scanner) return;
+  for (const e of g.enemies) {
+    if (e.dead || e.spawn > 0 || e.hidden || !hasOpenSet(g, e.def)) continue;
+    const x = Math.round(e.x - g.camX), y = Math.round(e.y - g.camY - e.r - 6);
+    if (x < -10 || y < 14 || x > VIEW_W + 10 || y > VIEW_H) continue;
+    if (settings.setMarkers) {
+      r.rect(x - 1, y, 3, 1, C.yellow, 0.75);
+      r.rect(x, y - 1, 1, 3, C.yellow, 0.75);
+    }
+    if (scanner) {
+      const pct = Math.round(g.drops.chance(e.def, g.player.stats.luck, true, g.dropMult) * 100);
+      r.text(`${pct}%`, x, y - 8, { size: 4, color: C.yellow, align: 'center' });
+    }
+  }
+}
+
+/** Нестабильность: уровень и отключённые предметы с таймером (рядом со снаряжением) */
+function renderUnstable(g: Game, r: Renderer) {
+  const p = g.player;
+  const lvl = playerUnstableLevel(p);
+  if (!lvl && !p.disabled.size) return;
+  const y = VIEW_H - 20;
+  let x = 65;
+  if (lvl) {
+    r.text(tr({ ru: `НЕСТ ${lvl}`, en: `UNST ${lvl}` }), x, y + 5, { size: 5, color: C.violet });
+    x += 34;
+  }
+  const blink = Math.floor(g.time * 3) % 2 === 0;
+  for (const [id, d] of p.disabled) {
+    const it = item(id);
+    r.rect(x, y - 1, 18, 18, C.void, 0.7);
+    r.frame(x, y - 1, 18, 18, blink ? C.redL : C.redD);
+    r.sprite(icon(it.icon), x + 3, y + 2, 1, 0.35);
+    const label = d.mode === 'timed' ? `${Math.ceil(d.t)}` : tr(d.mode === 'combat' ? { ru: 'бой', en: 'fgt' } : { ru: 'ур.', en: 'lvl' });
+    r.text(label, x + 16, y + 11, { size: 4, color: C.bone, align: 'right' });
+    x += 20;
+  }
+}
+
+/** Помехи интерфейса при нестабильности 3–4: короткие полосы, без тряски */
+function renderHudGlitch(g: Game, r: Renderer) {
+  if (g.unstable.hudGlitch <= 0 || !settings.instabilityFx) return;
+  const seed = Math.floor(g.time * 30);
+  for (let i = 0; i < 5; i++) {
+    const k = (seed * 7919 + i * 104729) % 1000;
+    const y = (k * 13) % VIEW_H;
+    const w = 40 + (k % 160);
+    const x = (k * 31) % (VIEW_W - w);
+    r.rect(x, y, w, 1 + (k % 2), i % 2 ? C.violet : C.redD, 0.45);
   }
 }
 

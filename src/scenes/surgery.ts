@@ -144,8 +144,11 @@ export class SurgeryOverlay implements Scene {
       const id = key === 'skeleton' ? p.skeleton : p.slots[key];
       const sel = this.col === 0 && this.bi === i;
       r.rect(x, y, 17, 17, C.void, 0.8);
-      r.frame(x, y, 17, 17, sel ? C.yellow : id ? qualityColor(item(id).quality) : locked ? C.blood : C.metal);
-      if (id) r.sprite(icon(item(id).icon), x + 2, y + 2);
+      // отключённый нестабильный модуль мигает на схеме тела
+      const off = !!id && p.disabled.has(id);
+      const blink = off && Math.floor(performance.now() / 300) % 2 === 0;
+      r.frame(x, y, 17, 17, blink ? C.redL : sel ? C.yellow : id ? qualityColor(item(id).quality) : locked ? C.blood : C.metal);
+      if (id) r.sprite(icon(item(id).icon), x + 2, y + 2, 1, off ? 0.4 : 1);
       else if (locked) r.text('×', x + 9, y + 6, { size: 6, color: C.redD, align: 'center' });
       const name = key === 'skeleton' ? SKELETON_NAME : SHORT[key] ?? SLOT_NAME[key];
       r.text(tr(name), x + 9, y + 19, { size: 4, color: sel ? C.yellow : C.steel, align: 'center' });

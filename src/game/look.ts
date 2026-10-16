@@ -10,7 +10,11 @@ import { item, type Slot } from './items';
 
 const cache = new Map<string, Sprite>();
 
-function compose(dir: PlayerDir, frame: number, mods: [Slot | 'skeleton', string][]): Sprite {
+/** Отключённая нестабильная деталь тускнеет: каждый цвет палитры — на ступень темнее */
+const DIM: Record<string, string> = { 0: '0', 1: '0', 2: '1', 3: '2', 4: '3', 5: '4', 6: '5', 7: '6', 8: '8', 9: '8', a: '9', b: 'a', c: 'c', d: 'c', e: 'd', f: '9' };
+const dimRows = (rows: string[]) => rows.map((row) => row.replace(/[0-9a-f]/g, (ch) => DIM[ch] ?? ch));
+
+function compose(dir: PlayerDir, frame: number, mods: [Slot | 'skeleton', string][], off: Set<string> = new Set()): Sprite {
   const g = Grid.of(playerRows(dir, frame));
   for (const [slot, id] of mods) {
     const look = LOOKS[id];
@@ -19,9 +23,10 @@ function compose(dir: PlayerDir, frame: number, mods: [Slot | 'skeleton', string
     const rows = dir === 'up' ? look.up === undefined ? look.p : look.up : dir === 'side' ? look.side === undefined ? look.p : look.side : look.p;
     if (!rows || !rows.length) continue;
     const x = at[0] + (look.dx ?? 0), y = at[1] + (look.dy ?? 0);
-    g.rows(rows, x, y);
+    const draw = off.has(id) ? dimRows(rows) : rows;
+    g.rows(draw, x, y);
     // ноги: та же деталь на второй ноге (вид спереди и сзади)
-    if (slot === 'legs' && dir !== 'side') g.rows(rows, x + 4, y);
+    if (slot === 'legs' && dir !== 'side') g.rows(draw, x + 4, y);
   }
   g.outline(0);
   return g.toSprite();
@@ -32,10 +37,11 @@ export function playerLook(p: Player, facing: Facing, frame: number): Sprite {
   const mods: [Slot | 'skeleton', string][] = Object.entries(p.slots).filter(([, id]) => !!id) as [Slot, string][];
   if (p.skeleton !== 'skWorker') mods.push(['skeleton', p.skeleton]);
   const dir: PlayerDir = facing === 'down' ? 'down' : facing === 'up' ? 'up' : 'side';
-  const key = `${facing}:${frame}:${mods.map(([s, id]) => s + '=' + id).sort().join(',')}`;
+  const off = [...p.disabled.keys()].sort().join(',');
+  const key = `${facing}:${frame}:${mods.map(([s, id]) => s + '=' + id).sort().join(',')}:${off}`;
   let s = cache.get(key);
   if (!s) {
-    s = compose(dir, frame, mods);
+    s = compose(dir, frame, mods, new Set(p.disabled.keys()));
     if (facing === 'left') s = flipH(s);
     cache.set(key, s);
   }

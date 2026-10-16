@@ -6,6 +6,7 @@ import { moveBody, overlaps } from './collision';
 import type { Game } from './game';
 import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type Slot, type SynergyDef, type Tag } from './items';
 import { baseStats, finalFireDelay, type Stats } from './stats';
+import type { Disable } from './instability';
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
@@ -73,6 +74,8 @@ export class Player {
   passives = new Map<string, number>();
   /** Щит левой руки поднят (для отрисовки) */
   shieldUp = 0;
+  /** Отключённые нестабильные предметы (этап 12): id → как долго */
+  disabled = new Map<string, Disable>();
 
   stats: Stats = baseStats();
   /** Поправка к максимуму жизней от сложности */
@@ -92,14 +95,19 @@ export class Player {
 
   /** Активный модуль (Q): первый установленный с активной способностью */
   get activeId(): string | null {
-    for (const id of this.installed) if (item(id).active) return id;
+    for (const id of this.installed) if (item(id).active && !this.disabled.has(id)) return id;
     return null;
   }
 
-  /** Модуль левой руки, если стоит */
+  /** Модуль левой руки, если стоит и не отключён */
   get leftModule(): ItemDef | null {
     const id = this.slots.armL;
-    return id ? item(id) : null;
+    return id && !this.disabled.has(id) ? item(id) : null;
+  }
+
+  /** Чем стреляет правая рука: отключённое нестабильное оружие заменяет клепальный пистолет */
+  get gun(): ItemDef {
+    return this.disabled.has(this.weapon.id) ? item('pistol') : this.weapon;
   }
 
   get skeletonClass(): number {
@@ -107,6 +115,7 @@ export class Player {
   }
 
   has(id: string): boolean {
+    if (this.disabled.has(id)) return false;
     return this.weapon.id === id || this.installed.includes(id) || this.passives.has(id) || this.skeleton === id;
   }
 
@@ -122,17 +131,18 @@ export class Player {
     const s = baseStats();
     s.maxLives += this.lifeOffset;
     const hooks: Hooks[] = [];
-    this.weapon.weapon?.stats(s);
+    const gun = this.gun;
+    gun.weapon?.stats(s);
     // рука-оружие сильнее ручного, но меняется только в операционной
-    if (this.weapon.slot === 'armR') s.damageMult *= 1.25;
-    if (this.weapon.hooks) hooks.push(this.weapon.hooks);
+    if (gun.slot === 'armR') s.damageMult *= 1.25;
+    if (gun.hooks) hooks.push(gun.hooks);
     const apply = (it: ItemDef, stacks: number) => {
       it.stats?.(s, stacks);
       if (it.hooks) hooks.push(it.hooks);
     };
     apply(item(this.skeleton), 1);
-    for (const id of this.installed) if (id !== this.weapon.id) apply(item(id), 1);
-    for (const [id, n] of this.passives) apply(item(id), n);
+    for (const id of this.installed) if (id !== this.weapon.id && !this.disabled.has(id)) apply(item(id), 1);
+    for (const [id, n] of this.passives) if (!this.disabled.has(id)) apply(item(id), n);
     this.synergies = SYNERGIES.filter((sy) => sy.requires((id) => this.has(id), (t) => this.tagCount(t)));
     for (const sy of this.synergies) {
       sy.stats?.(s);
@@ -154,7 +164,7 @@ export class Player {
 
   /** Двуручное оружие занимает и левую руку */
   get twoHanded(): boolean {
-    return this.weapon.weapon?.hands === 2;
+    return this.gun.weapon?.hands === 2;
   }
 
   /** Куда смотрит Т-417: направление стрельбы, иначе — взгляда */
@@ -254,7 +264,7 @@ export class Player {
     }
 
     this.fireCd -= dt;
-    const w = this.weapon.weapon!;
+    const w = this.gun.weapon!;
     if (w.mode === 'charge') {
       const full = (w.chargeTime ?? 1) / s.fireRateMult;
       if (this.shooting) {

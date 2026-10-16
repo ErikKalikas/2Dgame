@@ -36,6 +36,12 @@ export interface EnemyDef {
   heavy?: boolean;
   boss?: boolean;
   phases?: BossPhase[];
+  /** Киборг роняет модули и оружие, робот — прошивки (этап 12) */
+  kind?: 'cyborg' | 'robot';
+  /** Класс ценности I–IV: шанс дропа и размер набора (3/4/5/6 предметов) */
+  value?: 1 | 2 | 3 | 4;
+  /** Набор врага: id предметов; первые три — «ядро набора» (первая ступень синергии) */
+  drops?: string[];
   /** Модификатор входящего урона (например, щит спереди) */
   damageTaken?(e: Enemy, g: Game, dmg: number, fromX: number, fromY: number): number;
   onDeath?(e: Enemy, g: Game): void;
@@ -81,6 +87,10 @@ export class Enemy {
   hackK = 0;
   kx = 0;
   ky = 0;
+  /** Элита (этап 13): гарантированный дроп одного предмета набора */
+  elite = false;
+  /** Агрессивен к игроку (этап 13 — преследование); пока считаем, что все живые враги в бою */
+  aggro = true;
   frames: Sprite[];
 
   constructor(public def: EnemyDef, x: number, y: number, hpMult: number) {

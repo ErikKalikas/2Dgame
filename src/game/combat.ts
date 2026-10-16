@@ -136,7 +136,7 @@ export function fan(g: Game, angle: number, s: Stats, over: Partial<PBullet> = {
 export function fireWeapon(g: Game, angle: number, chargeK: number) {
   const p = g.player;
   const s = p.stats;
-  const w = p.weapon.weapon!;
+  const w = p.gun.weapon!;
   g.fx.flash(p.x + Math.cos(angle) * 7, p.y - 3 + Math.sin(angle) * 7, s.shotColor, 3, 0.05);
   switch (w.mode) {
     case 'beam':

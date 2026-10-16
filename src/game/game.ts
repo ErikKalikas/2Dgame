@@ -21,6 +21,8 @@ import { distToSegment, moveBody } from './collision';
 import { FlowField } from './pathfinding';
 import { Player } from './player';
 import { bossReward, dropLoot, furnishRoom, makePickup, populateRoom, roomClearReward, type Pickup } from './spawn';
+import { DropState, enemyDrop } from './drops';
+import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './instability';
 
 export interface DiffParams {
   speed: number;
@@ -105,6 +107,12 @@ export class Game {
   barriers: { x1: number; y1: number; x2: number; y2: number; t: number }[] = [];
   /** Имя последнего побеждённого босса (для лога) */
   lastBoss: L | null = null;
+  /** Дроп с врагов: счётчики невезения (этап 12) */
+  drops = new DropState();
+  /** Множитель шанса дропа (маршрут лифта «Грузовой» — этап 14) */
+  dropMult = 1;
+  /** Помехи и бонусы нестабильности */
+  unstable = new UnstableState();
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {
     this.rng = new RNG(seed + ':run');
@@ -148,6 +156,7 @@ export class Game {
     this.snapCamera();
     // сбой полностью заряжен в начале каждого уровня
     this.player.glitch = 1;
+    onFloorStart(this);
     this.log(LOG.floorStart(this.theme.tierName, n));
   }
 
@@ -250,6 +259,7 @@ export class Game {
     this.electroT = (this.electroT + dt) % 3.2;
     p.update(this, dt);
     p.emit('tick', this, dt);
+    updateInstability(this, dt);
     this.updateDrones(dt);
 
     this.updateGlitch();
@@ -649,6 +659,13 @@ export class Game {
 
   fireWeapon(angle: number, chargeK: number) {
     fireWeapon(this, angle, chargeK);
+    // бонус нестабильности: сдвоенный залп
+    if (this.unstable.doubleT > 0) fireWeapon(this, angle + 0.1, chargeK);
+  }
+
+  /** Идёт бой: есть живой агрессивный враг (для нестабильности «до конца боя») */
+  inCombat(): boolean {
+    return this.enemies.some((e) => !e.dead && e.spawn <= 0 && e.aggro);
   }
 
   nearestEnemy(x: number, y: number, maxDist: number): Enemy | null {
@@ -695,8 +712,12 @@ export class Game {
     if (e.dead) return;
     e.dead = true;
     const p = this.player;
-    this.fx.explosion(e.x, e.y, e.r * 1.6, e.def.boss ? C.red : C.amber);
-    this.fx.burst(e.x, e.y, C.steel, 6 + e.r, 70, 0.5, 2);
+    if (e.def.kind === 'robot') this.fx.robotDeath(e.x, e.y, e.r);
+    else if (e.def.kind === 'cyborg') this.fx.cyborgDeath(e.x, e.y, e.r);
+    else {
+      this.fx.explosion(e.x, e.y, e.r * 1.6, e.def.boss ? C.red : C.amber);
+      this.fx.burst(e.x, e.y, C.steel, 6 + e.r, 70, 0.5, 2);
+    }
     this.lightFlash(e.x, e.y, e.r * 5);
     e.def.onDeath?.(e, this);
     if (!reward || e.mem.summoned) return;
@@ -705,6 +726,7 @@ export class Game {
     if (e.def.boss) this.lastBoss = e.def.name;
     const coins = Math.floor(e.def.coins + Math.random());
     if (coins > 0) dropLoot(this, 'coin', e.x, e.y, coins);
+    enemyDrop(this, e);
     p.xp += e.def.xp * p.stats.xpMult;
     while (p.xp >= xpNeed(p.level)) {
       p.xp -= xpNeed(p.level);
@@ -910,7 +932,10 @@ export class Game {
     }
     this.ebullets = this.ebullets.filter((b) => !b.dead);
     this.fx.burst(p.x, p.y, C.red, 24, 120, 0.6, 2, true);
-    if (p.lives > 0) this.log(LOG.hurt);
+    if (p.lives > 0) {
+      this.log(LOG.hurt);
+      onLifeLost(this);
+    }
     this.fx.ring(p.x, p.y, C.red, 110, 0.4);
     if (p.lives <= 0) {
       this.state = 'dying';

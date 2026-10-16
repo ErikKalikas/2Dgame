@@ -112,6 +112,10 @@ export interface ItemDef {
   capacity?: number;
   /** Модуль левой руки */
   leftHand?: LeftHandSpec;
+  /** Очки нестабильности (предметы врагов III–IV, детали Чистильщиков) */
+  unstable?: 1 | 2;
+  /** Из набора какого врага (id врага); в общих пулах такие предметы реже */
+  fromEnemy?: string;
 }
 
 export interface SynergyDef {
@@ -148,6 +152,8 @@ export function itemsOfKind(kind: ItemKind): ItemDef[] {
 }
 
 const QUALITY_WEIGHT = [0, 10, 6, 3, 1.4];
+/** Предметы врагов в общих пулах (сокровищница, магазин, награды) попадаются реже обычных */
+const ENEMY_ITEM_WEIGHT = 0.5;
 
 /** Редкие предметы попадаются чаще с ростом уровня: 3 — с 3-го, 4 — с 5-го (раньше — изредка) */
 function floorWeight(q: number, floor: number): number {
@@ -160,7 +166,7 @@ function floorWeight(q: number, floor: number): number {
 export function rollItem(rng: RNG, kind: ItemKind, exclude: Set<string>, luck = 0, floor = 9, allow?: (it: ItemDef) => boolean): ItemDef | null {
   const pool = itemsOfKind(kind).filter((i) => !exclude.has(i.id) && (!allow || allow(i)));
   if (!pool.length) return null;
-  return rng.weighted(pool, (i) => QUALITY_WEIGHT[i.quality] * floorWeight(i.quality, floor) * (i.quality >= 3 ? 1 + luck * 0.3 : 1));
+  return rng.weighted(pool, (i) => QUALITY_WEIGHT[i.quality] * floorWeight(i.quality, floor) * (i.quality >= 3 ? 1 + luck * 0.3 : 1) * (i.fromEnemy ? ENEMY_ITEM_WEIGHT : 1));
 }
 
 export function itemPrice(it: ItemDef): number {

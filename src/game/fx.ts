@@ -72,6 +72,31 @@ export class FxSystem {
     }
   }
 
+  /** Смерть робота (этап 12): рассыпается деталями и искрами */
+  robotDeath(x: number, y: number, r: number) {
+    this.flash(x, y, '#ffcc33', r * 1.2, 0.1);
+    this.burst(x, y, '#595968', 6 + r, 90, 0.7, 2);
+    this.burst(x, y, '#3a3a48', 4 + r / 2, 60, 0.9, 2);
+    this.burst(x, y, '#ffcc33', 8 + r, 140, 0.3, 1, true);
+    for (let i = 0; i < 2; i++) {
+      this.add({ kind: 'smoke', x, y, vx: (Math.random() - 0.5) * 16, vy: -8 - Math.random() * 10, life: 0.7, color: '#1a1a20', size: r * 0.5, drag: 1 });
+    }
+  }
+
+  /** Смерть киборга (этап 12): тёмно-красные брызги и пар */
+  cyborgDeath(x: number, y: number, r: number) {
+    this.burst(x, y, '#5e0f16', 8 + r, 80, 0.6, 2);
+    this.burst(x, y, '#2e080c', 6 + r, 50, 0.8, 2);
+    this.burst(x, y, '#a3161f', 4, 100, 0.3, 1);
+    for (let i = 0; i < 4; i++) {
+      this.add({
+        kind: 'smoke', x: x + (Math.random() - 0.5) * r, y: y + (Math.random() - 0.5) * r,
+        vx: (Math.random() - 0.5) * 14, vy: -18 - Math.random() * 16, life: 0.9 + Math.random() * 0.5,
+        color: '#8c8c9a', size: r * 0.45, drag: 1,
+      });
+    }
+  }
+
   update(dt: number) {
     const L = this.list;
     for (let i = L.length - 1; i >= 0; i--) {

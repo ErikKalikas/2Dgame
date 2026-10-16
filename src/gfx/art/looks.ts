@@ -43,6 +43,8 @@ export const LOOKS: Record<string, Look> = {
   iDaemonUplink: { p: ['..f', '..f', '..3'], up: ['..f', '..f'], dy: -3 },
   iPingHack: { p: ['f.f.', '.f.f'], dy: -1 },
   iFlashEmitter: { p: ['.77.', '7ee7'], dy: -1 },
+  // лупа-монокль утильщика
+  iScrapScanner: { p: ['.dd', 'de.', '.d.'], up: null, dx: 2, dy: -1 },
   // ---- корпус
   subdermal: { p: ['5665', '5445'] },
   iDermalWeave: { p: ['6.6.', '.6.6', '6.6.'] },

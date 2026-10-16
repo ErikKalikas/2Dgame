@@ -32,6 +32,13 @@ export const LOG = {
   glitch: { ru: 'Т-417: потеря сигнала. Повторное подключение…', en: 'T-417: signal lost. Reconnecting…' } as L,
   emergency: { ru: 'Попадание по Т-417 не зарегистрировано. Проверка датчиков.', en: 'Hit on T-417 not registered. Checking sensors.' } as L,
   hurt: { ru: 'Т-417: повреждение корпуса. Ремонт не назначен.', en: 'T-417: hull damage. No repair scheduled.' } as L,
+  // нестабильность (этап 12)
+  unstableOff: (name: L, how: L): L => ({
+    ru: `Несовместимость: «${name.ru}» отключён ${how.ru}.`,
+    en: `Incompatibility: "${name.en}" offline ${how.en}.`,
+  }),
+  unstableDouble: { ru: 'Сбой совместимости: каналы огня сдвоены.', en: 'Compatibility fault: fire channels doubled.' } as L,
+  unstableCharge: { ru: 'Сбой совместимости: скачок заряда.', en: 'Compatibility fault: charge surge.' } as L,
 };
 
 /** Заставка в начале забега: как у Т-417 сгорел поводок */

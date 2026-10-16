@@ -30,6 +30,8 @@ export const S = {
   language: { ru: 'Язык', en: 'Language' },
   difficulty: { ru: 'Сложность', en: 'Difficulty' },
   fullscreen: { ru: 'Полный экран', en: 'Fullscreen' },
+  setMarkers: { ru: 'Метки наборов', en: 'Set markers' },
+  instabilityFx: { ru: 'Помехи нестабильности', en: 'Instability glitches' },
   on: { ru: 'вкл', en: 'on' },
   off: { ru: 'выкл', en: 'off' },
   diffNormal: { ru: 'Средняя', en: 'Normal' },
