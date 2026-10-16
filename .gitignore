@@ -3,3 +3,6 @@ dist/
 release/
 *.log
 .DS_Store
+
+# Заметки Obsidian (локально, не в репозитории)
+obsidian-vault/
