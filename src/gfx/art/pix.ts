@@ -180,6 +180,18 @@ export class Mask {
       }
     return this;
   }
+  /** Новая маска, отражённая по горизонтали */
+  flip(): Mask {
+    const m = new Mask(this.w, this.h);
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) m.d[y * this.w + (this.w - 1 - x)] = this.d[y * this.w + x];
+    return m;
+  }
+  /** Объединение с другой маской */
+  add(o: Mask) {
+    for (let i = 0; i < this.d.length; i++) if (o.d[i]) this.d[i] = 1;
+    return this;
+  }
   /** Зеркалит маску по горизонтали (добавляет отражение) */
   sym() {
     for (let y = 0; y < this.h; y++)

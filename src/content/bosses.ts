@@ -1,7 +1,8 @@
 import { TAU } from '../core/math';
 import { C } from '../gfx/palette';
-import { humanoid, mech, spider } from '../gfx/sprites';
-import { canvas, ctx2d, type Sprite } from '../gfx/sprite';
+import {
+  arachneArt, blackIceArt, executionerArt, goliathArt, hiveArt, twinsArt, vultureArt, wardenArt,
+} from '../gfx/art/bosses';
 import { angleToPlayer, every, move } from '../game/ai';
 import { Enemy, type EnemyDef } from '../game/enemy';
 import type { Game } from '../game/game';
@@ -25,15 +26,6 @@ function drift(e: Enemy, g: Game, dt: number, speed = 40, area = 0.55) {
   const a = Math.atan2(e.mem.goal.y - e.y, e.mem.goal.x - e.x);
   move(e, g, Math.cos(a) * speed * dt, Math.sin(a) * speed * dt);
   e.anim += dt * 2;
-}
-
-function upscale(frames: Sprite[], k: number): Sprite[] {
-  return frames.map((f) => {
-    const c = canvas(f.width * k, f.height * k);
-    const x = ctx2d(c);
-    x.drawImage(f, 0, 0, c.width, c.height);
-    return c;
-  });
 }
 
 /** Рывок к игроку со следом из пуль. Возвращает true, когда рывок закончен */
@@ -76,7 +68,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'sentinel',
     name: { ru: 'Охранный мех СТРАЖ-9', en: 'Security Mech WARDEN-9' },
     hp: 420, speed: 40, r: 14,
-    frames: () => mech({ w: 32, h: 32, body: C.redD, dark: C.blood, light: C.red, eye: C.yellow, legs: 'biped', cockpit: true, guns: 2 }),
+    frames: () => wardenArt(),
     update() {},
     phases: [
       {
@@ -118,7 +110,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'arachna',
     name: { ru: 'Паук-танк АРАХНА', en: 'Spider Tank ARACHNE' },
     hp: 520, speed: 45, r: 15,
-    frames: () => upscale(spider(C.steel, C.red, 18, 3), 2),
+    frames: () => arachneArt(),
     update() {},
     phases: [
       {
@@ -168,7 +160,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'gunship',
     name: { ru: 'Ави-штурмовик ГРИФ', en: 'Gunship VULTURE' },
     hp: 560, speed: 60, r: 16, flying: true,
-    frames: () => mech({ w: 40, h: 28, body: C.metal, dark: C.dark, light: C.steelL, eye: C.red, legs: 'none', cockpit: true, guns: 3 }),
+    frames: () => vultureArt(),
     update() {},
     phases: [
       {
@@ -214,7 +206,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'twins',
     name: { ru: 'Близнецы КАСТОР и ПОЛЛУКС', en: 'Twins CASTOR & POLLUX' },
     hp: 700, speed: 60, r: 11,
-    frames: () => upscale(humanoid({ body: C.steel, dark: C.metal, light: C.bone, visor: C.red, head: 'dome', arms: 'gun', wide: true }), 2),
+    frames: () => twinsArt(),
     update() {},
     phases: [
       {
@@ -245,7 +237,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'goliath',
     name: { ru: 'Ходячий танк ГОЛИАФ', en: 'Walking Tank GOLIATH' },
     hp: 760, speed: 30, r: 18,
-    frames: () => mech({ w: 44, h: 40, body: C.steel, dark: C.metal, light: C.steelL, eye: C.red, legs: 'biped', cockpit: true, guns: 3, horns: true }),
+    frames: () => goliathArt(),
     update() {},
     phases: [
       {
@@ -277,7 +269,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'hive',
     name: { ru: 'Рой-ядро УЛЕЙ', en: 'Swarm Core HIVE' },
     hp: 680, speed: 20, r: 16, flying: true,
-    frames: () => mech({ w: 34, h: 34, body: C.amberD, dark: C.dark, light: C.amber, eye: C.yellow, legs: 'six', core: C.red }),
+    frames: () => hiveArt(),
     update() {},
     phases: [
       {
@@ -323,7 +315,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'executioner',
     name: { ru: 'Палач', en: 'The Executioner' },
     hp: 820, speed: 50, r: 12,
-    frames: () => upscale(humanoid({ body: C.black, dark: C.dark, light: C.grey, visor: C.redL, head: 'skull', arms: 'blades', wide: true }), 2),
+    frames: () => executionerArt(),
     update() {},
     phases: [
       {
@@ -371,7 +363,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'blackice',
     name: { ru: 'ИСКИН «ЧЁРНЫЙ ЛЁД»', en: 'AI "BLACK ICE"' },
     hp: 1700, speed: 20, r: 20, flying: true, xp: 0,
-    frames: () => mech({ w: 48, h: 44, body: C.blood, dark: C.black, light: C.violet, eye: C.redL, legs: 'six', core: C.redL, horns: true, guns: 2 }),
+    frames: () => blackIceArt(),
     update() {},
     phases: [
       {

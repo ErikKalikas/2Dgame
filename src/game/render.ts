@@ -295,7 +295,7 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
   ctx.drawImage(SPR.shadow, x - 5, y + 2);
   if (p.invuln > 0 && p.dashT <= 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
   const s = p.sprite;
-  ctx.drawImage(s, x - 6, y - 13);
+  ctx.drawImage(s, x - Math.floor(s.width / 2), y + 3 - s.height);
   if (p.shieldLeft > 0) {
     ctx.strokeStyle = C.amber;
     ctx.globalAlpha = 0.35 + 0.15 * Math.sin(g.time * 6);
@@ -329,10 +329,13 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
   else if (frames.length === 2) fi = Math.floor(e.anim + g.time * 2) % 2;
   let s = frames[fi];
   if (e.facing < 0) s = flipOf(s);
-  const h = e.mem.h ?? 0;
+  const flying = !!e.def.flying;
+  // летающие слегка покачиваются, тень у них ниже
+  const h = (e.mem.h ?? 0) + (flying ? 3 + Math.round(Math.sin(g.time * 3 + e.id) * 1) : 0);
   const x = Math.round(e.x - cx - s.width / 2);
   const y = Math.round(e.y - cy - s.height / 2 - h);
-  ctx.drawImage(SPR.shadow, Math.round(e.x - cx) - 5, Math.round(e.y - cy + s.height / 2 - 3), 10, 4);
+  const sw = Math.max(8, Math.round(s.width * 0.6)), shH = Math.max(3, Math.round(sw / 3));
+  ctx.drawImage(SPR.shadow, Math.round(e.x - cx - sw / 2), Math.round(e.y - cy + s.height / 2 - shH + (flying ? 2 : 0)), sw, shH);
   if (e.spawn > 0) {
     // появление: вертикальный луч телепортации
     const k = 1 - e.spawn / 0.6;
