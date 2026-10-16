@@ -364,7 +364,9 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
   if (e.hidden) return;
   const frames = e.frames;
   let fi = 0;
-  if (frames.length > 2) fi = e.anim > 0 ? 1 + (Math.floor(e.anim) % (frames.length - 1)) : 0;
+  // боссы и летающие анимируются по времени: часть их фаз двигает их напрямую, без e.anim
+  if (frames.length > 2 && (e.def.boss || e.def.flying)) fi = 1 + (Math.floor(g.time * 8 + e.id) % (frames.length - 1));
+  else if (frames.length > 2) fi = e.anim > 0 ? 1 + (Math.floor(e.anim) % (frames.length - 1)) : 0;
   else if (frames.length === 2) fi = Math.floor(e.anim + g.time * 2) % 2;
   let s = frames[fi];
   if (e.facing < 0) s = flipOf(s);

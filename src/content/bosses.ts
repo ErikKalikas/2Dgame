@@ -1,7 +1,7 @@
 import { TAU } from '../core/math';
 import { C } from '../gfx/palette';
 import {
-  arachneArt, blackIceArt, executionerArt, goliathArt, hiveArt, twinsArt, vultureArt, wardenArt,
+  arachnaArt, dispatcherArt, executionerArt, goliathArt, gunshipArt, hiveArt, sentinelArt, twinsArt,
 } from '../gfx/art/bosses';
 import { angleToPlayer, every, move } from '../game/ai';
 import { Enemy, type EnemyDef } from '../game/enemy';
@@ -68,7 +68,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'sentinel',
     name: { ru: 'Охранный мех СТРАЖ-9', en: 'Security Mech WARDEN-9' },
     hp: 420, speed: 40, r: 14,
-    frames: () => wardenArt(),
+    frames: () => sentinelArt(),
     update() {},
     phases: [
       {
@@ -110,7 +110,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'arachna',
     name: { ru: 'Паук-танк АРАХНА', en: 'Spider Tank ARACHNE' },
     hp: 520, speed: 45, r: 15,
-    frames: () => arachneArt(),
+    frames: () => arachnaArt(),
     update() {},
     phases: [
       {
@@ -160,7 +160,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'gunship',
     name: { ru: 'Ави-штурмовик ГРИФ', en: 'Gunship VULTURE' },
     hp: 560, speed: 60, r: 16, flying: true,
-    frames: () => vultureArt(),
+    frames: () => gunshipArt(),
     update() {},
     phases: [
       {
@@ -363,7 +363,7 @@ export const BOSSES: EnemyDef[] = [
     id: 'dispatcher',
     name: { ru: 'ДИСПЕТЧЕР', en: 'THE DISPATCHER' },
     hp: 1700, speed: 20, r: 20, flying: true, xp: 0,
-    frames: () => blackIceArt(),
+    frames: () => dispatcherArt(),
     update() {},
     phases: [
       {
