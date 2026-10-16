@@ -193,7 +193,8 @@ export function updatePBullets(g: Game, dt: number) {
     }
 
     if (b.orbitR > 0) {
-      // снаряд кружит вокруг игрока, постепенно расширяя орбиту
+      // снаряд кружит вокруг игрока, постепенно расширяя орбиту; каждые 0.4 с может снова бить ту же цель
+      if (Math.floor(b.t / 0.4) !== Math.floor((b.t - dt) / 0.4)) b.hit.clear();
       b.orbitA += (b.speed / Math.max(20, b.orbitR)) * dt;
       b.orbitR += 12 * dt;
       b.bx = p.x + Math.cos(b.orbitA) * b.orbitR;

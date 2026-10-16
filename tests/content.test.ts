@@ -18,6 +18,13 @@ describe('контент', () => {
     }
   });
 
+  it('50 оружий, 50 имплантов, 30 модификаций (критерий готовности из ТЗ)', () => {
+    expect(itemsOfKind('weapon')).toHaveLength(50);
+    expect(itemsOfKind('implant')).toHaveLength(50);
+    expect(itemsOfKind('passive')).toHaveLength(30);
+    expect(itemsOfKind('passive').filter((p) => p.tags.includes('mutation')).length).toBeGreaterThanOrEqual(6);
+  });
+
   it('16 врагов и 8 боссов', () => {
     expect(ENEMIES).toHaveLength(16);
     expect(BOSSES).toHaveLength(8);

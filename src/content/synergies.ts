@@ -309,4 +309,75 @@ export const SYNERGIES_LIST: SynergyDef[] = [
       s.burn += 3;
     },
   },
+
+  // ------------------------------------------------------------------ с оружием
+  {
+    id: 'synSawmill',
+    name: { ru: 'Пилорама', en: 'Sawmill' },
+    desc: { ru: 'Пилы-спутники «Хоровод» + Орбитальный контур: урон +30%, пилы поджигают.', en: '"Round Dance" Saws + Orbital Guard: damage +30%, saws ignite.' },
+    requires: (has) => has('wOrbitSaws') && has('iOrbitalGuard'),
+    stats: (s) => {
+      s.damageMult *= 1.3;
+      s.burn += 3;
+    },
+  },
+  {
+    id: 'synWaspNest',
+    name: { ru: 'Ракетный улей', en: 'Missile Hive' },
+    desc: { ru: 'Ракетный рой «Осиное гнездо» + Микроракеты в предплечье: +1 ракета, взрывы больше.', en: '"Wasp Nest" + Forearm Micro-Missiles: +1 missile, bigger explosions.' },
+    requires: (has) => has('wMicroMissiles') && has('iMicroMissiles'),
+    stats: (s) => {
+      s.count += 1;
+      s.explode += 6;
+    },
+  },
+  {
+    id: 'synCyberNinja',
+    name: { ru: 'Кибер-ниндзя', en: 'Cyber Ninja' },
+    desc: { ru: 'Мономолекулярная нить + Клинки-богомолы: досягаемость +25%, крит +10%.', en: 'Monowire + Mantis Blades: reach +25%, crit +10%.' },
+    requires: (has) => has('wMonowire') && has('iMantisBlades'),
+    stats: (s) => {
+      s.size *= 1.25;
+      s.crit += 0.1;
+    },
+  },
+  {
+    id: 'synTeslaStorm',
+    name: { ru: 'Тесла-буря', en: 'Tesla Storm' },
+    desc: { ru: 'Тесла-проектор + Дуговой проводник: молния перескакивает на +2 цели.', en: 'Tesla Projector + Arc Conductor: lightning jumps to +2 targets.' },
+    requires: (has) => has('wTeslaBeam') && has('pArcConductor'),
+    stats: (s) => {
+      s.chain += 2;
+    },
+  },
+  {
+    id: 'synViralStrain',
+    name: { ru: 'Вирусный штамм', en: 'Viral Strain' },
+    desc: { ru: 'Вирус «Чёрный лёд» + Паразитный код: снаряды сильнее наводятся и взламывают цель на +20%.', en: '"Black ICE" Virus + Parasitic Code: stronger homing, targets take +20% damage.' },
+    requires: (has) => has('wBlackIce') && has('pMutParasiticCode'),
+    stats: (s) => {
+      s.homing += 2;
+      s.hack += 0.2;
+    },
+  },
+  {
+    id: 'synMinefield',
+    name: { ru: 'Минное поле', en: 'Minefield' },
+    desc: { ru: 'Минный ранец «Капкан» + Напалмовый сброс: мины взрываются шире и поджигают.', en: '"Snare" Mine Pack + Napalm Dropper: mines blast wider and ignite.' },
+    requires: (has) => has('wMineLayer') && has('iNapalmDropper'),
+    stats: (s) => {
+      s.explode += 8;
+      s.burn += 3;
+    },
+  },
+  {
+    id: 'synSmartGun',
+    name: { ru: 'Умный ствол', en: 'Smart Barrel' },
+    desc: { ru: 'Умный пистолет «Поводок» + Смарт-линк: самонаведение +2, крит +8%.', en: '"Leash" Smart Pistol + Smartlink: homing +2, crit +8%.' },
+    requires: (has) => has('wSmartPistol') && has('smartlink'),
+    stats: (s) => {
+      s.homing += 2;
+      s.crit += 0.08;
+    },
+  },
 ];
