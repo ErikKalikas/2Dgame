@@ -1,6 +1,9 @@
 import { TAU } from '../core/math';
 import { C } from '../gfx/palette';
-import { drone, humanoid, mech, spider, turret } from '../gfx/sprites';
+import {
+  flamerArt, gekkoArt, guardArt, heavyArt, mantisArt, mechanoidArt, netrunnerArt, psychoArt,
+  punkArt, repairArt, scavArt, sniperArt, spiderMineArt, swarmArt, turretArt, watcherArt,
+} from '../gfx/art/enemies';
 import { angleToPlayer, chase, distToPlayer, every, inRange, keepRange, move, wander } from '../game/ai';
 import type { EnemyDef } from '../game/enemy';
 import { aim, flower, ring, shoot, spread, stream } from '../game/patterns';
@@ -13,7 +16,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'scav',
     name: { ru: 'Падальщик', en: 'Scavenger' },
     hp: 10, speed: 72, r: 6, xp: 2, coins: 0.6, minFloor: 1, weight: 10, cost: 1, group: [1, 3],
-    frames: () => humanoid({ body: C.metal, dark: C.dark, light: C.steel, visor: C.red, head: 'hood', arms: 'blades' }),
+    frames: () => scavArt(),
     update(e, g, dt) {
       chase(e, g, dt);
     },
@@ -22,7 +25,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'punk',
     name: { ru: 'Бандит-стрелок', en: 'Gang Gunner' },
     hp: 12, speed: 48, r: 6, xp: 3, coins: 0.8, minFloor: 1, weight: 10, cost: 2,
-    frames: () => humanoid({ body: C.redD, dark: C.blood, light: C.red, visor: C.yellow, head: 'mohawk', arms: 'gun' }),
+    frames: () => punkArt(),
     update(e, g, dt) {
       keepRange(e, g, dt, 80, 150);
       if (inRange(e, g) && every(e, g, 'fire', 1.7, dt)) {
@@ -34,7 +37,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'drone',
     name: { ru: 'Дрон-наблюдатель', en: 'Watcher Drone' },
     hp: 8, speed: 58, r: 6, flying: true, xp: 2, coins: 0.5, minFloor: 1, weight: 8, cost: 2,
-    frames: () => drone(C.steel, C.red),
+    frames: () => watcherArt(),
     contact: false,
     update(e, g, dt) {
       keepRange(e, g, dt, 60, 120);
@@ -45,7 +48,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'spiderMine',
     name: { ru: 'Паук-мина', en: 'Spider Mine' },
     hp: 6, speed: 105, r: 5, xp: 2, coins: 0.3, minFloor: 2, weight: 6, cost: 1, group: [2, 3],
-    frames: () => spider(C.metal, C.red, 12, 3),
+    frames: () => spiderMineArt(),
     update(e, g, dt) {
       if (e.mem.arm !== undefined) {
         e.mem.arm -= dt;
@@ -66,7 +69,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'turret',
     name: { ru: 'Автотурель', en: 'Auto-turret' },
     hp: 26, speed: 0, r: 7, xp: 3, coins: 0.8, minFloor: 2, weight: 5, cost: 2, heavy: true,
-    frames: () => turret(C.redD, C.red),
+    frames: () => turretArt(),
     update(e, g, dt) {
       e.mem.a = (e.mem.a ?? Math.random() * TAU) + dt * 1.6;
       e.mem.cycle = (e.mem.cycle ?? Math.random() * 4) + dt;
@@ -80,7 +83,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'guard',
     name: { ru: 'Корпоративный страж', en: 'Corporate Guard' },
     hp: 30, speed: 40, r: 7, xp: 4, coins: 1.2, minFloor: 3, weight: 8, cost: 3,
-    frames: () => humanoid({ body: C.steel, dark: C.metal, light: C.steelL, visor: C.red, head: 'helmet', arms: 'heavy', wide: true }),
+    frames: () => guardArt(),
     update(e, g, dt) {
       keepRange(e, g, dt, 60, 130);
       e.mem.face = angleToPlayer(e, g);
@@ -101,7 +104,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'netrunner',
     name: { ru: 'Нетраннер', en: 'Netrunner' },
     hp: 18, speed: 30, r: 6, xp: 4, coins: 1, minFloor: 3, weight: 6, cost: 3,
-    frames: () => humanoid({ body: C.dark, dark: C.black, light: C.violet, visor: C.violet, head: 'visor', cape: true }),
+    frames: () => netrunnerArt(),
     contact: false,
     update(e, g, dt) {
       e.mem.tp = (e.mem.tp ?? 1.5 + Math.random() * 2) - dt;
@@ -129,7 +132,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'heavy',
     name: { ru: 'Тяжёлый штурмовик', en: 'Heavy Trooper' },
     hp: 60, speed: 30, r: 8, xp: 6, coins: 1.6, minFloor: 4, weight: 6, cost: 4, heavy: true,
-    frames: () => humanoid({ body: C.redD, dark: C.metal, light: C.steelL, visor: C.yellow, head: 'dome', arms: 'heavy', wide: true }),
+    frames: () => heavyArt(),
     update(e, g, dt) {
       keepRange(e, g, dt, 50, 120);
       if (inRange(e, g) && every(e, g, 'fire', 2.4, dt)) e.mem.burst = 3;
@@ -143,7 +146,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'mantis',
     name: { ru: 'Убийца-богомол', en: 'Mantis Assassin' },
     hp: 25, speed: 60, r: 6, xp: 5, coins: 1.2, minFloor: 4, weight: 6, cost: 3,
-    frames: () => humanoid({ body: C.black, dark: C.dark, light: C.grey, visor: C.red, head: 'skull', arms: 'blades' }),
+    frames: () => mantisArt(),
     update(e, g, dt) {
       const st = e.mem.st ?? 'walk';
       if (st === 'walk') {
@@ -175,7 +178,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'gekko',
     name: { ru: 'Прыгун «Гекко»', en: 'Gekko Walker' },
     hp: 45, speed: 40, r: 8, xp: 6, coins: 1.4, minFloor: 5, weight: 5, cost: 4,
-    frames: () => mech({ w: 18, h: 18, body: C.steel, dark: C.metal, light: C.steelL, eye: C.red, legs: 'biped', cockpit: false }),
+    frames: () => gekkoArt(),
     update(e, g, dt) {
       const st = e.mem.st ?? 'walk';
       if (st === 'walk') {
@@ -216,7 +219,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'sniper',
     name: { ru: 'Снайпер', en: 'Sniper' },
     hp: 20, speed: 40, r: 6, xp: 5, coins: 1.2, minFloor: 3, weight: 5, cost: 3,
-    frames: () => humanoid({ body: C.dark, dark: C.black, light: C.steel, visor: C.red, head: 'hood', arms: 'gun' }),
+    frames: () => sniperArt(),
     update(e, g, dt) {
       const st = e.mem.st ?? 'move';
       if (st === 'move') {
@@ -245,7 +248,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'flamer',
     name: { ru: 'Огнемётчик', en: 'Flamer' },
     hp: 40, speed: 46, r: 7, xp: 5, coins: 1.3, minFloor: 4, weight: 5, cost: 3,
-    frames: () => humanoid({ body: C.amberD, dark: C.dark, light: C.amber, visor: C.red, head: 'dome', arms: 'gun', wide: true }),
+    frames: () => flamerArt(),
     update(e, g, dt) {
       const d = distToPlayer(e, g);
       if (d > 75) chase(e, g, dt);
@@ -261,7 +264,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'psycho',
     name: { ru: 'Киберпсих', en: 'Cyberpsycho' },
     hp: 85, speed: 55, r: 8, xp: 10, coins: 2.5, minFloor: 6, weight: 4, cost: 6, heavy: true,
-    frames: () => humanoid({ body: C.red, dark: C.redD, light: C.redL, visor: C.yellow, head: 'mohawk', arms: 'heavy', wide: true }),
+    frames: () => psychoArt(),
     update(e, g, dt) {
       e.mem.cycle = (e.mem.cycle ?? 0) + dt;
       const c = e.mem.cycle % 5;
@@ -282,7 +285,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'mechanoid',
     name: { ru: 'Механоид', en: 'Mechanoid' },
     hp: 95, speed: 24, r: 10, xp: 10, coins: 2.5, minFloor: 6, weight: 4, cost: 6, heavy: true,
-    frames: () => mech({ w: 22, h: 20, body: C.metal, dark: C.dark, light: C.steel, eye: C.red, legs: 'tracks', guns: 2 }),
+    frames: () => mechanoidArt(),
     update(e, g, dt) {
       keepRange(e, g, dt, 70, 150);
       if (inRange(e, g) && every(e, g, 'missile', 3.2, dt)) {
@@ -297,7 +300,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'swarm',
     name: { ru: 'Рой-бот', en: 'Swarm Bot' },
     hp: 4, speed: 92, r: 4, flying: true, xp: 1, coins: 0.2, minFloor: 5, weight: 5, cost: 2, group: [4, 6],
-    frames: () => drone(C.redD, C.yellow, 8),
+    frames: () => swarmArt(),
     update(e, g, dt) {
       e.mem.ph = (e.mem.ph ?? Math.random() * TAU) + dt * 5;
       const a = angleToPlayer(e, g) + Math.sin(e.mem.ph) * 0.9;
@@ -312,7 +315,7 @@ export const ENEMIES: EnemyDef[] = [
     id: 'repair',
     name: { ru: 'Ремонтный дрон', en: 'Repair Drone' },
     hp: 14, speed: 45, r: 6, flying: true, xp: 4, coins: 1, minFloor: 5, weight: 4, cost: 3, contact: false,
-    frames: () => drone(C.amberD, C.yellow, 12),
+    frames: () => repairArt(),
     update(e, g, dt) {
       // лечит раненого союзника, а в одиночку стреляет цветком
       let target = null as null | (typeof g.enemies)[number];
