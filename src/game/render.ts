@@ -289,6 +289,24 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
   if (p.invuln > 0 && p.dashT <= 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
   const s = p.sprite;
   ctx.drawImage(s, x - 6, y - 13);
+  if (p.shieldLeft > 0) {
+    ctx.strokeStyle = C.amber;
+    ctx.globalAlpha = 0.35 + 0.15 * Math.sin(g.time * 6);
+    ctx.beginPath();
+    ctx.arc(x + 0.5, y - 5, 11, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  for (let i = 0; i < Math.round(p.stats.drones); i++) {
+    const d = g.dronePos(i);
+    const dx = Math.round(d.x - cx), dy = Math.round(d.y - cy);
+    ctx.fillStyle = C.void;
+    ctx.fillRect(dx - 2, dy - 2, 5, 4);
+    ctx.fillStyle = C.steelL;
+    ctx.fillRect(dx - 1, dy - 1, 3, 2);
+    ctx.fillStyle = C.amber;
+    ctx.fillRect(dx, dy, 1, 1);
+  }
   if (p.holdItem) {
     // предмет над головой (как в Isaac)
     const k = 1 - Math.max(0, p.holdT - 0.6) / 0.3;

@@ -12,6 +12,12 @@ export interface Stats {
   dashDist: number;
   maxLives: number;
   startBombs: number;
+  /** Энергощит: сколько попаданий поглощается в каждой комнате */
+  shield: number;
+  /** Шанс полностью избежать попадания */
+  dodge: number;
+  /** Боевые дроны вокруг игрока, сами стреляют по ближайшему врагу */
+  drones: number;
 
   // выстрел
   damage: number;
@@ -74,6 +80,9 @@ export function baseStats(): Stats {
     dashDist: 56,
     maxLives: 4,
     startBombs: 2,
+    shield: 0,
+    dodge: 0,
+    drones: 0,
 
     damage: 3.5,
     damageMult: 1,

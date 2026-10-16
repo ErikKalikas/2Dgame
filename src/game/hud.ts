@@ -46,6 +46,7 @@ export function renderHud(g: Game, r: Renderer) {
   r.rect(bx, 5, Math.round((bw * p.xp) / xpNeed(p.level)), 5, C.redD);
   r.rect(bx, 5, Math.round((bw * p.xp) / xpNeed(p.level)), 1, C.red);
 
+  r.text(`${tr(S.floor)} ${g.floorNum} · ${tr(g.theme.name)}`, VIEW_W - 5, 6, { size: 5, color: C.steelL, align: 'right' });
   renderMinimap(g, r);
   renderLoadout(g, r);
   renderBossBar(g, r);
@@ -82,7 +83,7 @@ function renderMinimap(g: Game, r: Renderer) {
     const mark = room.type === 'boss' ? C.red : room.type === 'treasure' ? C.yellow : room.type === 'shop' ? C.amber : null;
     if (mark) r.rect(x + Math.floor((room.w * cw) / 2) - 1, y + Math.floor((room.h * ch) / 2) - 1, 2, 2, mark);
   }
-  r.text(`${tr(S.floor)} ${g.floorNum} · ${tr(g.theme.name)}`, VIEW_W - 5, oy + h + 4, { size: 5, color: C.steelL, align: 'right' });
+
 }
 
 function renderLoadout(g: Game, r: Renderer) {

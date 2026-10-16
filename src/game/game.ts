@@ -10,7 +10,8 @@ import { DIRS, generateFloor, OPPOSITE, type FloorPlan, type RoomInfo } from '..
 import { buildRoom, nearestWalkable, type DoorPlace, type RoomMap } from '../world/room';
 import { T, walkable } from '../world/tiles';
 import { updateEBullets, updatePBullets, type EBullet, type PBullet } from './bullets';
-import { collidePlayerShots, damageEnemy, explode, fireWeapon } from './combat';
+import { collidePlayerShots, damageEnemy, explode, fireWeapon, spawnShot } from './combat';
+import { finalDamage } from './stats';
 import type { Enemy } from './enemy';
 import { FxSystem } from './fx';
 import { item, itemsOfKind, type ItemDef } from './items';
@@ -85,7 +86,7 @@ export class Game {
     this.diff = DIFFS[difficulty];
     this.hard = difficulty === 'hard';
     this.player = new Player('pistol');
-    this.player.lives = this.player.stats.maxLives = this.hard ? 3 : 4;
+    this.player.lifeOffset = this.hard ? -1 : 0;
     this.player.recalc();
     this.player.lives = this.player.stats.maxLives;
     this.player.bombs = this.player.stats.startBombs;
@@ -170,6 +171,7 @@ export class Game {
       furnishRoom(this);
       populateRoom(this);
     }
+    this.player.shieldLeft = this.player.stats.shield;
     this.player.emit('onRoomEnter', this);
     this.flow.update(this.player.x, this.player.y);
   }
@@ -217,6 +219,7 @@ export class Game {
     this.electroT = (this.electroT + dt) % 3.2;
     p.update(this, dt);
     p.emit('tick', this, dt);
+    this.updateDrones(dt);
 
     this.slowmo = Math.max(0, this.slowmo - dt);
     const edt = this.slowmo > 0 ? dt * 0.3 : dt;
@@ -385,6 +388,33 @@ export class Game {
       }
     }
     this.enemies = this.enemies.filter((e) => !e.dead);
+  }
+
+  /** Позиция дрона i вокруг игрока */
+  dronePos(i: number): { x: number; y: number } {
+    const p = this.player;
+    const n = Math.max(1, Math.round(p.stats.drones));
+    const a = this.time * 2 + (i / n) * Math.PI * 2;
+    return { x: p.x + Math.cos(a) * 16, y: p.y - 6 + Math.sin(a) * 10 };
+  }
+
+  private updateDrones(dt: number) {
+    const p = this.player;
+    const n = Math.round(p.stats.drones);
+    if (n <= 0) return;
+    p.droneT -= dt;
+    if (p.droneT > 0) return;
+    p.droneT = Math.max(0.15, 0.7 / Math.sqrt(p.stats.fireRateMult));
+    for (let i = 0; i < n; i++) {
+      const d = this.dronePos(i);
+      const t = this.nearestEnemy(d.x, d.y, 200);
+      if (!t) continue;
+      const a = Math.atan2(t.y - d.y, t.x - d.x);
+      spawnShot(this, a, p.stats, {
+        x: d.x, y: d.y, bx: d.x, by: d.y, dmg: finalDamage(p.stats) * 0.45, r: 1.8,
+        split: 0, explode: 0, orbitR: 0, boomerang: false, wave: 0, style: 'bolt', color: C.amber,
+      });
+    }
   }
 
   get electroActive(): boolean {
@@ -691,6 +721,18 @@ export class Game {
 
   hurtPlayer() {
     const p = this.player;
+    if (p.stats.dodge > 0 && Math.random() < p.stats.dodge) {
+      p.invuln = 0.5;
+      this.fx.ring(p.x, p.y, C.bone, 16, 0.25);
+      return;
+    }
+    if (p.shieldLeft > 0) {
+      p.shieldLeft--;
+      p.invuln = 1.0;
+      this.fx.ring(p.x, p.y, C.amber, 22, 0.35);
+      this.fx.burst(p.x, p.y, C.amber, 10, 70, 0.3, 1, true);
+      return;
+    }
     p.lives--;
     p.invuln = 2.2;
     p.emit('onHurt', this);

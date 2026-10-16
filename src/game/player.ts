@@ -41,6 +41,9 @@ export class Player {
   shootAngle = Math.PI / 2;
   shooting = false;
   activeCd = 0;
+  /** Оставшиеся заряды щита в текущей комнате */
+  shieldLeft = 0;
+  droneT = 0;
   /** Анимация подбора предмета (как в Isaac — предмет поднимается над головой) */
   holdItem: ItemDef | null = null;
   holdT = 0;
@@ -51,6 +54,8 @@ export class Player {
   activeId: string | null = null;
 
   stats: Stats = baseStats();
+  /** Поправка к максимуму жизней от сложности */
+  lifeOffset = 0;
   hooks: Hooks[] = [];
   synergies: SynergyDef[] = [];
 
@@ -74,6 +79,7 @@ export class Player {
   /** Пересчёт характеристик: база → оружие → импланты → модификации → синергии */
   recalc() {
     const s = baseStats();
+    s.maxLives += this.lifeOffset;
     const hooks: Hooks[] = [];
     this.weapon.weapon?.stats(s);
     if (this.weapon.hooks) hooks.push(this.weapon.hooks);
