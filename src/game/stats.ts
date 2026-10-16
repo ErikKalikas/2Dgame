@@ -22,6 +22,12 @@ export interface Stats {
   dodge: number;
   /** Боевые дроны вокруг игрока, сами стреляют по ближайшему врагу */
   drones: number;
+  /** Рывков подряд до перезарядки («Перескок» — 2) */
+  dashCharges: number;
+  /** Рывок — прыжок (над ямами, с приземлением) */
+  dashJump: boolean;
+  /** Скорость взлома (терминалы, позже двери и схроны) */
+  hackSpeed: number;
 
   // выстрел
   damage: number;
@@ -63,6 +69,8 @@ export interface Stats {
   crit: number; // шанс крита
   critMult: number;
   lifesteal: number; // шанс вернуть жизнь при убийстве (очень малый)
+  flankMult: number; // урон при попадании сбоку или со спины
+  shieldPierce: number; // доля лобового щита врага, которую игнорирует ваш урон (0..1)
 
   // экономика
   magnet: number;
@@ -89,6 +97,9 @@ export function baseStats(): Stats {
     shield: 0,
     dodge: 0,
     drones: 0,
+    dashCharges: 1,
+    dashJump: false,
+    hackSpeed: 1,
 
     damage: 3.5,
     damageMult: 1,
@@ -127,6 +138,8 @@ export function baseStats(): Stats {
     crit: 0.04,
     critMult: 2,
     lifesteal: 0,
+    flankMult: 1,
+    shieldPierce: 0,
 
     magnet: 40,
     coinMult: 1,

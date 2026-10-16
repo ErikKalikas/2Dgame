@@ -1,6 +1,6 @@
 import { FLOORS, TILE, VIEW_H, VIEW_W } from '../config';
 import { FLOOR_THEMES, type FloorTheme } from '../content/floors';
-import { angleDiff, clamp, dist2 } from '../core/math';
+import { angleDiff, angleTo, clamp, dist2, turnTowards } from '../core/math';
 import { RNG } from '../core/rng';
 import type { Difficulty } from '../core/storage';
 import { C } from '../gfx/palette';
@@ -17,13 +17,16 @@ import { LOG, LOG_MAX, LOG_TIME, type LogLine } from './log';
 import type { L } from '../core/i18n';
 import type { Enemy } from './enemy';
 import { FxSystem } from './fx';
-import { SLOT_NAME, item, itemsOfKind, type ItemDef, type Slot } from './items';
+import { SLOT_NAME, item, itemsOfKind, type IncomingHit, type ItemDef, type Slot } from './items';
 import { distToSegment, moveBody } from './collision';
 import { FlowField } from './pathfinding';
 import { Player } from './player';
 import { bossReward, dropLoot, furnishRoom, makePickup, populateRoom, roomClearReward, type Pickup } from './spawn';
 import { DropState, enemyDrop } from './drops';
 import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './instability';
+import { updateObjs, type WorldObj } from './objects';
+import { FACE_TURN, tickStacks, updateToss } from './status';
+import { asActor, setAim, updateTeams } from './team';
 
 export interface DiffParams {
   speed: number;
@@ -80,7 +83,21 @@ export class Game {
   player: Player;
   enemies: Enemy[] = [];
   ebullets: EBullet[] = [];
+  /** Пули союзников (свой-чужой): летят по врагам, игрока не ранят */
+  abullets: EBullet[] = [];
   pbullets: PBullet[] = [];
+  /** Объекты игрока в мире: вертушки, лужи, миньоны, приманка, сцепка (objects.ts) */
+  objs: WorldObj[] = [];
+  /** Кто сейчас действует (ИИ врага) и куда он целится: игрок, приманка, союзник или враг союзника */
+  actor: Enemy | null = null;
+  aimX = 0;
+  aimY = 0;
+  /** Цель — игрок (наземным можно идти по полю путей) */
+  aimPlayer = true;
+  /** Цели нет (союзник без врагов рядом): не стрелять */
+  aimNone = false;
+  /** Состояние предметов на забег (счётчики, таймеры): вместо переменных модулей контента */
+  mem: Record<string, any> = {};
   pickups: Pickup[] = [];
   fx = new FxSystem();
   camX = 0;
@@ -158,9 +175,11 @@ export class Game {
     this.flow = new FlowField(this.room);
     this.enemies = [];
     this.ebullets = [];
+    this.abullets = [];
     this.pbullets = [];
     this.pickups = [];
     this.barriers = [];
+    this.objs = [];
     this.fx.list = [];
     this.zone = this.lockedRoom = null;
     this.hackTarget = null;
@@ -171,6 +190,7 @@ export class Game {
     this.player.glitch = 1;
     onFloorStart(this);
     this.log(LOG.floorStart(this.theme.tierName, n));
+    this.player.emit('onFloorStart', this);
   }
 
   /** Строка в лог Диспетчера */
@@ -234,7 +254,7 @@ export class Game {
   /** Двери комнаты закрываются, пока в ней бой (только у ролей с locks) */
   private updateLocks() {
     const z = this.zone;
-    const want = z && ROLES[z.role].locks && !z.cleared && this.enemies.some((e) => e.home === z.id) ? z : null;
+    const want = z && ROLES[z.role].locks && !z.cleared && this.enemies.some((e) => e.home === z.id && !e.summon) ? z : null;
     if (want === this.lockedRoom) return;
     if (this.lockedRoom) for (const di of this.lockedRoom.doors) this.room.setDoor(this.plan.doors[di], this.plan.doors[di].locked);
     if (want) for (const di of want.doors) this.room.setDoor(this.plan.doors[di], true);
@@ -300,9 +320,12 @@ export class Game {
     const edt = this.slowmo > 0 ? dt * 0.3 : dt;
     this.flow.update(p.x, p.y);
     this.updateEnemies(edt);
+    updateObjs(this, dt);
     updatePBullets(this, dt);
     collidePlayerShots(this);
     updateEBullets(this, edt);
+    if (this.abullets.length) updateEBullets(this, edt, this.abullets, true);
+    updateTeams(this, edt);
     this.updatePickups(dt);
     this.checkPlayerHits();
     this.updateLocks();
@@ -316,7 +339,7 @@ export class Game {
 
     // зачистка комнаты: в ней не осталось её врагов
     const z = this.zone;
-    if (z && !z.cleared && !this.enemies.some((e) => e.home === z.id)) {
+    if (z && !z.cleared && !this.enemies.some((e) => e.home === z.id && !e.summon)) {
       z.cleared = true;
       if (z.role === 'exit') this.onBossDefeated();
       else roomClearReward(this);
@@ -345,14 +368,21 @@ export class Game {
       this.hackT = Math.max(0, this.hackT - dt * 2);
       return;
     }
-    this.hackT += dt;
+    // скорость взлома («Ключница»): прогресс копится быстрее, полоса в HUD та же
+    this.hackT += dt * p.stats.hackSpeed;
     if (Math.random() < dt * 20) this.fx.add({ kind: 'spark', x: near.x + (Math.random() - 0.5) * 12, y: near.y - 8, vx: (Math.random() - 0.5) * 60, vy: -30, color: C.yellow, life: 0.25, glow: true });
     if (this.hackT >= TERMINAL_TIME) {
       this.hackT = 0;
       near.done = true;
       this.openGate(near.loop ?? 0);
       this.fx.burst(near.x, near.y - 8, C.yellow, 12, 60, 0.4, 1, true);
+      p.emit('onHack', this);
     }
+  }
+
+  /** Идёт взлом: игрок держит R у терминала */
+  get hacking(): boolean {
+    return this.hackTarget !== null && this.hackT > 0 && !this.locked && input.isDown('interact');
   }
 
   /** Открыть гермодверь петли */
@@ -373,7 +403,7 @@ export class Game {
       const far = dist2(e.x, e.y, p.x, p.y) > SLEEP_R * SLEEP_R;
       // агрессия (для нестабильности «пока идёт бой»): враг не покидает свою комнату, поэтому он в бою,
       // пока игрок в его комнате; враг из коридора — пока рядом. Преследование — этап 13.4
-      e.aggro = e.home >= 0 ? e.home === this.zone?.id : !far;
+      e.aggro = e.team === 'foe' && (e.home >= 0 ? e.home === this.zone?.id : !far);
       // дальние враги спят
       if (!e.def.boss && far) continue;
       e.t += dt;
@@ -397,6 +427,14 @@ export class Game {
       else e.slowK = 0;
       if (e.hackT > 0) e.hackT -= dt;
       else e.hackK = 0;
+      if (e.driveT > 0) e.driveT -= dt;
+      else e.driveK = 0;
+      if (e.shieldOff > 0) e.shieldOff -= dt;
+      if (e.exposedT > 0) e.exposedT -= dt;
+      tickStacks(e, dt);
+      // подброшенный враг не действует, пока не упадёт
+      if (updateToss(this, e, dt)) continue;
+      if (e.dead) continue;
       if (e.shockT > 0) {
         e.shockT -= dt;
         if (Math.random() < dt * 10) this.fx.add({ kind: 'spark', x: e.x, y: e.y, vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80, color: C.yellow, life: 0.15, glow: true });
@@ -415,11 +453,15 @@ export class Game {
         if (Math.abs(e.kx) < 1 && Math.abs(e.ky) < 1) e.kx = e.ky = 0;
       }
 
+      setAim(this, e);
       if (e.shockT <= 0) {
         if (e.def.boss && e.def.phases) {
           if (this.bossIntro <= 0) e.def.phases[e.phase].update(e, this, dt);
         } else e.def.update(e, this, dt);
       }
+      // взгляд поворачивается к цели с конечной скоростью (повреждённый привод — медленнее)
+      const want = angleTo(e.x, e.y, this.aimX, this.aimY);
+      e.mem.face = e.mem.face === undefined ? want : turnTowards(e.mem.face, want, FACE_TURN * dt * (e.driveT > 0 ? 1 - e.driveK : 1));
       if (e.dead) continue;
 
       // электропол бьёт и врагов
@@ -442,6 +484,7 @@ export class Game {
       }
     }
 
+    setAim(this, null);
     // враги расталкивают друг друга
     const L = this.enemies;
     for (let i = 0; i < L.length; i++) {
@@ -683,7 +726,7 @@ export class Game {
   nearestEnemy(x: number, y: number, maxDist: number): Enemy | null {
     let best: Enemy | null = null, bd = maxDist * maxDist;
     for (const e of this.enemies) {
-      if (e.dead || e.spawn > 0 || e.hidden) continue;
+      if (e.dead || e.spawn > 0 || e.hidden || e.team !== 'foe') continue;
       const d = dist2(x, y, e.x, e.y);
       if (d < bd) {
         bd = d;
@@ -713,9 +756,12 @@ export class Game {
     return true;
   }
 
-  /** Снаряд исчез (врезался/истёк) — взрывается, если умеет */
-  onShotDeath(b: PBullet) {
+  /** Снаряд исчез (врезался/истёк) — взрывается, если умеет; навесной — падает */
+  onShotDeath(b: PBullet, wall = false) {
     if (b.explode) explode(this, b.x, b.y, b.explode, b.dmg * 0.7);
+    if (b.arc && b.landR) explode(this, b.x, b.y, b.landR, b.dmg, C.amber, b.tag);
+    b.onEnd?.(this, b, wall);
+    this.player.emit('onShotEnd', this, b, wall);
   }
 
   killEnemy(e: Enemy, reward: boolean) {
@@ -729,8 +775,9 @@ export class Game {
       this.fx.burst(e.x, e.y, C.steel, 6 + e.r, 70, 0.5, 2);
     }
     this.lightFlash(e.x, e.y, e.r * 5);
-    e.def.onDeath?.(e, this);
-    if (!reward || e.mem.summoned) return;
+    // смерть союзника — его последние пули тоже союзные
+    if (e.def.onDeath) asActor(this, e, () => e.def.onDeath!(e, this));
+    if (!reward || e.mem.summoned || e.summon) return;
     p.kills++;
     if (p.glitchT <= 0) p.glitch = Math.min(1, p.glitch + 0.01 * p.stats.glitchGain);
     if (e.def.boss) this.lastBoss = e.def.name;
@@ -830,7 +877,7 @@ export class Game {
       let target: Enemy | null = null, best = Infinity;
       for (const e of this.enemies) {
         const d = dist2(b.x, b.y, e.x, e.y);
-        if (!e.dead && e.spawn <= 0 && d < best) {
+        if (!e.dead && e.spawn <= 0 && e.team === 'foe' && d < best) {
           best = d;
           target = e;
         }
@@ -884,10 +931,10 @@ export class Game {
     const hr = p.stats.hitR;
     const charging = p.glitch < 1;
     for (const b of this.ebullets) {
-      if (b.delay > 0) continue;
+      if (b.delay > 0 || b.dead) continue;
       const r = b.r * 0.8 + hr;
       const d2 = dist2(b.x, b.y, p.x, p.y);
-      if (d2 < r * r) return this.hurtPlayer();
+      if (d2 < r * r) return this.hurtPlayer({ kind: 'bullet', bullet: b, enemy: b.owner });
       // пролёт вплотную заряжает сбой (каждая пуля — один раз; чем ближе, тем больше)
       if (charging && !b.grazed && d2 < (r + GRAZE) ** 2) {
         b.grazed = true;
@@ -897,18 +944,31 @@ export class Game {
       }
     }
     for (const e of this.enemies) {
-      if (e.spawn > 0 || e.airborne || e.hidden || e.def.contact === false) continue;
+      if (e.spawn > 0 || e.airborne || e.hidden || e.toss || e.team !== 'foe' || e.def.contact === false) continue;
       const r = e.r * 0.7 + hr;
-      if (dist2(e.x, e.y, p.x, p.y) < r * r) return this.hurtPlayer();
+      if (dist2(e.x, e.y, p.x, p.y) < r * r) return this.hurtPlayer({ kind: 'contact', enemy: e });
     }
-    if (this.electroActive && p.onElectro(this)) return this.hurtPlayer();
+    if (this.electroActive && p.onElectro(this)) return this.hurtPlayer({ kind: 'floor' });
   }
 
-  hurtPlayer() {
+  /**
+   * Попадание по игроку. Порядок: перехват («КАЗ», onIncoming) → уклонение → щит →
+   * долг («Долг боли», onLifeHit) → аварийное окно сбоя → потеря жизни
+   */
+  hurtPlayer(hit: IncomingHit = { kind: 'floor' }) {
     const p = this.player;
+    for (const h of p.hooks) {
+      if (h.onIncoming?.(this, hit)) {
+        if (hit.bullet) hit.bullet.dead = true;
+        p.invuln = Math.max(p.invuln, 0.1);
+        p.emit('onDefend', this, 'intercept');
+        return;
+      }
+    }
     if (p.stats.dodge > 0 && Math.random() < p.stats.dodge) {
       p.invuln = 0.5;
       this.fx.ring(p.x, p.y, C.bone, 16, 0.25);
+      p.emit('onDefend', this, 'dodge');
       return;
     }
     if (p.shieldLeft > 0) {
@@ -916,8 +976,10 @@ export class Game {
       p.invuln = 1.0;
       this.fx.ring(p.x, p.y, C.amber, 22, 0.35);
       this.fx.burst(p.x, p.y, C.amber, 10, 70, 0.3, 1, true);
+      p.emit('onDefend', this, 'shield');
       return;
     }
+    for (const h of p.hooks) if (h.onLifeHit?.(this, hit)) return;
     // сбой заряжен — аварийное окно: F в течение 0,15 с отменяет попадание
     if (p.glitch >= 1 && p.glitchT <= 0) {
       p.pendingHit = EMERGENCY;

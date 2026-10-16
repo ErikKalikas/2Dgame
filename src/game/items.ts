@@ -1,5 +1,6 @@
 import type { L } from '../core/i18n';
 import type { RNG } from '../core/rng';
+import type { EBullet, PBullet } from './bullets';
 import type { Enemy } from './enemy';
 import type { Game } from './game';
 import type { Stats } from './stats';
@@ -43,26 +44,70 @@ export type Tag =
   | 'electric' | 'fire' | 'smart' | 'blade' | 'heavy' | 'mutation'
   | 'nano' | 'optic' | 'neural' | 'kinetic' | 'explosive' | 'stealth';
 
+export type DamageSource = 'bullet' | 'beam' | 'melee' | 'explosion' | 'ally' | 'other';
+
 export interface HitInfo {
   x: number;
   y: number;
   dmg: number;
-  source: 'bullet' | 'beam' | 'melee' | 'other';
+  source: DamageSource;
   crit?: boolean;
+  /** Снаряд, который попал (если попал снаряд) */
+  bullet?: PBullet;
+  /** Метка эффекта предмета (например, 'ram', 'cut', 'spinner') */
+  tag?: string;
+  /** Попадание сбоку или со спины */
+  flank?: boolean;
+}
+
+/** Что летит в игрока: пуля (с владельцем), касание врага, электропол */
+export interface IncomingHit {
+  kind: 'bullet' | 'contact' | 'floor';
+  bullet?: EBullet;
+  enemy?: Enemy;
+}
+
+/** Индикатор предмета: у героя (полоска, огоньки, таймер-кольцо) или значок в HUD */
+export interface Gauge {
+  kind: 'bar' | 'pips' | 'ring' | 'hud';
+  color: string;
+  /** Доля 0..1 (полоска, кольцо, перезарядка значка) */
+  k?: number;
+  /** Огоньки или число на значке */
+  n?: number;
+  max?: number;
+  /** Значок в HUD */
+  icon?: IconSpec;
 }
 
 /** События, на которые могут реагировать предметы */
 export interface Hooks {
   onShoot?(g: Game, angle: number): void;
   onHit?(g: Game, e: Enemy, hit: HitInfo): void;
+  /** Убит враг (с наградой); кем добит — e.lastHit */
   onKill?(g: Game, e: Enemy): void;
   onHurt?(g: Game): void;
   onRoomClear?(g: Game): void;
   onRoomEnter?(g: Game): void;
+  onFloorStart?(g: Game): void;
   onDash?(g: Game): void;
+  /** Рывок закончился (приземление прыжка, залп в конце рывка) */
+  onDashEnd?(g: Game): void;
   /** Сработал сбой (F или аварийный) */
   onGlitch?(g: Game): void;
+  /** Попадание по игроку ещё до уклонения и щита; true — попадание перехвачено («КАЗ») */
+  onIncoming?(g: Game, hit: IncomingHit): boolean;
+  /** Попадание прошло щит и уклонение и отнимет жизнь (до аварийного окна); true — отменить («Долг боли») */
+  onLifeHit?(g: Game, hit: IncomingHit): boolean;
+  /** Попадание поглощено: уклонение, заряд щита или перехват */
+  onDefend?(g: Game, how: 'dodge' | 'shield' | 'intercept'): void;
+  /** Взлом завершён (терминал; позже — двери и схроны) */
+  onHack?(g: Game): void;
+  /** Снаряд игрока погас: врезался в стену (wall) или долетел до конца */
+  onShotEnd?(g: Game, b: PBullet, wall: boolean): void;
   tick?(g: Game, dt: number): void;
+  /** Индикатор у героя или в HUD (вызывается при отрисовке) */
+  gauge?(g: Game): Gauge | Gauge[] | null;
 }
 
 /** Активный имплант (клавиша Q) */

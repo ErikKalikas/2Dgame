@@ -1,4 +1,5 @@
 import { TAU, angleDiff, angleTo } from '../core/math';
+import { C } from '../gfx/palette';
 import { BULLET_R, bulletSprite, shotSprite, type BulletColor, type BulletSkin } from '../gfx/sprites';
 import { blocksShots } from '../world/tiles';
 import type { Enemy } from './enemy';
@@ -30,6 +31,12 @@ export interface EBullet {
   dead: boolean;
   /** Уже засчитан пролёт вплотную (заряд сбоя) */
   grazed?: boolean;
+  /** Кто выпустил (для ответного удара «КАЗ» и пуль союзников) */
+  owner?: Enemy;
+  /** Замедление в этом кадре (паутина, «Сканер траекторий»): 0..1, сбрасывается после движения */
+  slow?: number;
+  /** Луч (не сбивается «КАЗ») */
+  beam?: boolean;
 }
 
 export interface EBulletOpts {
@@ -65,8 +72,8 @@ export function makeEBullet(x: number, y: number, angle: number, speed: number, 
   };
 }
 
-export function updateEBullets(g: Game, dt: number) {
-  const L = g.ebullets;
+/** Ход вражеских пуль; ally — пули союзников (наводятся на врагов, а не на игрока) */
+export function updateEBullets(g: Game, dt: number, L = g.ebullets, ally = false) {
   const room = g.room;
   const p = g.player;
   for (let i = L.length - 1; i >= 0; i--) {
@@ -76,15 +83,21 @@ export function updateEBullets(g: Game, dt: number) {
     } else {
       b.t += dt;
       b.life -= dt;
-      if (b.accel) b.speed = Math.min(b.maxSpeed, Math.max(b.minSpeed, b.speed + b.accel * dt));
-      if (b.turn) b.angle += b.turn * dt;
+      // замедление (паутина, сканер) — только движение, не время жизни
+      const mdt = dt * (1 - (b.slow ?? 0));
+      b.slow = 0;
+      if (b.accel) b.speed = Math.min(b.maxSpeed, Math.max(b.minSpeed, b.speed + b.accel * mdt));
+      if (b.turn) b.angle += b.turn * mdt;
       if (b.homing && b.t < 2.5) {
-        const want = angleTo(b.x, b.y, p.x, p.y);
-        const d = angleDiff(b.angle, want);
-        b.angle += Math.max(-b.homing * dt, Math.min(b.homing * dt, d));
+        const t = ally ? g.nearestEnemy(b.x, b.y, 200) : p;
+        if (t) {
+          const want = angleTo(b.x, b.y, t.x, t.y);
+          const d = angleDiff(b.angle, want);
+          b.angle += Math.max(-b.homing * mdt, Math.min(b.homing * mdt, d));
+        }
       }
-      const nx = b.x + Math.cos(b.angle) * b.speed * dt;
-      const ny = b.y + Math.sin(b.angle) * b.speed * dt;
+      const nx = b.x + Math.cos(b.angle) * b.speed * mdt;
+      const ny = b.y + Math.sin(b.angle) * b.speed * mdt;
       if (blocksShots(room.at(nx, ny))) {
         if (b.bounces > 0) {
           b.bounces--;
@@ -108,6 +121,13 @@ export function updateEBullets(g: Game, dt: number) {
 }
 
 export function renderEBullets(g: Game, ctx: CanvasRenderingContext2D, camX: number, camY: number) {
+  // пули союзников — как снаряды игрока (светлые), чтобы не путать с вражескими
+  for (const b of g.abullets) {
+    const x = b.x - camX, y = b.y - camY;
+    if (x < -20 || y < -20 || x > 404 || y > 236) continue;
+    const s = shotSprite(Math.max(1.5, b.r * 0.8), C.bone);
+    ctx.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height / 2));
+  }
   for (const b of g.ebullets) {
     const s = bulletSprite(b.skin, b.color, b.angle);
     const x = Math.round(b.x - camX - s.width / 2);
@@ -164,6 +184,25 @@ export interface PBullet {
   hit: Set<Enemy>;
   isChild: boolean;
   dead: boolean;
+  /** Навес: высота дуги (px). Летит над стенами, пулями и врагами, падает в конце */
+  arc?: number;
+  /** Радиус взрыва при падении навесного снаряда (урон — dmg) */
+  landR?: number;
+  /** Метка предмета, выпустившего снаряд, и его данные */
+  tag?: string;
+  data?: Record<string, any>;
+  /** Своё поведение в полёте (до движения) */
+  step?(g: Game, b: PBullet, dt: number): void;
+  /** После попадания по врагу */
+  onHitEnemy?(g: Game, b: PBullet, e: Enemy): void;
+  /** Снаряд погас: wall — о стену */
+  onEnd?(g: Game, b: PBullet, wall: boolean): void;
+}
+
+/** Высота навесного снаряда над полом */
+export function lobHeight(b: PBullet): number {
+  if (!b.arc) return 0;
+  return Math.sin(Math.min(1, b.t / Math.max(0.01, b.maxLife)) * Math.PI) * b.arc;
 }
 
 export function updatePBullets(g: Game, dt: number) {
@@ -174,6 +213,12 @@ export function updatePBullets(g: Game, dt: number) {
     const b = L[i];
     b.t += dt;
     b.life -= dt;
+    b.step?.(g, b, dt);
+    if (b.dead) {
+      L[i] = L[L.length - 1];
+      L.pop();
+      continue;
+    }
     if (b.grow) b.r = Math.min(16, b.r + b.grow * dt);
     if (b.accel !== 1) b.speed = Math.max(20, Math.min(900, b.speed * Math.pow(b.accel, dt)));
     if (b.spiral) b.angle += b.spiral * dt;
@@ -204,7 +249,7 @@ export function updatePBullets(g: Game, dt: number) {
     } else {
       const nbx = b.bx + Math.cos(b.angle) * b.speed * dt;
       const nby = b.by + Math.sin(b.angle) * b.speed * dt;
-      if (!b.spectral && blocksShots(room.at(nbx, nby))) {
+      if (!b.spectral && !b.arc && blocksShots(room.at(nbx, nby))) {
         g.hitTile(nbx, nby, b.dmg);
         if (b.bounce > 0) {
           b.bounce--;
@@ -214,7 +259,7 @@ export function updatePBullets(g: Game, dt: number) {
           b.returning = true;
         } else {
           b.dead = true;
-          g.onShotDeath(b);
+          g.onShotDeath(b, true);
         }
       } else {
         b.bx = nbx;
@@ -234,7 +279,7 @@ export function updatePBullets(g: Game, dt: number) {
 
     if (b.life <= 0 && !b.dead) {
       b.dead = true;
-      g.onShotDeath(b);
+      g.onShotDeath(b, false);
     }
     if (b.x < -50 || b.y < -50 || b.x > room.pxW + 50 || b.y > room.pxH + 50) b.dead = true;
     if (b.dead) {
@@ -246,9 +291,16 @@ export function updatePBullets(g: Game, dt: number) {
 
 export function renderPBullets(g: Game, ctx: CanvasRenderingContext2D, camX: number, camY: number) {
   for (const b of g.pbullets) {
-    const x = b.x - camX, y = b.y - camY;
+    let x = b.x - camX, y = b.y - camY;
     if (x < -20 || y < -20 || x > 404 || y > 236) continue;
-    const alpha = b.life < 0.1 ? b.life / 0.1 : 1;
+    if (b.arc) {
+      // навес: тень на полу, снаряд над ней
+      ctx.fillStyle = '#050508';
+      ctx.globalAlpha = 0.5;
+      ctx.fillRect(Math.round(x - b.r), Math.round(y), Math.round(b.r * 2), 1);
+      y -= lobHeight(b);
+    }
+    const alpha = b.life < 0.1 && !b.arc ? b.life / 0.1 : 1;
     ctx.globalAlpha = alpha;
     switch (b.style) {
       case 'needle':

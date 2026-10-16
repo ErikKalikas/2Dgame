@@ -15,7 +15,9 @@ import { renderEBullets, renderPBullets } from './bullets';
 import { raycast } from './collision';
 import type { Enemy } from './enemy';
 import type { Game } from './game';
-import { item } from './items';
+import { item, type Gauge } from './items';
+import { renderObjs } from './objects';
+import { STACK_COLOR, tossHeight } from './status';
 
 const QUALITY_COLOR = ['', C.grey, C.amber, C.red, C.violet];
 export const qualityColor = (q: number) => QUALITY_COLOR[q];
@@ -70,8 +72,12 @@ export function renderGame(g: Game, r: Renderer) {
   // 3. двери
   for (const d of room.doors) renderDoor(g, ctx, d, cx, cy);
 
-  // 4. предметы на полу
+  // 3б. объекты игрока на полу (лужи, огонь, паутина)
+  renderObjs(g, ctx, cx, cy, 'floor');
+
+  // 4. предметы на полу и объекты игрока среди существ (вертушки, паучки, обломки)
   renderPickups(g, ctx, cx, cy);
+  renderObjs(g, ctx, cx, cy, 'body');
 
   // 5. существа, отсортированные по глубине
   const actors: (Enemy | 'player')[] = [...g.enemies, 'player'];
@@ -100,6 +106,8 @@ export function renderGame(g: Game, r: Renderer) {
     ctx.globalAlpha = 1;
   }
   renderPBullets(g, ctx, cx, cy);
+  // объекты поверх темноты: сцепной луч, перехватчики, дрон у плеча
+  renderObjs(g, ctx, cx, cy, 'air');
   // сварочные стенки (левая рука)
   for (const w of g.barriers) {
     ctx.strokeStyle = Math.floor(g.time * 20) % 2 ? C.amber : C.yellow;
@@ -145,14 +153,17 @@ export function renderGame(g: Game, r: Renderer) {
   }
 
   // заряд оружия
+  let barY = 6;
   if (p.charge > 0) {
     const w = p.gun.weapon!;
     const k = Math.min(1, p.charge / ((w.chargeTime ?? 1) / p.stats.fireRateMult));
     ctx.fillStyle = C.void;
-    ctx.fillRect(Math.round(p.x - cx - 8), Math.round(p.y - cy + 6), 16, 3);
+    ctx.fillRect(Math.round(p.x - cx - 8), Math.round(p.y - cy + barY), 16, 3);
     ctx.fillStyle = k >= 1 ? C.yellow : C.amber;
-    ctx.fillRect(Math.round(p.x - cx - 7), Math.round(p.y - cy + 7), Math.round(14 * k), 1);
+    ctx.fillRect(Math.round(p.x - cx - 7), Math.round(p.y - cy + barY + 1), Math.round(14 * k), 1);
+    barY += 3;
   }
+  if (g.state === 'play') renderGauges(g, ctx, Math.round(p.x - cx), Math.round(p.y - cy), barY);
 
   // затемнение при переходах и смерти
   if (g.fade < 1) {
@@ -194,6 +205,8 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
     lc.globalAlpha = Math.min(1, a);
     lc.drawImage(ls, x - cx - rad, y - cy - rad, rad * 2, rad * 2);
   };
+  // огонь и вспышки объектов игрока
+  for (const o of g.objs) if (o.light && !o.dead) light(o.x, o.y, o.light, 0.55 + Math.sin(t * 13 + o.x) * 0.08);
   const p = g.player;
   light(p.x, p.y - 4, 118 + Math.sin(t * 3) * 3, 0.95);
   for (const l of list) {
@@ -392,7 +405,7 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
   ctx.drawImage(SPR.shadow, x - 5, y + 2);
   if (p.invuln > 0 && p.dashT <= 0 && p.glitchT <= 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
   const s = p.sprite;
-  const sx = x - Math.floor(s.width / 2), sy = y + 3 - s.height;
+  const sx = x - Math.floor(s.width / 2), sy = y + 3 - s.height - Math.round(p.dashHeight);
   if (p.glitchT > 0) renderGlitched(g, ctx, s, sx, sy, x, y);
   else ctx.drawImage(p.pendingHit > 0 && Math.floor(g.time * 40) % 2 ? flashOf(s) : s, sx, sy);
   if (p.pendingHit > 0) {
@@ -482,7 +495,7 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
   if (e.facing < 0) s = flipOf(s);
   const flying = !!e.def.flying;
   // летающие слегка покачиваются, тень у них ниже
-  const h = (e.mem.h ?? 0) + (flying ? 3 + Math.round(Math.sin(g.time * 3 + e.id) * 1) : 0);
+  const h = (e.mem.h ?? 0) + Math.round(tossHeight(e)) + (flying ? 3 + Math.round(Math.sin(g.time * 3 + e.id) * 1) : 0);
   const x = Math.round(e.x - cx - s.width / 2);
   const y = Math.round(e.y - cy - s.height / 2 - h);
   const sw = Math.max(8, Math.round(s.width * 0.6)), shH = Math.max(3, Math.round(sw / 3));
@@ -498,6 +511,15 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
     else ctx.drawImage(s, x, y);
     ctx.globalAlpha = 1;
     return;
+  }
+  // союзник: кольцо под ногами (янтарное — вызванный, фиолетовое — сорванный с поводка)
+  if (e.team === 'ally') {
+    ctx.strokeStyle = e.summon ? C.amber : C.violet;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.ellipse(Math.round(e.x - cx) + 0.5, Math.round(e.y - cy + s.height / 2 - 1), e.r + 2, (e.r + 2) * 0.45, 0, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   }
   if (e.def.draw) e.def.draw(e, g, ctx, x, y, e.flash > 0 ? flashOf : same);
   else ctx.drawImage(e.flash > 0 ? flashOf(s) : s, x, y);
@@ -524,7 +546,71 @@ function renderEnemy(g: Game, ctx: CanvasRenderingContext2D, e: Enemy, cx: numbe
     const bx = Math.round(e.x - cx - bw / 2), by = y - 3;
     ctx.fillStyle = C.void;
     ctx.fillRect(bx, by, bw, 2);
-    ctx.fillStyle = e.burnT > 0 ? C.amber : C.red;
+    ctx.fillStyle = e.team === 'ally' ? (e.summon ? C.amber : C.violet) : e.burnT > 0 ? C.amber : C.red;
     ctx.fillRect(bx, by, Math.max(1, Math.round((bw * e.hp) / e.maxHp)), 2);
+  }
+  // стаки предметов огоньками над врагом (насечки, блохи, отметки…)
+  if (e.stacks.size) {
+    let row = 0;
+    for (const [k, st] of e.stacks) {
+      const col = STACK_COLOR.get(k);
+      if (!col || st.n <= 0) continue;
+      const n = Math.min(8, st.n), py = y - 6 - row * 2;
+      const px = Math.round(e.x - cx - n);
+      ctx.fillStyle = C.void;
+      ctx.fillRect(px - 1, py - 1, n * 2 + 1, 3);
+      ctx.fillStyle = col;
+      for (let i = 0; i < n; i++) ctx.fillRect(px + i * 2, py, 1, 1);
+      row++;
+    }
+  }
+}
+
+/** Индикаторы предметов у героя: полоски под ним, огоньки над головой, таймер-кольцо */
+function renderGauges(g: Game, ctx: CanvasRenderingContext2D, x: number, y: number, barY: number) {
+  const list: Gauge[] = [];
+  for (const h of g.player.hooks) {
+    const r = h.gauge?.(g);
+    if (!r) continue;
+    if (Array.isArray(r)) list.push(...r);
+    else list.push(r);
+  }
+  let pipY = y - 22;
+  for (const gg of list) {
+    switch (gg.kind) {
+      case 'bar': {
+        const k = Math.max(0, Math.min(1, gg.k ?? 0));
+        ctx.fillStyle = C.void;
+        ctx.fillRect(x - 8, y + barY, 16, 3);
+        ctx.fillStyle = gg.color;
+        ctx.fillRect(x - 7, y + barY + 1, Math.round(14 * k), 1);
+        barY += 3;
+        break;
+      }
+      case 'pips': {
+        const n = gg.n ?? 0, max = gg.max ?? n;
+        const px = x - max * 1.5;
+        for (let i = 0; i < max; i++) {
+          ctx.fillStyle = C.void;
+          ctx.fillRect(Math.round(px + i * 3) - 1, pipY - 1, 3, 3);
+          ctx.fillStyle = i < n ? gg.color : C.metal;
+          ctx.fillRect(Math.round(px + i * 3), pipY, 1, 1);
+        }
+        pipY -= 3;
+        break;
+      }
+      case 'ring': {
+        const k = Math.max(0, Math.min(1, gg.k ?? 0));
+        ctx.strokeStyle = gg.color;
+        ctx.globalAlpha = 0.85;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(x + 0.5, y - 5, 13, -Math.PI / 2, -Math.PI / 2 + TAU * k);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 1;
+        break;
+      }
+    }
   }
 }

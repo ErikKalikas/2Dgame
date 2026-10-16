@@ -6,7 +6,17 @@ import { moveBody, overlaps } from './collision';
 import type { Game } from './game';
 import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type Slot, type SynergyDef, type Tag } from './items';
 import { baseStats, finalFireDelay, type Stats } from './stats';
+import { C } from '../gfx/palette';
 import type { Disable } from './instability';
+
+/** Временный бафф: меняет характеристики, пока идёт таймер (или пока условие держит его включённым) */
+export interface Buff {
+  t: number;
+  stats: (s: Stats) => void;
+}
+
+/** Окно для второго рывка подряд (с), иначе начинается перезарядка */
+const DASH_CHAIN = 0.5;
 
 export type Facing = 'down' | 'up' | 'left' | 'right';
 
@@ -41,6 +51,11 @@ export class Player {
   dashCd = 0;
   dashDx = 0;
   dashDy = 0;
+  /** Множитель длины текущего рывка (хуки onDash могут менять: «Отскок», «Перескок») */
+  dashK = 1;
+  /** Сколько рывков подряд ещё доступно и сколько ждать следующего в серии */
+  dashLeft = 1;
+  dashChainT = 0;
   fireCd = 0;
   charge = 0;
   burstLeft = 0;
@@ -82,6 +97,8 @@ export class Player {
   lifeOffset = 0;
   hooks: Hooks[] = [];
   synergies: SynergyDef[] = [];
+  /** Временные баффы по id */
+  buffs = new Map<string, Buff>();
 
   constructor(startWeapon: string) {
     this.weapon = item(startWeapon);
@@ -148,11 +165,48 @@ export class Player {
       sy.stats?.(s);
       if (sy.hooks) hooks.push(sy.hooks);
     }
+    for (const b of this.buffs.values()) b.stats(s);
     s.maxLives = Math.min(10, Math.max(1, Math.round(s.maxLives)));
     s.count = Math.max(1, Math.round(s.count));
     this.stats = s;
     this.hooks = hooks;
     this.lives = Math.min(this.lives, s.maxLives);
+  }
+
+  /** Бафф на t секунд (повтор — обновляет таймер); Infinity — пока не снят setBuff(id, false) */
+  addBuff(id: string, t: number, stats: (s: Stats) => void) {
+    const b = this.buffs.get(id);
+    if (b) {
+      b.t = Math.max(b.t, t);
+      return;
+    }
+    this.buffs.set(id, { t, stats });
+    this.recalc();
+  }
+
+  /** Включить/выключить бафф по условию (пересчёт — только при смене состояния) */
+  setBuff(id: string, on: boolean, stats: (s: Stats) => void) {
+    if (on === this.buffs.has(id)) return;
+    if (on) this.buffs.set(id, { t: Infinity, stats });
+    else this.buffs.delete(id);
+    this.recalc();
+  }
+
+  hasBuff(id: string): boolean {
+    return this.buffs.has(id);
+  }
+
+  private updateBuffs(dt: number) {
+    if (!this.buffs.size) return;
+    let changed = false;
+    for (const [id, b] of this.buffs) {
+      b.t -= dt;
+      if (b.t <= 0) {
+        this.buffs.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) this.recalc();
   }
 
   emit<K extends keyof Hooks>(name: K, ...args: Parameters<NonNullable<Hooks[K]>>) {
@@ -181,9 +235,18 @@ export class Player {
   }
 
   update(g: Game, dt: number) {
+    this.updateBuffs(dt);
     const s = this.stats;
     this.invuln = Math.max(0, this.invuln - dt);
     this.dashCd = Math.max(0, this.dashCd - dt);
+    // серия рывков: окно на следующий истекло — перезарядка
+    if (this.dashChainT > 0) {
+      this.dashChainT -= dt;
+      if (this.dashChainT <= 0) {
+        this.dashLeft = s.dashCharges;
+        this.dashCd = s.dashCd;
+      }
+    }
     this.activeCd = Math.max(0, this.activeCd - dt);
     if (this.holdT > 0) {
       this.holdT -= dt;
@@ -204,27 +267,16 @@ export class Player {
       my /= len;
     }
 
-    if (input.pressed('dash') && this.dashCd <= 0 && this.dashT <= 0) {
-      let dx = mx, dy = my;
-      if (!len) {
-        dx = this.facing === 'left' ? -1 : this.facing === 'right' ? 1 : 0;
-        dy = this.facing === 'up' ? -1 : this.facing === 'down' ? 1 : 0;
-      }
-      this.dashT = 0.14;
-      this.dashDx = dx;
-      this.dashDy = dy;
-      this.dashCd = s.dashCd;
-      this.invuln = Math.max(this.invuln, 0.2);
-      this.emit('onDash', g);
-    }
+    if (input.pressed('dash') && this.dashCd <= 0 && this.dashT <= 0) this.startDash(g, mx, my, len);
 
     let vx: number, vy: number;
     if (this.dashT > 0) {
       this.dashT -= dt;
-      const sp = s.dashDist / 0.14;
+      const sp = (s.dashDist * this.dashK) / 0.14;
       vx = this.dashDx * sp;
       vy = this.dashDy * sp;
-      if (Math.random() < 0.7) g.fx.add({ kind: 'ghost', x: this.x, y: this.y, sprite: this.sprite, life: 0.25 });
+      if (Math.random() < 0.7) g.fx.add({ kind: 'ghost', x: this.x, y: this.y - this.dashHeight, sprite: this.sprite, life: 0.25 });
+      if (this.dashT <= 0) this.endDash = true;
     } else {
       const sp = this.focus ? s.focusSpeed : s.speed;
       vx = mx * sp;
@@ -247,6 +299,12 @@ export class Player {
       }
     }
     if (this.moving) this.anim += dt;
+    // конец рывка — после движения (позиция приземления уже известна)
+    if (this.endDash) {
+      this.endDash = false;
+      if (s.dashJump) g.fx.ring(this.x, this.y, C.bone, 12, 0.25);
+      this.emit('onDashEnd', g);
+    }
 
     // --- стрельба стрелками (как в Isaac), 8 направлений
     let ax = 0, ay = 0;
@@ -322,6 +380,43 @@ export class Player {
       it.active!.use(g);
       this.activeCd = it.active!.cooldown;
     }
+  }
+
+  /** Рывок закончился в этом шаге */
+  private endDash = false;
+
+  /**
+   * Рывок: в сторону движения (стоя — по взгляду). Серия из stats.dashCharges рывков подряд
+   * («Перескок»): перезарядка — после последнего или когда истекло окно DASH_CHAIN
+   */
+  startDash(g: Game, mx: number, my: number, len: number) {
+    const s = this.stats;
+    let dx = mx, dy = my;
+    if (!len) {
+      dx = this.facing === 'left' ? -1 : this.facing === 'right' ? 1 : 0;
+      dy = this.facing === 'up' ? -1 : this.facing === 'down' ? 1 : 0;
+    }
+    if (this.dashLeft <= 0 || this.dashLeft > s.dashCharges) this.dashLeft = s.dashCharges;
+    this.dashLeft--;
+    this.dashT = 0.14;
+    this.dashDx = dx;
+    this.dashDy = dy;
+    this.dashK = 1;
+    if (this.dashLeft > 0) {
+      this.dashChainT = DASH_CHAIN;
+    } else {
+      this.dashChainT = 0;
+      this.dashLeft = s.dashCharges;
+      this.dashCd = s.dashCd;
+    }
+    this.invuln = Math.max(this.invuln, 0.2);
+    this.emit('onDash', g);
+  }
+
+  /** Высота рывка-прыжка над полом (для отрисовки) */
+  get dashHeight(): number {
+    if (!this.stats.dashJump || this.dashT <= 0) return 0;
+    return Math.sin((1 - this.dashT / 0.14) * Math.PI) * 10;
   }
 
   /** Стоит ли игрок на ловушке-электрополе */

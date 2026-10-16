@@ -101,19 +101,13 @@ export const ENEMIES: EnemyDef[] = [
     frames: () => guardArt(),
     update(e, g, dt) {
       keepRange(e, g, dt, 60, 130);
-      e.mem.face = angleToPlayer(e, g);
       if (inRange(e, g) && every(e, g, 'fire', 1.8, dt)) {
         spread(g, e.x, e.y, aim(g, e.x, e.y), 3, 0.35, 105, { skin: 'rice' });
         if (g.hard) spread(g, e.x, e.y, aim(g, e.x, e.y), 3, 0.35, 80, { skin: 'rice', delay: 0.15 });
       }
     },
-    // щит спереди: урон по фронту снижен
-    damageTaken(e, _g, dmg, fx, fy) {
-      const a = Math.atan2(fy - e.y, fx - e.x);
-      let d = Math.abs(a - (e.mem.face ?? 0)) % TAU;
-      if (d > Math.PI) d = TAU - d;
-      return d < 0.9 ? dmg * 0.35 : dmg;
-    },
+    // щит спереди (±FRONT_ARC от взгляда) гасит 65% урона
+    frontShield: 0.65,
   },
   {
     id: 'netrunner',
@@ -127,7 +121,7 @@ export const ENEMIES: EnemyDef[] = [
       e.mem.tp = (e.mem.tp ?? 1.5 + Math.random() * 2) - dt;
       if (e.mem.tp < 0.4) e.hidden = Math.sin(e.mem.tp * 50) > 0;
       if (e.mem.tp <= 0) {
-        const p = g.room.randomFloorPoint(g.rng, g.player.x, g.player.y, 80);
+        const p = g.room.randomFloorPoint(g.rng, g.aimX, g.aimY, 80);
         g.fx.burst(e.x, e.y, C.violet, 8, 60, 0.3, 1, true);
         e.x = p.x;
         e.y = p.y;
@@ -211,7 +205,7 @@ export const ENEMIES: EnemyDef[] = [
           e.mem.tt = 0;
           e.mem.sx = e.x;
           e.mem.sy = e.y;
-          const p = g.player;
+          const p = { x: g.aimX, y: g.aimY };
           const t = g.room.randomFloorPoint(g.rng, p.x, p.y, 0);
           // приземлиться рядом с игроком, но не вплотную
           const a = Math.random() * TAU;
@@ -249,7 +243,7 @@ export const ENEMIES: EnemyDef[] = [
       const st = e.mem.st ?? 'move';
       if (st === 'move') {
         keepRange(e, g, dt, 150, 230);
-        if (every(e, g, 'aim', 3, dt) && lineOfSight(g.room, e.x, e.y, g.player.x, g.player.y)) {
+        if (every(e, g, 'aim', 3, dt) && lineOfSight(g.room, e.x, e.y, g.aimX, g.aimY)) {
           e.mem.st = 'aim';
           e.mem.tt = 1.1;
         }

@@ -42,6 +42,8 @@ export interface EnemyDef {
   value?: 1 | 2 | 3 | 4;
   /** Набор врага: id предметов; первые три — «ядро набора» (первая ступень синергии) */
   drops?: string[];
+  /** Лобовой щит: какую долю урона спереди (±FRONT_ARC от взгляда) он гасит */
+  frontShield?: number;
   /** Модификатор входящего урона (например, щит спереди) */
   damageTaken?(e: Enemy, g: Game, dmg: number, fromX: number, fromY: number): number;
   onDeath?(e: Enemy, g: Game): void;
@@ -53,6 +55,32 @@ export interface EnemyDef {
 }
 
 let NEXT_ID = 1;
+
+/** Сторона: foe — враг игрока, ally — союзник (вызванный предметом или «сорванный с поводка») */
+export type Team = 'foe' | 'ally';
+
+/** Стак эффекта предмета на враге (насечки, блохи, укусы, пеленг, отметки): число и таймер */
+export interface Stack {
+  n: number;
+  t: number;
+}
+
+/** Подброс («Катапульта»): пока враг в воздухе, урон копится и наносится при падении */
+export interface Toss {
+  t: number;
+  dur: number;
+  h: number;
+  /** Урон, набранный в воздухе */
+  acc: number;
+  onLand?: (e: Enemy, acc: number) => void;
+}
+
+/** Чем добит враг: для предметов («убийство вплотную», «вашим взрывом», «убийство резом») */
+export interface LastHit {
+  source: string;
+  tag?: string;
+  by: 'player' | 'ally' | 'foe';
+}
 
 export class Enemy {
   id = NEXT_ID++;
@@ -93,6 +121,29 @@ export class Enemy {
   elite = false;
   /** Агрессивен к игроку (этап 13 — преследование); пока считаем, что все живые враги в бою */
   aggro = true;
+  /** Мини-босс (этап 14а): контроль действует на него слабее, как на босса */
+  miniboss = false;
+  /** Свой-чужой: союзник бьёт врагов, враги — его; игрок союзника не ранит */
+  team: Team = 'foe';
+  /** Сколько ещё длится союз (с). Сорванный враг потом возвращается к врагам, вызванный союзник гибнет */
+  allyT = 0;
+  /** Союзник, вызванный игроком (не враг комнаты: не держит двери, без награды за смерть) */
+  summon = false;
+  /** Стаки эффектов предметов по ключу */
+  stacks = new Map<string, Stack>();
+  /** Подброшен в воздух */
+  toss: Toss | null = null;
+  /** Лобовой щит опущен (с) */
+  shieldOff = 0;
+  /** Открыт со всех сторон (с): любое попадание засчитывается как сбоку */
+  exposedT = 0;
+  /** Привод повреждён: доля потери скорости движения и поворота (0..1) и сколько ещё (с) */
+  driveK = 0;
+  driveT = 0;
+  /** Последнее попадание (для предметов, реагирующих на способ убийства) */
+  lastHit: LastHit | null = null;
+  /** Перезарядка касания союзника/врага в драке между ними */
+  brawlCd = 0;
   frames: Sprite[];
 
   constructor(public def: EnemyDef, x: number, y: number, hpMult: number) {
@@ -107,11 +158,22 @@ export class Enemy {
     let m = 1;
     if (this.slowT > 0) m *= 1 - this.slowK;
     if (this.shockT > 0) m *= 0.1;
+    if (this.driveT > 0) m *= 1 - this.driveK;
     return m;
   }
 
-  /** Может ли сейчас действовать (не появляется и не оглушён) */
+  /** Может ли сейчас действовать (не появляется, не оглушён и не в воздухе после подброса) */
   get active(): boolean {
-    return this.spawn <= 0 && this.shockT <= 0;
+    return this.spawn <= 0 && this.shockT <= 0 && !this.toss;
+  }
+
+  /** Союзник игрока */
+  get ally(): boolean {
+    return this.team === 'ally';
+  }
+
+  /** Направление взгляда (рад); ведёт Game.updateEnemies, поворот с конечной скоростью */
+  get face(): number {
+    return this.mem.face ?? 0;
   }
 }

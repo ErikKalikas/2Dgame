@@ -4,14 +4,15 @@ import { moveBody } from './collision';
 import type { Enemy } from './enemy';
 import type { Game } from './game';
 
-// Общие кирпичики поведения врагов
+// Общие кирпичики поведения врагов. «Игрок» здесь — цель врага (g.aimX/aimY): обычно игрок,
+// но враг может целиться в приманку или союзника, а союзник — во врага (свой-чужой, этап 12б).
 
 export function distToPlayer(e: Enemy, g: Game): number {
-  return dist(e.x, e.y, g.player.x, g.player.y);
+  return dist(e.x, e.y, g.aimX, g.aimY);
 }
 
 export function angleToPlayer(e: Enemy, g: Game): number {
-  return angleTo(e.x, e.y, g.player.x, g.player.y);
+  return angleTo(e.x, e.y, g.aimX, g.aimY);
 }
 
 /** Передвижение с учётом стен (наземные не заходят в ямы) */
@@ -32,7 +33,8 @@ export function move(e: Enemy, g: Game, dx: number, dy: number) {
 export function chase(e: Enemy, g: Game, dt: number, speed = e.def.speed) {
   const s = speed * e.speedMult * dt;
   let dir: [number, number] | null = null;
-  if (!e.def.flying) dir = g.flow.direction(e.x, e.y);
+  // поле путей ведёт к игроку; к другой цели — напрямую
+  if (!e.def.flying && g.aimPlayer) dir = g.flow.direction(e.x, e.y);
   if (!dir) {
     const a = angleToPlayer(e, g);
     dir = [Math.cos(a), Math.sin(a)];
@@ -85,5 +87,5 @@ export function every(e: Enemy, g: Game, key: string, period: number, dt: number
 
 /** Враги стреляют, только если игрок достаточно близко (большие комнаты) */
 export function inRange(e: Enemy, g: Game, r = 250): boolean {
-  return distToPlayer(e, g) < r;
+  return !g.aimNone && distToPlayer(e, g) < r;
 }

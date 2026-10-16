@@ -6,6 +6,8 @@ import { distToSegment, raycast } from './collision';
 import type { Enemy } from './enemy';
 import { boltPoints } from './fx';
 import type { Game } from './game';
+import type { DamageSource } from './items';
+import { isFlank } from './status';
 import { finalDamage, finalFireDelay, type Stats } from './stats';
 
 export interface DamageOpts {
@@ -15,18 +17,39 @@ export interface DamageOpts {
   hack?: number;
   knockback?: number;
   crit?: boolean;
-  source?: 'bullet' | 'beam' | 'melee' | 'other';
+  source?: DamageSource;
   /** Не вызывать onHit (чтобы эффекты не зацикливались) */
   silent?: boolean;
+  /** Метка эффекта предмета (видна в onHit и e.lastHit) */
+  tag?: string;
+  /** Кто бьёт: игрок (по умолчанию) или союзник */
+  by?: 'player' | 'ally';
+  /** Снаряд, который попал */
+  bullet?: PBullet;
 }
 
 /** Нанести урон врагу с учётом статусов, щитов и событий предметов */
 export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY: number, o: DamageOpts = {}) {
   if (e.dead || e.spawn > 0 || e.airborne) return;
+  // союзника игрок не ранит (его бьют только враги — team.ts)
+  if (e.team === 'ally') return;
   if (e.mem.invuln > 0) return;
+  const s = g.player.stats;
   if (e.def.damageTaken) dmg = e.def.damageTaken(e, g, dmg, fromX, fromY);
+  // взгляд врага: лобовой щит гасит урон спереди, попадание сбоку или со спины — множитель «Щели»
+  const flank = isFlank(e, fromX, fromY);
+  if (e.def.frontShield && !flank && e.shieldOff <= 0) dmg *= 1 - e.def.frontShield * (1 - s.shieldPierce);
+  if (flank && o.by !== 'ally') dmg *= s.flankMult;
   if (e.hackT > 0) dmg *= 1 + e.hackK;
-  if (o.crit) dmg *= g.player.stats.critMult;
+  if (o.crit) dmg *= s.critMult;
+  e.lastHit = { source: o.source ?? 'other', tag: o.tag, by: o.by ?? 'player' };
+  // подброшенный враг копит урон до падения
+  if (e.toss) {
+    e.toss.acc += dmg;
+    e.flash = 0.06;
+    if (!o.silent) g.player.emit('onHit', g, e, { x: e.x, y: e.y, dmg, source: o.source ?? 'other', crit: o.crit, bullet: o.bullet, tag: o.tag, flank });
+    return;
+  }
   e.hp -= dmg;
   e.flash = 0.06;
   if (o.burn) {
@@ -47,19 +70,19 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
     e.kx += Math.cos(a) * o.knockback;
     e.ky += Math.sin(a) * o.knockback;
   }
-  if (!o.silent) g.player.emit('onHit', g, e, { x: e.x, y: e.y, dmg, source: o.source ?? 'other', crit: o.crit });
+  if (!o.silent) g.player.emit('onHit', g, e, { x: e.x, y: e.y, dmg, source: o.source ?? 'other', crit: o.crit, bullet: o.bullet, tag: o.tag, flank });
   if (e.def.boss) g.checkBossPhase(e);
   if (e.hp <= 0) g.killEnemy(e, true);
 }
 
-/** Урон по площади */
-export function explode(g: Game, x: number, y: number, radius: number, dmg: number, color: string = C.amber) {
+/** Урон по площади (tag — метка предмета для e.lastHit: «убит вашим взрывом») */
+export function explode(g: Game, x: number, y: number, radius: number, dmg: number, color: string = C.amber, tag?: string) {
   g.fx.explosion(x, y, radius, color);
   g.lightFlash(x, y, radius * 2.2);
   for (const e of g.enemies) {
-    if (e.dead) continue;
+    if (e.dead || e.team !== 'foe') continue;
     const r = radius + e.r;
-    if (dist2(x, y, e.x, e.y) <= r * r) damageEnemy(g, e, dmg, x, y, { knockback: 60, source: 'other', silent: true });
+    if (dist2(x, y, e.x, e.y) <= r * r) damageEnemy(g, e, dmg, x, y, { knockback: 60, source: 'explosion', silent: true, tag });
   }
   // взрыв ломает ящики
   const room = g.room;
@@ -76,7 +99,7 @@ export function chainLightning(g: Game, from: Enemy, jumps: number, dmg: number)
   for (let i = 0; i < jumps; i++) {
     let best: Enemy | null = null, bd = 95 * 95;
     for (const e of g.enemies) {
-      if (e.dead || hit.has(e) || e.spawn > 0) continue;
+      if (e.dead || hit.has(e) || e.spawn > 0 || e.team !== 'foe') continue;
       const d = dist2(cur.x, cur.y, e.x, e.y);
       if (d < bd) {
         bd = d;
@@ -191,7 +214,7 @@ export function fireBeam(g: Game, angle: number, s: Stats) {
     });
     let hits = 0;
     for (const e of g.enemies) {
-      if (e.dead || e.spawn > 0) continue;
+      if (e.dead || e.spawn > 0 || e.team !== 'foe') continue;
       if (distToSegment(e.x, e.y, x1, y1, x2, y2) > e.r + width) continue;
       const crit = Math.random() < s.crit;
       damageEnemy(g, e, dmg, x1, y1, {
@@ -218,7 +241,7 @@ export function fireMelee(g: Game, angle: number, s: Stats) {
   for (const a of dirs) {
     if (a !== angle) g.fx.add({ kind: 'slash', x: p.x, y: p.y - 3, angle: a, arc, size: reach, color: s.shotColor, life: 0.14, glow: true });
     for (const e of g.enemies) {
-      if (e.dead || e.spawn > 0) continue;
+      if (e.dead || e.spawn > 0 || e.team !== 'foe') continue;
       const d2 = dist2(p.x, p.y, e.x, e.y);
       if (d2 > (reach + e.r) ** 2) continue;
       if (Math.abs(angleDiff(a, Math.atan2(e.y - p.y, e.x - p.x))) > arc / 2 + 0.2) continue;
@@ -250,15 +273,17 @@ export function fireMelee(g: Game, angle: number, s: Stats) {
 /** Проверка попаданий снарядов игрока по врагам */
 export function collidePlayerShots(g: Game) {
   for (const b of g.pbullets) {
-    if (b.dead) continue;
+    // навесной снаряд летит над врагами и бьёт только при падении
+    if (b.dead || b.arc) continue;
     for (const e of g.enemies) {
-      if (e.dead || e.spawn > 0 || e.airborne || b.hit.has(e)) continue;
+      if (e.dead || e.spawn > 0 || e.airborne || e.team !== 'foe' || b.hit.has(e)) continue;
       const r = e.r + b.r;
       if (dist2(b.x, b.y, e.x, e.y) > r * r) continue;
       b.hit.add(e);
       damageEnemy(g, e, b.dmg, b.x - Math.cos(b.angle) * 8, b.y - Math.sin(b.angle) * 8, {
-        burn: b.burn, shock: b.shock, slow: b.slow, hack: b.hack, knockback: b.knockback, crit: b.crit, source: 'bullet',
+        burn: b.burn, shock: b.shock, slow: b.slow, hack: b.hack, knockback: b.knockback, crit: b.crit, source: 'bullet', bullet: b, tag: b.tag,
       });
+      b.onHitEnemy?.(g, b, e);
       g.fx.burst(b.x, b.y, b.color, 3, 50, 0.2);
       if (b.chain) chainLightning(g, e, b.chain, b.dmg * 0.5);
       if (b.explode) explode(g, b.x, b.y, b.explode, b.dmg * 0.7);

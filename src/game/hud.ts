@@ -6,7 +6,7 @@ import type { Renderer } from '../gfx/renderer';
 import { SPR } from '../gfx/sprites';
 import { xpNeed, type Game } from './game';
 import { TERMINAL_TIME } from './game';
-import { SLOT_NAME, item, type ItemDef } from './items';
+import { SLOT_NAME, item, type Gauge, type ItemDef } from './items';
 import { ROLE_MARK, qualityColor } from './render';
 import { settings } from '../core/storage';
 import { SCANNER, hasOpenSet } from './drops';
@@ -79,6 +79,7 @@ export function renderHud(g: Game, r: Renderer) {
   renderPrices(g, r);
   renderEnemyMarks(g, r);
   renderUnstable(g, r);
+  renderHudGauges(g, r);
   renderTooltip(g, r);
   renderHudGlitch(g, r);
 
@@ -255,6 +256,27 @@ function renderUnstable(g: Game, r: Renderer) {
     const label = d.mode === 'timed' ? `${Math.ceil(d.t)}` : tr(d.mode === 'combat' ? { ru: 'бой', en: 'fgt' } : { ru: 'ур.', en: 'lvl' });
     r.text(label, x + 16, y + 11, { size: 4, color: C.bone, align: 'right' });
     x += 20;
+  }
+}
+
+/** Значки предметов в HUD справа внизу («КАЗ» — перезарядка, «Боекомплект» — число ракет) */
+function renderHudGauges(g: Game, r: Renderer) {
+  const list: Gauge[] = [];
+  for (const h of g.player.hooks) {
+    const res = h.gauge?.(g);
+    if (!res) continue;
+    for (const gg of Array.isArray(res) ? res : [res]) if (gg.kind === 'hud' && gg.icon) list.push(gg);
+  }
+  const y = VIEW_H - 20;
+  let x = VIEW_W - 21;
+  for (const gg of list) {
+    const ready = gg.k === undefined || gg.k <= 0;
+    r.rect(x, y - 1, 18, 18, C.void, 0.7);
+    r.frame(x, y - 1, 18, 18, ready ? gg.color : C.metal);
+    r.sprite(icon(gg.icon!), x + 3, y + 2, 1, ready ? 1 : 0.4);
+    if (!ready) r.rect(x + 1, y, 16, Math.round(16 * Math.min(1, gg.k!)), C.void, 0.55);
+    if (gg.n !== undefined) r.text(String(gg.n), x + 16, y + 11, { size: 5, color: C.bone, align: 'right' });
+    x -= 20;
   }
 }
 

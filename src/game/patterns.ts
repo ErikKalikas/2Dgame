@@ -4,18 +4,22 @@ import type { Game } from './game';
 
 // Узоры вражеских пуль. Сложность влияет на скорость, плотность и точность прицеливания.
 
+/** Пуля врага. Стреляет текущий актёр (g.actor): у союзника пуля летит по врагам (g.abullets) */
 export function shoot(g: Game, x: number, y: number, angle: number, speed: number, o?: EBulletOpts) {
-  if (g.ebullets.length > 2200) return;
+  const ally = g.actor?.team === 'ally';
+  const list = ally ? g.abullets : g.ebullets;
+  if (list.length > 2200) return;
   const b = makeEBullet(x, y, angle, speed * g.diff.speed * g.floorSpeed, o);
   if (o?.maxSpeed) b.maxSpeed = o.maxSpeed * g.diff.speed;
-  g.ebullets.push(b);
+  if (g.actor) b.owner = g.actor;
+  list.push(b);
   return b;
 }
 
-/** Угол на игрока с погрешностью по сложности */
+/** Угол на цель (обычно игрок; приманка или союзник — см. Game.setAim) с погрешностью по сложности */
 export function aim(g: Game, x: number, y: number, extraError = 0): number {
   const err = g.diff.aim + extraError;
-  return angleTo(x, y, g.player.x, g.player.y) + (Math.random() - 0.5) * 2 * err;
+  return angleTo(x, y, g.aimX, g.aimY) + (Math.random() - 0.5) * 2 * err;
 }
 
 /** Количество пуль с поправкой на сложность */
