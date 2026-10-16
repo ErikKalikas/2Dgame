@@ -9,6 +9,10 @@ await page.goto(url);
 await page.waitForTimeout(800);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(300);
+// пропустить заставку
+await page.waitForTimeout(400);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
 const ids = await page.evaluate(async () => {
   const items = window.__items;
   return [...items.ITEMS.values()].filter((i) => i.kind === 'weapon' || i.active).map((i) => i.id);

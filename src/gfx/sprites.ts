@@ -319,10 +319,10 @@ export const SPR = {
   coin: [] as Sprite[],
   medkit: null as unknown as Sprite,
   key: null as unknown as Sprite,
-  bomb: null as unknown as Sprite,
+  /** Заряд сбоя (подбираемая ячейка) */
+  glitchCell: null as unknown as Sprite,
   heart: null as unknown as Sprite,
   heartEmpty: null as unknown as Sprite,
-  bombIcon: null as unknown as Sprite,
   keyIcon: null as unknown as Sprite,
   coinIcon: null as unknown as Sprite,
   pedestal: null as unknown as Sprite,
@@ -378,10 +378,9 @@ export function initSprites() {
     '.111111111.',
   ]);
   SPR.key = fromRows(['.111.....', '1ded11111', '1d.deeee1', '1ded11e1e', '.111..1.1']);
-  SPR.bomb = fromRows(['...1...', '..1e1..', '.13331.', '1349431', '1394931', '1349431', '.13331.', '..111..']);
+  SPR.glitchCell = fromRows(['.1.1.1.', '1111111', '13fff31', '1f7ff71', '13fff31', '1111111', '.1.1.1.']);
   SPR.heart = fromRows(['.11.11.', '1aa1ba1', '1aaaaa1', '.19aa1.', '..191..', '...1...']);
   SPR.heartEmpty = fromRows(['.11.11.', '1331331', '1333331', '.13331.', '..131..', '...1...']);
-  SPR.bombIcon = fromRows(['..1e1..', '.13331.', '1349431', '1394931', '.13331.', '..111..']);
   SPR.keyIcon = fromRows(['.111.....', '1ded11111', '1d.deeee1', '.111.1e1e']);
   SPR.coinIcon = fromRows(['.111.', '1ded1', '1dcd1', '1ded1', '.111.']);
   SPR.pedestal = fromRows([

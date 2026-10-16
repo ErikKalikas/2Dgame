@@ -21,7 +21,15 @@ export class Player {
   focus = false;
 
   lives = 4;
-  bombs = 2;
+  /** Заряд сбоя 0..1 (полный в начале уровня) */
+  glitch = 1;
+  /** Сколько ещё длится сбой (Т-417 вне системы) */
+  glitchT = 0;
+  /** Аварийное окно: попадание уже случилось, но F ещё может его отменить */
+  pendingHit = 0;
+  /** Перезарядка толчка левой рукой и время его анимации */
+  shoveCd = 0;
+  shoveT = 0;
   coins = 0;
   keys = 0;
   xp = 0;
@@ -110,6 +118,17 @@ export class Player {
       const fn = h[name] as ((...a: unknown[]) => void) | undefined;
       fn?.(...args);
     }
+  }
+
+  /** Двуручное оружие занимает и левую руку */
+  get twoHanded(): boolean {
+    return this.weapon.weapon?.hands === 2;
+  }
+
+  /** Куда смотрит Т-417: направление стрельбы, иначе — взгляда */
+  get aimAngle(): number {
+    if (this.shooting) return this.shootAngle;
+    return this.facing === 'left' ? Math.PI : this.facing === 'right' ? 0 : this.facing === 'up' ? -Math.PI / 2 : Math.PI / 2;
   }
 
   get sprite(): Sprite {
@@ -231,7 +250,25 @@ export class Player {
       }
     }
 
-    if (input.pressed('bomb') && this.bombs > 0) g.useBomb();
+    // левая рука (E): толчок манипулятором; двуручное оружие держит обе руки
+    this.shoveCd = Math.max(0, this.shoveCd - dt);
+    this.shoveT = Math.max(0, this.shoveT - dt);
+    if (input.pressed('leftHand') && this.shoveCd <= 0 && !this.twoHanded) {
+      g.shove(this.aimAngle);
+      this.shoveCd = 0.7;
+      this.shoveT = 0.15;
+    }
+
+    // сбой (F): по полному заряду или в аварийное окно после попадания
+    this.glitchT = Math.max(0, this.glitchT - dt);
+    if (input.pressed('glitch')) {
+      if (this.pendingHit > 0) g.glitch(true);
+      else if (this.glitch >= 1 && this.glitchT <= 0) g.glitch(false);
+    }
+    if (this.pendingHit > 0) {
+      this.pendingHit -= dt;
+      if (this.pendingHit <= 0) g.loseLife();
+    }
     if (input.pressed('active') && this.activeId && this.activeCd <= 0) {
       const it = item(this.activeId);
       it.active!.use(g);

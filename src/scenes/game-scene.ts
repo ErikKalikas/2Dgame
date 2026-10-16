@@ -8,6 +8,7 @@ import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import { icon } from '../gfx/icons';
 import { Game } from '../game/game';
+import { INTRO } from '../game/log';
 import { kindLabel, renderHud } from '../game/hud';
 import { SYNERGIES, item, type ItemDef } from '../game/items';
 import { qualityColor, renderGame as renderGameWorld } from '../game/render';
@@ -25,6 +26,7 @@ export class GameScene implements Scene {
 
   constructor(seed: string = randomSeedString()) {
     this.game = new Game(seed, settings.difficulty);
+    this.overlay = new IntroOverlay(this);
   }
 
   update(dt: number) {
@@ -66,6 +68,35 @@ export class GameScene implements Scene {
 }
 
 // ---------------------------------------------------------------------------
+
+/** Заставка в начале забега: строки терминала печатаются по буквам, любая клавиша — пропуск */
+class IntroOverlay implements Scene {
+  private t = 0;
+
+  constructor(private gs: GameScene) {}
+
+  update(dt: number) {
+    this.t += dt;
+    if (this.t > 0.3 && input.anyPressed()) this.gs.overlay = null;
+  }
+
+  render(r: Renderer) {
+    r.rect(0, 0, VIEW_W, VIEW_H, C.void, 1);
+    const lines = INTRO.map((l) => tr(l));
+    let left = Math.floor(this.t * 40);
+    const x = 24, y0 = 52;
+    lines.forEach((l, i) => {
+      if (left <= 0) return;
+      const shown = l.slice(0, left);
+      left -= l.length + 12;
+      const last = i === lines.length - 1 || i === 4;
+      const ly = y0 + i * 18;
+      r.wrap(shown, VIEW_W - 2 * x, 6).forEach((w, j) => r.text(w, x, ly + j * 8, { size: 6, color: last ? C.red : C.bone }));
+    });
+    if (left > 0 && Math.floor(this.t * 2) % 2 === 0)
+      r.text(tr({ ru: 'любая клавиша', en: 'press any key' }), VIEW_W - 12, VIEW_H - 14, { size: 5, color: C.steel, align: 'right' });
+  }
+}
 
 class PauseOverlay implements Scene {
   private menu: Menu;

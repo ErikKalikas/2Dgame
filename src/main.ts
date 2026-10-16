@@ -7,7 +7,9 @@ import { input } from './core/input';
 import { settings } from './core/storage';
 import { Renderer } from './gfx/renderer';
 import { initSprites } from './gfx/sprites';
+import { Enemy } from './game/enemy';
 import * as items from './game/items';
+import { ENEMIES } from './content/enemies';
 import { MainMenu } from './scenes/main-menu';
 
 async function boot() {
@@ -45,7 +47,7 @@ async function boot() {
   requestAnimationFrame(frame);
 
   // хук для автотестов в браузере
-  Object.assign(window, { __game: app, __items: items });
+  Object.assign(window, { __game: app, __items: items, __enemies: { Enemy, ENEMIES } });
 }
 
 void boot();

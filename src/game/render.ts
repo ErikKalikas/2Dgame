@@ -3,7 +3,7 @@ import { TAU } from '../core/math';
 import { icon } from '../gfx/icons';
 import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
-import { canvas, ctx2d, flipH, softCircle, type Sprite } from '../gfx/sprite';
+import { canvas, ctx2d, flipH, silhouette, softCircle, type Sprite } from '../gfx/sprite';
 import { SPR, flashOf } from '../gfx/sprites';
 import { cutOf, envLayout, glowOf, lightLevel, lightValid, renderAmbient, signalPhase, transitSweep, vignetteOf, type Light } from '../gfx/env';
 import type { FloorTheme } from '../content/floors';
@@ -319,7 +319,7 @@ function renderPickups(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: n
         break;
       }
       default: {
-        const s = k.kind === 'medkit' ? SPR.medkit : k.kind === 'key' ? SPR.key : SPR.bomb;
+        const s = k.kind === 'medkit' ? SPR.medkit : k.kind === 'key' ? SPR.key : SPR.glitchCell;
         ctx.drawImage(sh, x - 5, y + 2);
         ctx.drawImage(s, x - Math.floor(s.width / 2), y - s.height + 3 + bob);
       }
@@ -332,9 +332,20 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
   if (g.state === 'dying' || g.state === 'dead') return;
   const x = Math.round(p.x - cx), y = Math.round(p.y - cy);
   ctx.drawImage(SPR.shadow, x - 5, y + 2);
-  if (p.invuln > 0 && p.dashT <= 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
+  if (p.invuln > 0 && p.dashT <= 0 && p.glitchT <= 0 && Math.floor(p.invuln * 12) % 2 === 0) return;
   const s = p.sprite;
-  ctx.drawImage(s, x - Math.floor(s.width / 2), y + 3 - s.height);
+  const sx = x - Math.floor(s.width / 2), sy = y + 3 - s.height;
+  if (p.glitchT > 0) renderGlitched(g, ctx, s, sx, sy, x, y);
+  else ctx.drawImage(p.pendingHit > 0 && Math.floor(g.time * 40) % 2 ? flashOf(s) : s, sx, sy);
+  if (p.pendingHit > 0) {
+    // аварийное окно: красная вспышка вокруг — жми F
+    ctx.strokeStyle = C.redL;
+    ctx.globalAlpha = 0.8;
+    ctx.beginPath();
+    ctx.arc(x + 0.5, y - 5, 9 + (1 - p.pendingHit / 0.15) * 6, 0, TAU);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
   if (p.shieldLeft > 0) {
     ctx.strokeStyle = C.amber;
     ctx.globalAlpha = 0.35 + 0.15 * Math.sin(g.time * 6);
@@ -358,6 +369,45 @@ function renderPlayer(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: nu
     const k = 1 - Math.max(0, p.holdT - 0.6) / 0.3;
     ctx.drawImage(icon(p.holdItem.icon), x - 6, y - 28 - Math.round(k * 3));
   }
+}
+
+/**
+ * Сбой: пиксельный «глитч» героя — полосы спрайта сдвигаются, рядом фиолетовая и красная
+ * копии со смещением, вокруг тонкий контур радиуса переписывания пуль
+ */
+function renderGlitched(g: Game, ctx: CanvasRenderingContext2D, s: Sprite, sx: number, sy: number, x: number, y: number) {
+  const p = g.player;
+  const step = Math.floor(g.time * 20);
+  const rnd = (k: number) => {
+    const v = Math.sin(step * 12.9898 + k * 78.233) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(tintOf(s, C.violet), sx - 2 - Math.round(rnd(1) * 2), sy);
+  ctx.drawImage(tintOf(s, C.red), sx + 2 + Math.round(rnd(2) * 2), sy);
+  ctx.globalAlpha = 1;
+  const bands = 4, bh = Math.ceil(s.height / bands);
+  for (let i = 0; i < bands; i++) {
+    const off = rnd(i + 3) < 0.4 ? Math.round((rnd(i + 7) - 0.5) * 6) : 0;
+    const h = Math.min(bh, s.height - i * bh);
+    if (h > 0) ctx.drawImage(s, 0, i * bh, s.width, h, sx + off, sy + i * bh, s.width, h);
+  }
+  ctx.strokeStyle = C.violet;
+  ctx.globalAlpha = 0.25 + 0.15 * rnd(9);
+  ctx.beginPath();
+  ctx.arc(x + 0.5, y - 3, p.stats.glitchRadius, 0, TAU);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+
+/** Силуэт спрайта цветом (кэш по цвету) */
+const tintCache = new Map<string, WeakMap<Sprite, Sprite>>();
+function tintOf(s: Sprite, color: string): Sprite {
+  let m = tintCache.get(color);
+  if (!m) tintCache.set(color, (m = new WeakMap()));
+  let t = m.get(s);
+  if (!t) m.set(s, (t = silhouette(s, color)));
+  return t;
 }
 
 const same = (s: Sprite) => s;

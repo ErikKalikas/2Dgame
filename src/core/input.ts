@@ -11,8 +11,12 @@ export const ACTIONS = {
   shootRight: ['ArrowRight'],
   focus: ['ShiftLeft', 'ShiftRight'],
   dash: ['Space'],
-  interact: ['KeyE'],
-  bomb: ['KeyF'],
+  /** Атака левой рукой (толчок манипулятором или модуль руки) */
+  leftHand: ['KeyE'],
+  /** Взять, купить, лифт */
+  interact: ['KeyR'],
+  /** Сбой */
+  glitch: ['KeyF'],
   active: ['KeyQ'],
   pause: ['Escape'],
   restart: ['KeyP'],
@@ -21,7 +25,7 @@ export const ACTIONS = {
   menuDown: ['ArrowDown', 'KeyS'],
   menuLeft: ['ArrowLeft', 'KeyA'],
   menuRight: ['ArrowRight', 'KeyD'],
-  confirm: ['Enter', 'Space', 'KeyE'],
+  confirm: ['Enter', 'Space', 'KeyR'],
   back: ['Escape', 'Backspace'],
 } as const;
 
@@ -73,6 +77,11 @@ class Input {
   repeat(a: Action): boolean {
     for (const c of ACTIONS[a]) if (this.repeatNow.has(c)) return true;
     return false;
+  }
+
+  /** Нажата любая клавиша в этом кадре */
+  anyPressed(): boolean {
+    return this.pressedNow.size > 0;
   }
 
   codePressed(code: string): boolean {

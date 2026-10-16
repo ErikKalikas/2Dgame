@@ -11,6 +11,10 @@ await page.goto(url);
 await page.waitForTimeout(800);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(400);
+// пропустить заставку
+await page.waitForTimeout(400);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
 for (let floor = 1; floor <= 9; floor++) {
   await page.evaluate(() => {
     const g = window.__game.scene.game;

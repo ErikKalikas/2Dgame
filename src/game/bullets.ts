@@ -28,6 +28,8 @@ export interface EBullet {
   homing: number;
   bounces: number;
   dead: boolean;
+  /** Уже засчитан пролёт вплотную (заряд сбоя) */
+  grazed?: boolean;
 }
 
 export interface EBulletOpts {

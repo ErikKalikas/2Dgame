@@ -11,7 +11,11 @@ export interface Stats {
   dashCd: number;
   dashDist: number;
   maxLives: number;
-  startBombs: number;
+  /** Сбой: длительность выпадения из системы (с), радиус переписывания пуль, скорость заряда, урон переписанных пуль */
+  glitchTime: number;
+  glitchRadius: number;
+  glitchGain: number;
+  glitchPower: number;
   /** Энергощит: сколько попаданий поглощается в каждой комнате */
   shield: number;
   /** Шанс полностью избежать попадания */
@@ -65,7 +69,6 @@ export interface Stats {
   coinMult: number;
   xpMult: number;
   luck: number;
-  bombPower: number;
 
   shotStyle: ShotStyle;
   shotColor: string;
@@ -79,7 +82,10 @@ export function baseStats(): Stats {
     dashCd: 0.9,
     dashDist: 56,
     maxLives: 4,
-    startBombs: 2,
+    glitchTime: 2,
+    glitchRadius: 70,
+    glitchGain: 1,
+    glitchPower: 6,
     shield: 0,
     dodge: 0,
     drones: 0,
@@ -126,7 +132,6 @@ export function baseStats(): Stats {
     coinMult: 1,
     xpMult: 1,
     luck: 0,
-    bombPower: 60,
 
     shotStyle: 'bolt',
     shotColor: '#ffcc33',

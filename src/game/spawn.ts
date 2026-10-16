@@ -6,7 +6,7 @@ import { Enemy, type EnemyDef } from './enemy';
 import type { Game } from './game';
 import { itemPrice, rollItem, type ItemKind } from './items';
 
-export type PickupKind = 'coin' | 'medkit' | 'key' | 'bomb' | 'item' | 'teleporter';
+export type PickupKind = 'coin' | 'medkit' | 'key' | 'glitch' | 'item' | 'teleporter';
 
 export interface Pickup {
   kind: PickupKind;
@@ -106,7 +106,7 @@ export function roomClearReward(g: Game) {
   const r = g.rng.next() - p.stats.luck * 0.05;
   if (r < 0.3) dropLoot(g, 'coin', c.x, c.y, g.rng.int(1, 3));
   else if (r < 0.42) g.pickups.push(makePickup('medkit', c.x, c.y));
-  else if (r < 0.52) g.pickups.push(makePickup('bomb', c.x, c.y));
+  else if (r < 0.52) g.pickups.push(makePickup('glitch', c.x, c.y));
   else if (r < 0.6) g.pickups.push(makePickup('key', c.x, c.y));
 }
 
@@ -138,7 +138,7 @@ export function furnishRoom(g: Game) {
   } else if (info.type === 'shop') {
     placeItems(g, ['implant', 'weapon', 'implant'], c.x, c.y - 24, { price: true });
     const row = c.y + 28;
-    const goods: [ 'medkit' | 'key' | 'bomb', number][] = [['medkit', 12], ['key', 8], ['bomb', 8]];
+    const goods: ['medkit' | 'key' | 'glitch', number][] = [['medkit', 12], ['key', 8], ['glitch', 8]];
     goods.forEach(([kind, price], i) => {
       const pos = nearestWalkable(g.room, c.x + (i - 1) * 40, row);
       g.pickups.push(makePickup(kind, pos.x, pos.y, { price: Math.round(price * g.priceMult) }));

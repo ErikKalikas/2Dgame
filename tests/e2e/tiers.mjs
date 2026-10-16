@@ -19,6 +19,10 @@ await page.goto(url);
 await page.waitForTimeout(1200);
 await page.keyboard.press('Enter');
 await page.waitForTimeout(800);
+// пропустить заставку
+await page.waitForTimeout(400);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
 
 const save = (name, dataUrl) => writeFileSync(`${out}/${name}`, Buffer.from(dataUrl.split(',')[1], 'base64'));
 

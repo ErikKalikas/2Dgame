@@ -10,16 +10,18 @@ import { qualityColor } from './render';
 
 const KIND_LABEL = {
   weapon: { ru: 'оружие', en: 'weapon' },
+  weapon2: { ru: 'двуручное оружие', en: 'two-handed weapon' },
   implant: { ru: 'имплант', en: 'implant' },
   passive: { ru: 'модификация', en: 'modification' },
 };
 
 export function kindLabel(it: ItemDef): string {
   if (it.kind === 'implant' && it.active) return tr({ ru: 'активный имплант [Q]', en: 'active implant [Q]' });
+  if (it.weapon?.hands === 2) return tr(KIND_LABEL.weapon2);
   return tr(KIND_LABEL[it.kind]);
 }
 
-/** HUD сверху: жизни, бомбы, кредиты, ключи, уровень и опыт */
+/** HUD сверху: жизни, сбой, кредиты, ключи, уровень и опыт */
 export function renderHud(g: Game, r: Renderer) {
   const p = g.player;
   r.rect(0, 0, VIEW_W, 17, C.void, 0.75);
@@ -28,9 +30,20 @@ export function renderHud(g: Game, r: Renderer) {
   // жизни
   for (let i = 0; i < p.stats.maxLives; i++) r.sprite(i < p.lives ? SPR.heart : SPR.heartEmpty, 4 + i * 8, 3);
   let x = 6 + p.stats.maxLives * 8;
-  // бомбы (ЭМИ)
-  for (let i = 0; i < p.bombs; i++) r.sprite(SPR.bombIcon, x + i * 7, 3);
-  x += Math.max(1, p.bombs) * 7 + 6;
+  // шкала сбоя [F]
+  {
+    const bw = 26;
+    const full = p.glitch >= 1 && p.glitchT <= 0;
+    const blink = Math.floor(g.time * 4) % 2 === 0;
+    r.text('F', x, 4, { size: 6, color: p.pendingHit > 0 ? C.redL : full ? C.violet : C.steel });
+    const gx = x + 8;
+    r.rect(gx, 5, bw, 5, C.black);
+    r.frame(gx - 1, 4, bw + 2, 7, p.pendingHit > 0 ? C.redL : full && blink ? C.violet : C.metal);
+    const k = p.glitchT > 0 ? p.glitchT / p.stats.glitchTime : p.glitch;
+    r.rect(gx, 5, Math.round(bw * k), 5, p.glitchT > 0 ? C.bone : C.violet);
+    if (!full && p.glitchT <= 0) r.rect(gx, 5, Math.round(bw * k), 1, C.grey);
+    x = gx + bw + 8;
+  }
   r.sprite(SPR.coinIcon, x, 4);
   r.text(String(p.coins), x + 7, 4, { size: 6, color: C.yellow });
   x += 30;
@@ -50,6 +63,7 @@ export function renderHud(g: Game, r: Renderer) {
   renderMinimap(g, r);
   renderLoadout(g, r);
   renderBossBar(g, r);
+  renderLog(g, r);
   renderPrices(g, r);
   renderTooltip(g, r);
 
@@ -103,6 +117,20 @@ function renderLoadout(g: Game, r: Renderer) {
     }
     r.text('Q', 39, y + 11, { size: 5, color: C.steelL, align: 'right' });
   }
+  // левая рука [E]: толчок манипулятором; у двуручного оружия недоступна
+  r.text(p.twoHanded ? 'E×' : 'E', 20, y + 11, { size: 5, color: p.twoHanded ? C.redD : p.shoveCd > 0 ? C.metal : C.steelL, align: 'right' });
+}
+
+/** Лог Диспетчера: 1–2 строки терминала над снаряжением, гаснут через несколько секунд */
+function renderLog(g: Game, r: Renderer) {
+  const n = g.logLines.length;
+  g.logLines.forEach((l, i) => {
+    const y = VIEW_H - 34 - (n - 1 - i) * 8;
+    const a = Math.min(1, l.t);
+    const text = '> ' + tr(l.text);
+    r.rect(2, y - 2, Math.min(VIEW_W - 4, r.textWidth(text, 5) + 6), 8, C.void, 0.55 * a);
+    r.text(text, 5, y, { size: 5, color: i === n - 1 ? C.bone : C.grey, alpha: a });
+  });
 }
 
 function renderBossBar(g: Game, r: Renderer) {
@@ -152,9 +180,9 @@ function renderTooltip(g: Game, r: Renderer) {
   } else if (k.kind === 'key') {
     title = tr({ ru: 'Ключ-карта', en: 'Keycard' });
     desc = tr({ ru: 'Открывает запертую дверь', en: 'Opens a locked door' });
-  } else if (k.kind === 'bomb') {
-    title = tr({ ru: 'Заряд ЭМИ', en: 'EMP charge' });
-    desc = tr({ ru: '+1 бомба', en: '+1 bomb' });
+  } else if (k.kind === 'glitch') {
+    title = tr({ ru: 'Ячейка сбоя', en: 'Glitch cell' });
+    desc = tr({ ru: '+30% заряда сбоя', en: '+30% glitch charge' });
   }
   const w = 220;
   const lines = r.wrap(desc, w - 12, 5);
@@ -165,9 +193,9 @@ function renderTooltip(g: Game, r: Renderer) {
   if (kind) r.text(kind, x + w - 6, y + 6, { size: 5, color: C.steelL, align: 'right' });
   lines.forEach((l, i) => r.text(l, x + 6, y + 16 + i * 8, { size: 5, color: C.grey }));
   let prompt: string;
-  if (k.kind === 'teleporter') prompt = tr(S.pressETeleport);
-  else if (k.price !== undefined) prompt = g.player.coins >= k.price ? `${tr(S.pressEBuy)} · ${k.price}` : `${tr(S.notEnough)} · ${k.price}`;
-  else prompt = tr(S.pressE);
+  if (k.kind === 'teleporter') prompt = tr(S.pressRTeleport);
+  else if (k.price !== undefined) prompt = g.player.coins >= k.price ? `${tr(S.pressRBuy)} · ${k.price}` : `${tr(S.notEnough)} · ${k.price}`;
+  else prompt = tr(S.pressR);
   r.text(prompt, x + w - 6, y + h - 9, { size: 5, color: C.yellow, align: 'right' });
 }
 

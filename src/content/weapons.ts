@@ -74,7 +74,7 @@ export const WEAPONS: ItemDef[] = [
     desc: { ru: 'Залп из 6 дробин на близкой дистанции.', en: 'A blast of 6 pellets at close range.' },
     icon: { shape: 'shotgun', color: C.amberD, accent: C.red },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 2.6;
         s.count = 6;
@@ -126,7 +126,7 @@ export const WEAPONS: ItemDef[] = [
     desc: { ru: 'Удерживайте огонь для зарядки. Полный заряд пробивает насквозь.', en: 'Hold fire to charge. A full charge pierces through.' },
     icon: { shape: 'sniper', color: C.steel, accent: C.yellow },
     weapon: {
-      mode: 'charge',
+      mode: 'charge', hands: 2,
       chargeTime: 0.9,
       stats: (s) => {
         s.damage = 9;
@@ -145,7 +145,7 @@ export const WEAPONS: ItemDef[] = [
     desc: { ru: 'Короткая струя огня. Поджигает и проходит сквозь врагов.', en: 'A short stream of fire. Ignites and passes through enemies.' },
     icon: { shape: 'flame', color: C.redD, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 0.9;
         s.fireDelay = 0.05;
@@ -172,7 +172,7 @@ export const WEAPONS: ItemDef[] = [
     desc: { ru: 'Медленные ракеты разгоняются и взрываются по площади.', en: 'Slow rockets accelerate and explode in an area.' },
     icon: { shape: 'rocket', color: C.metal, accent: C.red },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 11;
         s.fireDelay = 0.85;
@@ -198,7 +198,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'pistol', color: C.bone, accent: C.red },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 2.1;
         s.fireDelay = 0.16;
@@ -249,7 +249,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'rifle', color: C.steelL, accent: C.amber },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 2.5;
         s.burst = 3;
@@ -289,7 +289,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'rifle', color: C.amberD, accent: C.bone },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 3.2;
         s.fireDelay = 0.3;
@@ -354,7 +354,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'shotgun', color: C.grey, accent: C.redD },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 2.4;
         s.count = 4;
@@ -385,14 +385,14 @@ export const WEAPONS: ItemDef[] = [
   },
   {
     id: 'wSweeper', kind: 'weapon', quality: 1, tags: ['kinetic'],
-    name: { ru: 'Пулемёт «Метла»', en: '"Broom" Machine Gun' },
+    name: { ru: 'Пулемёт «Веник»', en: '"Besom" Machine Gun' },
     desc: {
       ru: 'Ствол сам водит из стороны в сторону: плотная струя пуль метёт широкий сектор.',
       en: 'The barrel swings side to side on its own, sweeping a wide arc with a dense stream.',
     },
     icon: { shape: 'smg', color: C.amberD, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 1.6;
         s.fireDelay = 0.075;
@@ -499,7 +499,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'rifle', color: C.bone, accent: C.steel },
     weapon: {
-      mode: 'charge',
+      mode: 'charge', hands: 2,
       chargeTime: 0.75,
       stats: (s) => {
         s.damage = 5;
@@ -552,7 +552,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'orb', color: C.redD, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 8;
         s.fireDelay = 0.8;
@@ -609,7 +609,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'shotgun', color: C.red, accent: C.bone },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 5;
         s.fireDelay = 0.55;
@@ -711,7 +711,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'bomb', color: C.amberD, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 5;
         s.fireDelay = 0.7;
@@ -761,7 +761,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'laser', color: C.steelL, accent: C.redL },
     weapon: {
-      mode: 'beam',
+      mode: 'beam', hands: 2,
       stats: (s) => {
         s.damage = 0.9;
         s.fireDelay = 0.07;
@@ -783,7 +783,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'lightning', color: C.yellow, accent: C.bone },
     weapon: {
-      mode: 'beam',
+      mode: 'beam', hands: 2,
       stats: (s) => {
         s.damage = 1.1;
         s.fireDelay = 0.09;
@@ -847,7 +847,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'shotgun', color: C.amber, accent: C.yellow },
     weapon: {
-      mode: 'charge',
+      mode: 'charge', hands: 2,
       chargeTime: 0.85,
       stats: (s) => {
         s.damage = 1.9;
@@ -887,7 +887,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'smg', color: C.metal, accent: C.red },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 1.5;
         s.fireDelay = 0.06;
@@ -972,7 +972,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'gear', color: C.steel, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 1.7;
         s.fireDelay = 0.11;
@@ -997,7 +997,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'rocket', color: C.steelL, accent: C.yellow },
     weapon: {
-      mode: 'bullet',
+      mode: 'bullet', hands: 2,
       stats: (s) => {
         s.damage = 2.4;
         s.count = 3;
@@ -1051,7 +1051,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'laser', color: C.amber, accent: C.yellow },
     weapon: {
-      mode: 'beam',
+      mode: 'beam', hands: 2,
       stats: (s) => {
         s.damage = 6;
         s.fireDelay = 0.36;
@@ -1067,14 +1067,14 @@ export const WEAPONS: ItemDef[] = [
   },
   {
     id: 'wMantis', kind: 'weapon', quality: 3, tags: ['blade', 'mutation'],
-    name: { ru: 'Клинки «Резак»', en: '"Cutter" Arm Blades' },
+    name: { ru: 'Клинки «Кромка»', en: '"Edge" Arm Blades' },
     desc: {
       ru: 'Выдвижные клинки из предплечий: быстрые широкие взмахи, каждый бросает 2 режущие волны.',
       en: 'Forearm blades: fast, wide slashes that each throw 2 cutting waves.',
     },
     icon: { shape: 'claw', color: C.bone, accent: C.red },
     weapon: {
-      mode: 'melee',
+      mode: 'melee', hands: 2,
       stats: (s) => {
         s.damage = 4.5;
         s.fireDelay = 0.24;
@@ -1093,7 +1093,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'blade', color: C.amberD, accent: C.red },
     weapon: {
-      mode: 'melee',
+      mode: 'melee', hands: 2,
       stats: (s) => {
         s.damage = 1.5;
         s.fireDelay = 0.075;
@@ -1114,7 +1114,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'orb', color: C.amber, accent: C.redL },
     weapon: {
-      mode: 'charge',
+      mode: 'charge', hands: 2,
       chargeTime: 1.0,
       stats: (s) => {
         s.damage = 5;
@@ -1144,7 +1144,7 @@ export const WEAPONS: ItemDef[] = [
 
   {
     id: 'wBlackIce', kind: 'weapon', quality: 4, tags: ['neural', 'smart'],
-    name: { ru: 'Вирус «Сбой»', en: '"Glitch" Virus' },
+    name: { ru: 'Вирус «Помеха»', en: '"Static" Virus' },
     desc: {
       ru: 'Самонаводящиеся пакеты взламывают цель (+30% урона по ней). Убитый враг выбрасывает 4 самонаводящихся осколка вируса.',
       en: 'Homing packets hack the target (+30% damage taken). Slain enemies burst into 4 homing virus shards.',
@@ -1259,7 +1259,7 @@ export const WEAPONS: ItemDef[] = [
     },
     icon: { shape: 'core', color: C.violet, accent: C.bone },
     weapon: {
-      mode: 'charge',
+      mode: 'charge', hands: 2,
       chargeTime: 1.3,
       stats: (s) => {
         s.damage = 5;

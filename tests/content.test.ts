@@ -25,6 +25,26 @@ describe('контент', () => {
     expect(itemsOfKind('passive').filter((p) => p.tags.includes('mutation')).length).toBeGreaterThanOrEqual(6);
   });
 
+  it('оружие одноручное или двуручное, двуручных — заметная часть', () => {
+    const w = itemsOfKind('weapon');
+    for (const it of w) expect([undefined, 1, 2], it.id).toContain(it.weapon!.hands);
+    const two = w.filter((it) => it.weapon!.hands === 2).length;
+    expect(two).toBeGreaterThan(w.length * 0.25);
+    expect(two).toBeLessThan(w.length * 0.75);
+    expect(ITEMS.get('pistol')!.weapon!.hands ?? 1, 'стартовый пистолет одноручный').toBe(1);
+  });
+
+  it('названия предметов не повторяются', () => {
+    for (const lang of ['ru', 'en'] as const) {
+      const seen = new Map<string, string>();
+      for (const it of ITEMS.values()) {
+        const n = it.name[lang].toLowerCase();
+        expect(seen.get(n), `${it.id}: «${n}» уже у ${seen.get(n)}`).toBeUndefined();
+        seen.set(n, it.id);
+      }
+    }
+  });
+
   it('не меньше 16 врагов и 8 боссов', () => {
     expect(ENEMIES.length).toBeGreaterThanOrEqual(16);
     expect(BOSSES.length).toBeGreaterThanOrEqual(8);

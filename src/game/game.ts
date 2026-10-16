@@ -1,6 +1,6 @@
 import { FLOORS, TILE, VIEW_H, VIEW_W } from '../config';
 import { FLOOR_THEMES, type FloorTheme } from '../content/floors';
-import { clamp, dist2 } from '../core/math';
+import { angleDiff, clamp, dist2 } from '../core/math';
 import { RNG } from '../core/rng';
 import type { Difficulty } from '../core/storage';
 import { C } from '../gfx/palette';
@@ -11,7 +11,9 @@ import { buildRoom, nearestWalkable, type DoorPlace, type RoomMap } from '../wor
 import { T, walkable } from '../world/tiles';
 import { updateEBullets, updatePBullets, type EBullet, type PBullet } from './bullets';
 import { collidePlayerShots, damageEnemy, explode, fireWeapon, spawnShot } from './combat';
-import { finalDamage } from './stats';
+import { baseStats, finalDamage } from './stats';
+import { LOG, LOG_MAX, LOG_TIME, type LogLine } from './log';
+import type { L } from '../core/i18n';
 import type { Enemy } from './enemy';
 import { FxSystem } from './fx';
 import { item, itemsOfKind, type ItemDef } from './items';
@@ -34,6 +36,11 @@ const DIFFS: Record<Difficulty, DiffParams> = {
 };
 
 export type GameState = 'play' | 'transition' | 'dying' | 'dead' | 'won' | 'floorFade';
+
+/** Пролёт пули ближе этого (px от края хитбокса) заряжает сбой */
+const GRAZE = 14;
+/** Аварийное окно сбоя после попадания (с) */
+const EMERGENCY = 0.15;
 
 /** Опыт до следующего уровня */
 export function xpNeed(level: number): number {
@@ -80,6 +87,10 @@ export class Game {
   playTime = 0;
   /** Замедление времени (хроно-ускоритель): враги и их пули двигаются медленнее */
   slowmo = 0;
+  /** Лог Диспетчера (левый нижний угол) */
+  logLines: LogLine[] = [];
+  /** Имя последнего побеждённого босса (для лога) */
+  lastBoss: L | null = null;
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {
     this.rng = new RNG(seed + ':run');
@@ -89,7 +100,6 @@ export class Game {
     this.player.lifeOffset = this.hard ? -1 : 0;
     this.player.recalc();
     this.player.lives = this.player.stats.maxLives;
-    this.player.bombs = this.player.stats.startBombs;
     this.seenItems.add('pistol');
     this.startFloor(1);
   }
@@ -124,7 +134,15 @@ export class Game {
     this.player.x = this.player.safeX = c.x;
     this.player.y = this.player.safeY = c.y;
     this.snapCamera();
-    this.player.bombs = Math.max(this.player.bombs, this.player.stats.startBombs);
+    // сбой полностью заряжен в начале каждого уровня
+    this.player.glitch = 1;
+    this.log(LOG.floorStart(this.theme.tierName, n));
+  }
+
+  /** Строка в лог Диспетчера */
+  log(text: L) {
+    this.logLines.push({ text, t: LOG_TIME });
+    while (this.logLines.length > LOG_MAX) this.logLines.shift();
   }
 
   private mapFor(info: RoomInfo): RoomMap {
@@ -220,6 +238,10 @@ export class Game {
     p.update(this, dt);
     p.emit('tick', this, dt);
     this.updateDrones(dt);
+
+    this.updateGlitch();
+    for (const l of this.logLines) l.t -= dt;
+    this.logLines = this.logLines.filter((l) => l.t > 0);
 
     this.slowmo = Math.max(0, this.slowmo - dt);
     const edt = this.slowmo > 0 ? dt * 0.3 : dt;
@@ -479,10 +501,10 @@ export class Game {
         p.keys++;
         this.fx.burst(k.x, k.y, C.yellow, 6, 40, 0.3, 1, true);
         break;
-      case 'bomb':
-        if (p.bombs >= 6) return;
-        p.bombs++;
-        this.fx.burst(k.x, k.y, C.amber, 6, 40, 0.3, 1, true);
+      case 'glitch':
+        if (p.glitch >= 1) return;
+        p.glitch = Math.min(1, p.glitch + 0.3);
+        this.fx.burst(k.x, k.y, C.violet, 8, 40, 0.3, 1, true);
         break;
     }
     k.dead = true;
@@ -503,7 +525,7 @@ export class Game {
         return;
       }
       if (k.kind === 'medkit' && p.lives >= p.stats.maxLives) return;
-      if (k.kind === 'bomb' && p.bombs >= 6) return;
+      if (k.kind === 'glitch' && p.glitch >= 1) return;
       p.coins -= k.price;
       if (k.kind !== 'item') {
         k.price = undefined;
@@ -628,6 +650,8 @@ export class Game {
     e.def.onDeath?.(e, this);
     if (!reward || e.mem.summoned) return;
     p.kills++;
+    if (p.glitchT <= 0) p.glitch = Math.min(1, p.glitch + 0.01 * p.stats.glitchGain);
+    if (e.def.boss) this.lastBoss = e.def.name;
     const coins = Math.floor(e.def.coins + Math.random());
     if (coins > 0) dropLoot(this, 'coin', e.x, e.y, coins);
     p.xp += e.def.xp * p.stats.xpMult;
@@ -656,6 +680,7 @@ export class Game {
       const keep = { twin: e.mem.twin };
       e.mem = { ...keep, invuln: 1.0 };
       phases[e.phase].enter?.(e, this);
+      this.log(LOG.phase(phases[e.phase].name));
       this.clearBullets(true);
       this.fx.ring(e.x, e.y, C.red, 80, 0.6);
     }
@@ -663,6 +688,7 @@ export class Game {
 
   private onBossDefeated() {
     this.clearBullets(true);
+    if (this.lastBoss) this.log(LOG.bossDown(this.lastBoss));
     if (this.floorNum >= FLOORS) {
       this.state = 'won';
       this.stateT = 0;
@@ -682,20 +708,68 @@ export class Game {
     this.ebullets.length = 0;
   }
 
-  useBomb() {
+  /**
+   * Сбой: Т-417 на glitchTime секунд выпадает из системы — вражеские пули проходят сквозь него,
+   * а пули в радиусе переписываются и летят во врагов. emergency — аварийный сбой после попадания.
+   */
+  glitch(emergency: boolean) {
     const p = this.player;
-    p.bombs--;
-    p.invuln = Math.max(p.invuln, 1.3);
-    this.clearBullets(true);
-    const R = 150;
-    this.fx.ring(p.x, p.y, C.yellow, R, 0.5);
-    this.fx.ring(p.x, p.y, C.violet, R * 0.6, 0.4);
-    this.fx.flash(p.x, p.y, C.bone, 60, 0.2);
-    this.lightFlash(p.x, p.y, 300);
-    for (const e of this.enemies) {
-      if (dist2(p.x, p.y, e.x, e.y) < R * R) damageEnemy(this, e, p.stats.bombPower * (1 + this.floorNum * 0.15), p.x, p.y, { shock: 1, silent: true });
+    p.glitch = 0;
+    p.pendingHit = 0;
+    p.glitchT = p.stats.glitchTime;
+    const R = p.stats.glitchRadius;
+    this.fx.ring(p.x, p.y, C.violet, R, 0.45);
+    this.fx.ring(p.x, p.y, C.red, R * 0.5, 0.3);
+    this.fx.flash(p.x, p.y, C.violet, 30, 0.2);
+    this.lightFlash(p.x, p.y, R * 2);
+    this.log(emergency ? LOG.emergency : LOG.glitch);
+    p.emit('onGlitch', this);
+  }
+
+  /** Пока идёт сбой — переписываем вражеские пули в радиусе в свои, наводящиеся на врагов */
+  private updateGlitch() {
+    const p = this.player;
+    if (p.glitchT <= 0) return;
+    const R2 = p.stats.glitchRadius ** 2;
+    const dmg = p.stats.glitchPower * (1 + this.floorNum * 0.15);
+    const base = baseStats();
+    let any = false;
+    for (const b of this.ebullets) {
+      if (dist2(b.x, b.y, p.x, p.y) > R2) continue;
+      b.dead = any = true;
+      if (this.pbullets.length > 500) continue;
+      let target: Enemy | null = null, best = Infinity;
+      for (const e of this.enemies) {
+        const d = dist2(b.x, b.y, e.x, e.y);
+        if (!e.dead && e.spawn <= 0 && d < best) {
+          best = d;
+          target = e;
+        }
+      }
+      const a = target ? Math.atan2(target.y - b.y, target.x - b.x) : b.angle + Math.PI;
+      spawnShot(this, a, base, {
+        x: b.x, y: b.y, bx: b.x, by: b.y, speed: 170, dmg, homing: 4, life: 1.6, maxLife: 1.6,
+        r: 2.5, color: C.violet, style: 'shard', crit: false,
+      });
+      if (Math.random() < 0.3) this.fx.add({ kind: 'spark', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, color: C.violet, life: 0.2, glow: true });
     }
-    p.emit('onBomb', this);
+    if (any) this.ebullets = this.ebullets.filter((b) => !b.dead);
+  }
+
+  /** Толчок рабочим манипулятором (E): слабый удар вплотную, сильно отбрасывает */
+  shove(angle: number) {
+    const p = this.player;
+    const reach = 24, arc = 1.9;
+    const dmg = Math.max(2, finalDamage(p.stats) * 0.5);
+    this.fx.add({ kind: 'slash', x: p.x, y: p.y - 3, angle, arc, size: reach, color: C.bone, life: 0.12, glow: true });
+    for (const e of this.enemies) {
+      if (e.dead || e.spawn > 0) continue;
+      if (dist2(p.x, p.y, e.x, e.y) > (reach + e.r) ** 2) continue;
+      if (Math.abs(angleDiff(angle, Math.atan2(e.y - p.y, e.x - p.x))) > arc / 2 + 0.2) continue;
+      damageEnemy(this, e, dmg, p.x, p.y, { knockback: 200, source: 'melee' });
+      this.fx.burst(e.x, e.y, C.bone, 5, 60, 0.2, 1, true);
+    }
+    this.hitTile(p.x + Math.cos(angle) * reach * 0.7, p.y + Math.sin(angle) * reach * 0.7, dmg);
   }
 
   lightFlash(x: number, y: number, r: number) {
@@ -704,12 +778,21 @@ export class Game {
 
   private checkPlayerHits() {
     const p = this.player;
-    if (p.invuln > 0 || p.dashT > 0 || p.holdT > 0.7) return;
+    if (p.invuln > 0 || p.dashT > 0 || p.holdT > 0.7 || p.glitchT > 0 || p.pendingHit > 0) return;
     const hr = p.stats.hitR;
+    const charging = p.glitch < 1;
     for (const b of this.ebullets) {
       if (b.delay > 0) continue;
       const r = b.r * 0.8 + hr;
-      if (dist2(b.x, b.y, p.x, p.y) < r * r) return this.hurtPlayer();
+      const d2 = dist2(b.x, b.y, p.x, p.y);
+      if (d2 < r * r) return this.hurtPlayer();
+      // пролёт вплотную заряжает сбой (каждая пуля — один раз; чем ближе, тем больше)
+      if (charging && !b.grazed && d2 < (r + GRAZE) ** 2) {
+        b.grazed = true;
+        const k = 1.5 - (Math.sqrt(d2) - r) / GRAZE;
+        p.glitch = Math.min(1, p.glitch + 0.02 * k * p.stats.glitchGain);
+        this.fx.add({ kind: 'dot', x: (b.x + p.x) / 2, y: (b.y + p.y) / 2, color: C.violet, life: 0.2, glow: true });
+      }
     }
     for (const e of this.enemies) {
       if (e.spawn > 0 || e.airborne || e.hidden || e.def.contact === false) continue;
@@ -733,6 +816,18 @@ export class Game {
       this.fx.burst(p.x, p.y, C.amber, 10, 70, 0.3, 1, true);
       return;
     }
+    // сбой заряжен — аварийное окно: F в течение 0,15 с отменяет попадание
+    if (p.glitch >= 1 && p.glitchT <= 0) {
+      p.pendingHit = EMERGENCY;
+      return;
+    }
+    this.loseLife();
+  }
+
+  /** Потеря жизни (после щита, уклонения и аварийного окна) */
+  loseLife() {
+    const p = this.player;
+    p.pendingHit = 0;
     p.lives--;
     p.invuln = 2.2;
     p.emit('onHurt', this);
@@ -744,8 +839,8 @@ export class Game {
       }
     }
     this.ebullets = this.ebullets.filter((b) => !b.dead);
-    p.bombs = Math.max(p.bombs, p.stats.startBombs);
     this.fx.burst(p.x, p.y, C.red, 24, 120, 0.6, 2, true);
+    if (p.lives > 0) this.log(LOG.hurt);
     this.fx.ring(p.x, p.y, C.red, 110, 0.4);
     if (p.lives <= 0) {
       this.state = 'dying';

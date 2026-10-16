@@ -28,7 +28,8 @@ export interface Hooks {
   onRoomClear?(g: Game): void;
   onRoomEnter?(g: Game): void;
   onDash?(g: Game): void;
-  onBomb?(g: Game): void;
+  /** Сработал сбой (F или аварийный) */
+  onGlitch?(g: Game): void;
   tick?(g: Game, dt: number): void;
 }
 
@@ -41,6 +42,8 @@ export interface ActiveSpec {
 export interface WeaponSpec {
   /** bullet — снаряды, beam — луч, melee — удар по дуге, charge — заряжаемый выстрел */
   mode: 'bullet' | 'beam' | 'melee' | 'charge';
+  /** Двуручное оружие занимает и левую руку: атака на E недоступна (по умолчанию одноручное) */
+  hands?: 1 | 2;
   /** Базовые параметры оружия (применяются сразу после базовых характеристик) */
   stats: (s: Stats) => void;
   /** Нестандартный рисунок выстрела. По умолчанию — веер из s.count снарядов */

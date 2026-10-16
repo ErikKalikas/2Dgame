@@ -14,6 +14,10 @@ await page.waitForTimeout(1200);
 await page.screenshot({ path: `${out}/01-menu.png` });
 await page.keyboard.press('Enter');
 await page.waitForTimeout(800);
+// пропустить заставку
+await page.waitForTimeout(400);
+await page.keyboard.press('Enter');
+await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/02-start.png` });
 // побегать и пострелять
 const hold = async (keys, ms) => {

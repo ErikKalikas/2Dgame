@@ -723,14 +723,14 @@ export const IMPLANTS: ItemDef[] = [
   {
     id: 'iBackupHeart', kind: 'implant', quality: 4, tags: ['mutation', 'nano'],
     name: { ru: 'Резервное сердце', en: 'Backup Heart' },
-    desc: { ru: '[Q] +1 жизнь (при полном здоровье — +1 бомба). Перезарядка 60 с.', en: '[Q] +1 life (+1 bomb if at full health). Cooldown 60 s.' },
+    desc: { ru: '[Q] +1 жизнь (при полном здоровье — полный заряд сбоя). Перезарядка 60 с.', en: '[Q] +1 life (a full glitch charge if at full health). Cooldown 60 s.' },
     icon: { shape: 'heart', color: C.red, accent: C.bone },
     active: {
       cooldown: 60,
       use: (g) => {
         const p = g.player;
         if (p.lives < p.stats.maxLives) p.lives++;
-        else p.bombs++;
+        else p.glitch = 1;
         g.fx.burst(p.x, p.y, C.red, 14, 60, 0.5, 1, true);
         g.fx.ring(p.x, p.y, C.red, 30, 0.4);
       },

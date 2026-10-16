@@ -131,12 +131,12 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synExplosive',
     name: { ru: 'Подрывник', en: 'Demolitionist' },
-    desc: { ru: '3 взрывных предмета: взрывы больше, ЭМИ сильнее, +1 бомба в запасе.', en: '3 explosive items: bigger explosions, stronger EMP, +1 spare bomb.' },
+    desc: { ru: '3 взрывных предмета: взрывы больше, сбой шире на 30% и копится на 25% быстрее.', en: '3 explosive items: bigger explosions, glitch radius +30%, glitch charges 25% faster.' },
     requires: (_h, tags) => tags('explosive') >= 3,
     stats: (s) => {
       s.explode += 12;
-      s.bombPower *= 1.5;
-      s.startBombs += 1;
+      s.glitchRadius *= 1.3;
+      s.glitchGain *= 1.25;
     },
   },
   {
@@ -353,7 +353,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synViralStrain',
     name: { ru: 'Вирусный штамм', en: 'Viral Strain' },
-    desc: { ru: 'Вирус «Сбой» + Паразитный код: снаряды сильнее наводятся и взламывают цель на +20%.', en: '"Glitch" Virus + Parasitic Code: stronger homing, targets take +20% damage.' },
+    desc: { ru: 'Вирус «Помеха» + Паразитный код: снаряды сильнее наводятся и взламывают цель на +20%.', en: '"Static" Virus + Parasitic Code: stronger homing, targets take +20% damage.' },
     requires: (has) => has('wBlackIce') && has('pMutParasiticCode'),
     stats: (s) => {
       s.homing += 2;
