@@ -4,6 +4,35 @@ import { canvas, ctx2d, type Sprite } from '../sprite';
 // Мини-набор для пиксель-арта: сетка индексов палитры, слои, автоматическая обводка,
 // а для крупных спрайтов — маски с «фаской» (свет сверху-слева, тень снизу-справа).
 
+/** Порог упорядоченного дизеринга 2×2 */
+const BAYER = [0, 2, 3, 1];
+
+/** Детерминированный псевдослучайный шум в [0, 1) */
+export function hash(x: number, y: number, seed = 0): number {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(seed | 0, 982451653)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+export interface ShadeOpts {
+  /** Контур вокруг маски */
+  line?: number;
+  /** Центр и полуоси «объёма» (по умолчанию — габариты маски) */
+  cx?: number;
+  cy?: number;
+  rx?: number;
+  ry?: number;
+  /** Направление на свет (по умолчанию сверху-слева) */
+  lx?: number;
+  ly?: number;
+  /** Средняя яркость 0..1 и сила светотени */
+  amb?: number;
+  k?: number;
+  dither?: boolean;
+  /** Светлый/тёмный кант по краям */
+  rim?: boolean;
+}
+
 /** Сетка индексов палитры; -1 = прозрачный пиксель */
 export class Grid {
   readonly d: Int8Array;
@@ -108,6 +137,87 @@ export class Grid {
     return this;
   }
 
+  /**
+   * Объёмная заливка маски по рампе (тёмный → светлый) с упорядоченным дизерингом 2×2.
+   * Свет сверху-слева; форма считается эллипсом по габаритам маски (или cx/cy/rx/ry).
+   */
+  shade(m: Mask, ramp: number[], o: ShadeOpts = {}) {
+    const b = m.bounds();
+    if (!b) return this;
+    const cx = o.cx ?? (b.x0 + b.x1 + 1) / 2, cy = o.cy ?? (b.y0 + b.y1 + 1) / 2;
+    const rx = o.rx ?? Math.max(1, (b.x1 - b.x0 + 1) / 2), ry = o.ry ?? Math.max(1, (b.y1 - b.y0 + 1) / 2);
+    const lx = o.lx ?? -0.6, ly = o.ly ?? -0.8, amb = o.amb ?? 0.5, k = o.k ?? 0.55;
+    const n = ramp.length, dith = o.dither ?? true, rim = o.rim ?? true;
+    if (o.line !== undefined && o.line >= 0) this.edge(m, o.line);
+    for (let y = b.y0; y <= b.y1; y++)
+      for (let x = b.x0; x <= b.x1; x++) {
+        if (!m.has(x, y)) continue;
+        const nx = Math.max(-1, Math.min(1, (x + 0.5 - cx) / rx)), ny = Math.max(-1, Math.min(1, (y + 0.5 - cy) / ry));
+        let v = amb + k * (nx * lx + ny * ly);
+        if (rim) {
+          if (!m.has(x + 1, y) || !m.has(x, y + 1)) v -= 0.22;
+          if (!m.has(x - 1, y) || !m.has(x, y - 1)) v += 0.18;
+        }
+        const t = Math.max(0, Math.min(1, v)) * (n - 1);
+        let i = Math.floor(t);
+        const fr = t - i;
+        if (dith ? fr > (BAYER[(x & 1) + (y & 1) * 2] + 0.5) / 4 : fr >= 0.5) i++;
+        this.set(x, y, ramp[Math.max(0, Math.min(n - 1, i))]);
+      }
+    return this;
+  }
+
+  /** Контур снаружи маски (без заливки) */
+  edge(m: Mask, c: number) {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++)
+        if (!m.has(x, y) && (m.has(x - 1, y) || m.has(x + 1, y) || m.has(x, y - 1) || m.has(x, y + 1))) this.set(x, y, c);
+    return this;
+  }
+
+  /** Диагональные полосы (a/b) внутри маски; inner — не трогать крайние пиксели */
+  stripes(m: Mask, a: number, b: number, w = 2, dir = 1, inner = true) {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) {
+        if (!(inner ? m.inner(x, y) : m.has(x, y))) continue;
+        const k = Math.floor((x + dir * y + 1000 * w) / w) % 2;
+        this.set(x, y, k ? a : b);
+      }
+    return this;
+  }
+
+  /** Россыпь пятен (ржавчина, грязь) по внутренним пикселям маски, детерминированно */
+  speckle(m: Mask, colors: number[], density: number, seed = 1) {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) {
+        if (!m.inner(x, y)) continue;
+        const r = hash(x, y, seed);
+        if (r < density) this.set(x, y, colors[Math.floor(hash(x, y, seed + 7) * colors.length)]);
+      }
+    return this;
+  }
+
+  /** Перекрасить только уже закрашенные пиксели маски (светотень поверх) */
+  tint(m: Mask, map: Record<number, number>) {
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) {
+        if (!m.has(x, y)) continue;
+        const v = this.get(x, y);
+        if (v in map) this.d[y * this.w + x] = map[v];
+      }
+    return this;
+  }
+
+  /** Огонёк: ядро c и ореол halo на 4 соседях (только по непрозрачным) */
+  light(x: number, y: number, c: number, halo = -1) {
+    x = Math.round(x);
+    y = Math.round(y);
+    if (halo >= 0)
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (this.get(x + dx, y + dy) >= 0) this.set(x + dx, y + dy, halo);
+    this.set(x, y, c);
+    return this;
+  }
+
   toSprite(): Sprite {
     const c = canvas(this.w, this.h);
     const x = ctx2d(c);
@@ -179,6 +289,59 @@ export class Mask {
         if (ex * ex + ey * ey <= r * r + 0.01) this.px(x, y, v);
       }
     return this;
+  }
+  /** Пиксель внутри и все 4 соседа внутри */
+  inner(x: number, y: number) {
+    return this.has(x, y) && this.has(x - 1, y) && this.has(x + 1, y) && this.has(x, y - 1) && this.has(x, y + 1);
+  }
+  /** Габариты непустой маски */
+  bounds(): { x0: number; y0: number; x1: number; y1: number } | null {
+    let x0 = this.w, y0 = this.h, x1 = -1, y1 = -1;
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++)
+        if (this.d[y * this.w + x]) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+    return x1 < 0 ? null : { x0, y0, x1, y1 };
+  }
+  /** Ломаная из толстых отрезков: [x0, y0, x1, y1, ...] */
+  path(pts: number[], t = 1, v = 1) {
+    for (let i = 0; i + 3 < pts.length; i += 2) this.line(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], t, v);
+    return this;
+  }
+  /** Квадратичная кривая Безье толщины t */
+  bez(x0: number, y0: number, qx: number, qy: number, x1: number, y1: number, t = 1, steps = 10, v = 1) {
+    const pts: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps;
+      pts.push((1 - k) * (1 - k) * x0 + 2 * (1 - k) * k * qx + k * k * x1, (1 - k) * (1 - k) * y0 + 2 * (1 - k) * k * qy + k * k * y1);
+    }
+    return this.path(pts, t, v);
+  }
+  /** Вычесть другую маску */
+  sub(o: Mask) {
+    for (let i = 0; i < this.d.length; i++) if (o.d[i]) this.d[i] = 0;
+    return this;
+  }
+  /** Пересечение с другой маской */
+  and(o: Mask) {
+    for (let i = 0; i < this.d.length; i++) if (!o.d[i]) this.d[i] = 0;
+    return this;
+  }
+  clone(): Mask {
+    const m = new Mask(this.w, this.h);
+    m.d.set(this.d);
+    return m;
+  }
+  /** Новая маска, отражённая по вертикали */
+  vflip(): Mask {
+    const m = new Mask(this.w, this.h);
+    for (let y = 0; y < this.h; y++)
+      for (let x = 0; x < this.w; x++) m.d[(this.h - 1 - y) * this.w + x] = this.d[y * this.w + x];
+    return m;
   }
   /** Новая маска, отражённая по горизонтали */
   flip(): Mask {
