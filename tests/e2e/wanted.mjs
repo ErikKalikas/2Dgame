@@ -42,6 +42,56 @@ check('ступень 2 и строка в логе', lvl.lvl === 2 && lvl.log?.
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${out}/wanted-hud.png` });
 
+// --- 14а.2 камеры и глушилка
+const cam = await ev(() => {
+  const g = window.__game.scene.game;
+  const p = g.player;
+  g.wanted.heat = 2.5;
+  // камера на стене прямо над игроком: R рядом — взлом
+  const c = { x: p.x, y: p.y - 12, kind: 'wall', base: Math.PI / 2, sweep: 0.9, a: Math.PI / 2, ph: 0, spot: 0, cd: 0, state: 'on' };
+  g.surv.cameras.push(c);
+  return g.surv.cameras.length;
+});
+await page.waitForTimeout(100);
+await page.keyboard.down('KeyR');
+await page.waitForTimeout(1400);
+await page.keyboard.up('KeyR');
+const hacked = await ev(() => {
+  const g = window.__game.scene.game;
+  return { state: g.surv.cameras.at(-1).state, heat: g.wanted.heat, log: g.logLines.map((l) => l.text.ru) };
+});
+check('камера отключается взломом R, розыск падает', hacked.state === 'off' && hacked.heat < 2.5 - 0.2, JSON.stringify(hacked));
+
+await ev(() => {
+  const g = window.__game.scene.game;
+  const p = g.player;
+  g.surv.cameras.push({ x: p.x + 70, y: p.y - 30, kind: 'dome', base: Math.atan2(30, -70), sweep: 0, a: 0, ph: 0, spot: 0.6, cd: 0, state: 'on' });
+});
+await page.waitForTimeout(150);
+await page.screenshot({ path: `${out}/wanted-camera.png` });
+
+const jam = await ev(() => {
+  const g = window.__game.scene.game;
+  for (let n = 1; n <= 8; n++) {
+    if (n !== g.floorNum) g.startFloor(n);
+    const r = g.plan.rooms.find((x) => x.role === 'jammer');
+    if (r) {
+      g.surv.cameras = [];
+      g.enterRoom(r);
+      g.wanted.heat = 3.2;
+      return true;
+    }
+  }
+  return false;
+});
+await page.waitForTimeout(2000);
+const jam2 = await ev(() => {
+  const g = window.__game.scene.game;
+  return { jammed: g.wanted.jammed, heat: g.wanted.heat };
+});
+check('комната-глушилка: розыск снижается', jam && jam2.jammed && jam2.heat < 3.2, JSON.stringify(jam2));
+await page.screenshot({ path: `${out}/wanted-jammer.png` });
+
 check('нет ошибок в консоли', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 if (fails.length) {

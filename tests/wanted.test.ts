@@ -126,3 +126,71 @@ describe('розыск', () => {
     expect(g.wanted.heat - h1).toBeGreaterThan(quiet * 1.4);
   });
 });
+
+describe('камеры и глушилка', () => {
+  const cam = (g: Game, dx: number, dy: number) => {
+    const p = g.player;
+    const c = { x: p.x + dx, y: p.y + dy, kind: 'dome' as const, base: Math.atan2(-dy, -dx), sweep: 0, a: 0, ph: 0, spot: 0, cd: 0, state: 'on' as const };
+    g.surv.cameras = [c];
+    return c;
+  };
+
+  it('на уровне есть камеры в комнатах и коридорах', () => {
+    let rooms = 0, domes = 0;
+    for (let s = 0; s < 6; s++) {
+      const g = new Game('cams-' + s, 'normal');
+      g.startFloor(4);
+      rooms += g.surv.cameras.filter((c) => c.kind === 'wall').length;
+      domes += g.surv.cameras.filter((c) => c.kind === 'dome').length;
+    }
+    expect(rooms).toBeGreaterThan(6);
+    expect(domes).toBeGreaterThan(3);
+  });
+
+  it('камера видит игрока ~1 с — тревога и +0,5 розыска; во время сбоя не видит', () => {
+    const g = game();
+    g.surv.cameras = [];
+    const c = cam(g, 60, 0);
+    const h = g.wanted.heat;
+    for (let i = 0; i < 70; i++) g.update(1 / 60);
+    expect(c.cd).toBeGreaterThan(0);
+    expect(g.wanted.heat - h).toBeGreaterThan(0.45);
+    expect(g.logLines.some((l) => l.text.ru.startsWith('Камера: Т-417 замечен'))).toBe(true);
+
+    const g2 = game();
+    const c2 = cam(g2, 60, 0);
+    g2.player.glitchT = 5;
+    for (let i = 0; i < 70; i++) g2.update(1 / 60);
+    expect(c2.cd).toBe(0);
+  });
+
+  it('выстрел сбивает камеру (шумно)', () => {
+    const g = game();
+    const c = cam(g, 80, 0);
+    const h = g.wanted.heat;
+    for (let i = 0; i < 60 && c.state === 'on'; i++) {
+      g.fireWeapon(0, 0);
+      g.update(1 / 60);
+    }
+    expect(c.state).toBe('broken');
+    expect(g.wanted.heat - h).toBeGreaterThan(0.1);
+  });
+
+  it('в глушилке розыск не растёт и падает', () => {
+    let g: Game | null = null;
+    for (let s = 0; s < 20 && !g; s++) {
+      const t = new Game('jam-' + s, 'normal');
+      if (t.plan.rooms.some((r) => r.role === 'jammer')) g = t;
+    }
+    expect(g).not.toBeNull();
+    g!.player.invuln = 99;
+    g!.surv.cameras = [];
+    addHeat(g!, 2.5);
+    g!.enterRoom(g!.plan.rooms.find((r) => r.role === 'jammer')!);
+    for (let i = 0; i < 60 * 10; i++) g!.update(1 / 60);
+    expect(g!.wanted.jammed).toBe(true);
+    expect(g!.wanted.heat).toBeLessThan(2.5 - 0.2);
+    noise(g!, 'glitch');
+    expect(g!.wanted.heat).toBeLessThan(2.5 - 0.2);
+  });
+});

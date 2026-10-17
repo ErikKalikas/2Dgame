@@ -40,6 +40,7 @@ describe('генерация уровня (граф → роли → разме�
         expect(count(p, 'market')).toBe(floor >= 2 ? 1 : 0);
         expect(count(p, 'shaft')).toBeLessThanOrEqual(1);
         expect(count(p, 'miniboss')).toBeLessThanOrEqual(floor >= 2 ? 1 : 0);
+        expect(count(p, 'jammer')).toBeLessThanOrEqual(floor <= 8 ? 1 : 0);
         expect(p.rooms.length).toBeGreaterThanOrEqual(gen.rooms[0]);
         expect(count(p, 'combat') + count(p, 'ambush') + count(p, 'elite')).toBeGreaterThanOrEqual(gen.minFill);
 

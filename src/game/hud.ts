@@ -12,6 +12,7 @@ import { settings } from '../core/storage';
 import { SCANNER, hasOpenSet } from './drops';
 import { playerUnstableLevel } from './instability';
 import { WANTED_MAX, wantedLevel } from './wanted';
+import { renderCameraHud } from './surveillance';
 
 export function kindLabel(it: ItemDef): string {
   switch (it.kind) {
@@ -78,6 +79,7 @@ export function renderHud(g: Game, r: Renderer) {
   renderBossBar(g, r);
   renderLog(g, r);
   renderHack(g, r);
+  renderCameraHud(g, r);
   renderPrices(g, r);
   renderEnemyMarks(g, r);
   renderUnstable(g, r);

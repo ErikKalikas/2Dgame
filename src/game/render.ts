@@ -18,13 +18,14 @@ import type { Game } from './game';
 import { item, type Gauge } from './items';
 import { renderObjs } from './objects';
 import { STACK_COLOR, STACK_LIT, tossHeight } from './status';
+import { renderSurveillance } from './surveillance';
 
 const QUALITY_COLOR = ['', C.grey, C.amber, C.red, C.violet];
 export const qualityColor = (q: number) => QUALITY_COLOR[q];
 
 /** Цвет метки роли комнаты: рамка двери и метка на мини-карте */
 export const ROLE_MARK: Partial<Record<Role, string>> = {
-  exit: C.red, miniboss: C.redD, cache: C.yellow, market: C.amber, surgery: C.violet, shaft: C.steelL,
+  exit: C.red, miniboss: C.redD, cache: C.yellow, market: C.amber, surgery: C.violet, shaft: C.steelL, jammer: C.bone,
 };
 
 let lightCanvas: HTMLCanvasElement | null = null;
@@ -108,6 +109,8 @@ export function renderGame(g: Game, r: Renderer) {
   renderPBullets(g, ctx, cx, cy);
   // объекты поверх темноты: сцепной луч, перехватчики, дрон у плеча
   renderObjs(g, ctx, cx, cy, 'air');
+  // камеры и глушилки (розыск, 14а)
+  renderSurveillance(g, ctx, cx, cy);
   // сварочные стенки (левая рука)
   for (const w of g.barriers) {
     ctx.strokeStyle = Math.floor(g.time * 20) % 2 ? C.amber : C.yellow;

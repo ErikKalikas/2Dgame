@@ -27,6 +27,7 @@ import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './in
 import { updateObjs, type WorldObj } from './objects';
 import { FACE_TURN, STACK_SEEK, tickStacks, updateToss } from './status';
 import { asActor, setAim, updateTeams } from './team';
+import { SurveillanceState, placeCameras, updateSurveillance } from './surveillance';
 import { WantedState, noise, noteShot, updateWanted, wantedFloorStart, wantedKill } from './wanted';
 
 export interface DiffParams {
@@ -144,6 +145,8 @@ export class Game {
   unstable = new UnstableState();
   /** Розыск 0–5 (этап 14а) */
   wanted = new WantedState();
+  /** Камеры и глушилки (этап 14а) */
+  surv = new SurveillanceState();
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {
     this.rng = new RNG(seed + ':run');
@@ -191,6 +194,7 @@ export class Game {
     this.cachesOpened = 0;
     this.placeTerminals();
     wantedFloorStart(this, n === 1);
+    placeCameras(this);
     this.enterRoom(this.plan.rooms[this.plan.startId]);
     // сбой полностью заряжен в начале каждого уровня
     this.player.glitch = 1;
@@ -337,6 +341,7 @@ export class Game {
     this.checkPlayerHits();
     this.updateLocks();
     this.updateHack(dt);
+    updateSurveillance(this, dt);
     this.fx.update(dt);
     for (let i = this.lightFlashes.length - 1; i >= 0; i--) {
       this.lightFlashes[i].t -= dt;

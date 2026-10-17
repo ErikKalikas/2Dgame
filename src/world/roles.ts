@@ -15,7 +15,8 @@ export type Role =
   | 'cache' // схрон: взлом удержанием R, выбор 1 из 2 модулей
   | 'shaft' // сервисная шахта: испытание на уклонение
   | 'market' // барахолка сбойных
-  | 'miniboss'; // мини-босс на локации (кого ставить — этап 14а)
+  | 'miniboss' // мини-босс на локации (кого ставить — этап 14а)
+  | 'jammer'; // комната-укрытие с глушилкой: розыск не растёт и снижается (этап 14а)
 
 export interface RoleDef {
   id: Role;
@@ -40,6 +41,7 @@ export const ROLES: Record<Role, RoleDef> = {
   shaft: { id: 'shaft', w: [34, 44], h: [9, 11], leaf: true, locks: false },
   market: { id: 'market', w: [16, 20], h: [11, 14], leaf: true, locks: false },
   miniboss: { id: 'miniboss', w: [30, 30], h: [18, 18], leaf: true, locks: true },
+  jammer: { id: 'jammer', w: [14, 18], h: [10, 12], leaf: true, locks: false },
 };
 
 /** Боевые роли: в них отряды и препятствия */
@@ -72,6 +74,9 @@ export const TIER_GEN: Record<Tier, TierGen> = {
 /** Шанс мини-босса на локации (с 2-го уровня). Эрик: «по весам» — подстраивается здесь */
 export const MINIBOSS_CHANCE = 0.35;
 
+/** Шанс комнаты-укрытия с глушилкой (уровни 1–8) */
+export const JAMMER_CHANCE = 0.8;
+
 /**
  * Особые комнаты уровня (кроме старта и выхода) по решениям Эрика:
  * операционная — всегда; схронов 1–2 (на больших уровнях до 3); элита со 2-го уровня 50%, с 5-го — всегда;
@@ -85,5 +90,7 @@ export function specialRoles(floor: number, rooms: number, rng: RNG): Role[] {
   if (rng.chance(0.6)) out.push('shaft');
   if (floor >= 2) out.push('market');
   if (floor >= 2 && rng.chance(MINIBOSS_CHANCE)) out.push('miniboss');
+  // глушилка (14а, Эрик): ~1 на уровень, кроме Шпиля
+  if (floor <= 8 && rng.chance(JAMMER_CHANCE)) out.push('jammer');
   return out;
 }
