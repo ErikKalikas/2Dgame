@@ -9,6 +9,7 @@ import type { Game } from './game';
 import type { DamageSource } from './items';
 import { STACK_VULN, isFlank } from './status';
 import { finalDamage, finalFireDelay, type Stats } from './stats';
+import { noise } from './wanted';
 
 export interface DamageOpts {
   burn?: number;
@@ -82,6 +83,7 @@ export function explode(g: Game, x: number, y: number, radius: number, dmg: numb
   g.fx.explosion(x, y, radius, color);
   g.lightFlash(x, y, radius * 2.2);
   g.player.emit('onExplode', g, x, y, radius);
+  noise(g, 'explosion');
   for (const e of g.enemies) {
     if (e.dead || e.team !== 'foe') continue;
     const r = radius + e.r;

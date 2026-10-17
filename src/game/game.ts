@@ -27,6 +27,7 @@ import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './in
 import { updateObjs, type WorldObj } from './objects';
 import { FACE_TURN, STACK_SEEK, tickStacks, updateToss } from './status';
 import { asActor, setAim, updateTeams } from './team';
+import { WantedState, noise, noteShot, updateWanted, wantedFloorStart, wantedKill } from './wanted';
 
 export interface DiffParams {
   speed: number;
@@ -141,6 +142,8 @@ export class Game {
   dropMult = 1;
   /** Помехи и бонусы нестабильности */
   unstable = new UnstableState();
+  /** Розыск 0–5 (этап 14а) */
+  wanted = new WantedState();
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {
     this.rng = new RNG(seed + ':run');
@@ -187,6 +190,7 @@ export class Game {
     this.hackTarget = null;
     this.cachesOpened = 0;
     this.placeTerminals();
+    wantedFloorStart(this, n === 1);
     this.enterRoom(this.plan.rooms[this.plan.startId]);
     // сбой полностью заряжен в начале каждого уровня
     this.player.glitch = 1;
@@ -311,6 +315,7 @@ export class Game {
     this.updateZone();
     p.emit('tick', this, dt);
     updateInstability(this, dt);
+    updateWanted(this, dt);
     this.updateDrones(dt);
 
     this.updateGlitch();
@@ -719,6 +724,8 @@ export class Game {
   fireWeapon(angle: number, chargeK: number) {
     // доворот ствола (поворотный станок и т. п.)
     for (const h of this.player.hooks) if (h.adjustAim) angle = h.adjustAim(this, angle);
+    // выстрел шумит (розыск), удар ближнего боя — нет
+    if (this.player.gun.weapon?.mode !== 'melee') noteShot(this);
     fireWeapon(this, angle, chargeK);
     // бонус нестабильности: сдвоенный залп
     if (this.unstable.doubleT > 0) fireWeapon(this, angle + 0.1, chargeK);
@@ -781,6 +788,7 @@ export class Game {
     this.gfx.redrawTile(tx, ty);
     this.fx.burst((tx + 0.5) * TILE, (ty + 0.5) * TILE, C.amberD, 10, 70, 0.4, 2);
     this.flow.reset();
+    noise(this, 'crate');
     if (this.rng.chance(0.15)) dropLoot(this, 'coin', (tx + 0.5) * TILE, (ty + 0.5) * TILE, 1);
     return true;
   }
@@ -808,6 +816,7 @@ export class Game {
     if (e.def.onDeath) asActor(this, e, () => e.def.onDeath!(e, this));
     if (!reward || e.mem.summoned || e.summon) return;
     p.kills++;
+    wantedKill(this, e);
     if (p.glitchT <= 0) p.glitch = Math.min(1, p.glitch + 0.01 * p.stats.glitchGain);
     if (e.def.boss) this.lastBoss = e.def.name;
     const coins = Math.floor(e.def.coins + Math.random());
@@ -888,6 +897,7 @@ export class Game {
     this.fx.flash(p.x, p.y, C.violet, 30, 0.2);
     this.lightFlash(p.x, p.y, R * 2);
     this.log(emergency ? LOG.emergency : LOG.glitch);
+    noise(this, 'glitch');
     p.emit('onGlitch', this);
   }
 

@@ -1,6 +1,7 @@
 import { TAU, angleTo } from '../core/math';
 import { makeEBullet, type EBulletOpts } from './bullets';
 import type { Game } from './game';
+import { markAlert } from './wanted';
 
 // Узоры вражеских пуль. Сложность влияет на скорость, плотность и точность прицеливания.
 
@@ -11,7 +12,11 @@ export function shoot(g: Game, x: number, y: number, angle: number, speed: numbe
   if (list.length > 2200) return;
   const b = makeEBullet(x, y, angle, speed * g.diff.speed * g.floorSpeed, o);
   if (o?.maxSpeed) b.maxSpeed = o.maxSpeed * g.diff.speed;
-  if (g.actor) b.owner = g.actor;
+  if (g.actor) {
+    b.owner = g.actor;
+    // враг выстрелил — его отряд в бою: убийства в нём уже не тихие (розыск)
+    if (!ally) markAlert(g, g.actor);
+  }
   list.push(b);
   return b;
 }

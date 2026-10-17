@@ -11,6 +11,7 @@ import { ROLE_MARK, qualityColor } from './render';
 import { settings } from '../core/storage';
 import { SCANNER, hasOpenSet } from './drops';
 import { playerUnstableLevel } from './instability';
+import { WANTED_MAX, wantedLevel } from './wanted';
 
 export function kindLabel(it: ItemDef): string {
   switch (it.kind) {
@@ -71,6 +72,7 @@ export function renderHud(g: Game, r: Renderer) {
   r.rect(bx, 5, Math.round((bw * p.xp) / xpNeed(p.level)), 1, C.red);
 
   r.text(`${tr(g.theme.tierName)} · ${tr(g.theme.name)} · ${g.floorNum}/${FLOORS}`, VIEW_W - 5, 6, { size: 5, color: C.steelL, align: 'right' });
+  renderWanted(g, r);
   renderMinimap(g, r);
   renderLoadout(g, r);
   renderBossBar(g, r);
@@ -87,6 +89,27 @@ export function renderHud(g: Game, r: Renderer) {
     const a = Math.min(1, g.bossIntro * 2);
     r.text(tr(g.boss.def.name), VIEW_W / 2, VIEW_H / 2 - 30, { size: 10, color: C.red, align: 'center', alpha: a });
   }
+}
+
+/** Розыск (14а): 5 делений под верхней полосой, видны всегда; при росте мигают */
+function renderWanted(g: Game, r: Renderer) {
+  const w = g.wanted;
+  const lvl = wantedLevel(g);
+  const blink = w.blink > 0 && Math.floor(g.time * 6) % 2 === 0;
+  const label = tr({ ru: 'РОЗЫСК', en: 'WANTED' });
+  const x0 = 4, y = 21;
+  r.text(label, x0, y, { size: 4, color: lvl ? C.red : C.steel });
+  let x = x0 + r.textWidth(label, 4) + 4;
+  for (let i = 0; i < WANTED_MAX; i++) {
+    const on = i < lvl;
+    r.rect(x, y, 7, 4, C.black, 0.8);
+    r.frame(x - 1, y - 1, 9, 6, on && blink ? C.redL : on ? C.redD : C.metal);
+    if (on) r.rect(x, y, 7, 4, blink ? C.redL : i >= 4 ? C.redL : C.red);
+    // прогресс до следующей ступени
+    else if (i === lvl) r.rect(x, y + 3, Math.round(7 * (w.heat - lvl)), 1, C.amber);
+    x += 10;
+  }
+  if (w.jammed) r.text(tr({ ru: 'глушилка', en: 'jammed' }), x + 2, y, { size: 4, color: C.bone });
 }
 
 /**

@@ -7,6 +7,7 @@ import { BATTLE } from '../world/roles';
 import { Enemy, type EnemyDef } from './enemy';
 import type { Game } from './game';
 import { SYSTEM_SLOTS, item, itemPrice, rollItem, type ItemDef, type ItemKind } from './items';
+import { WANTED_SQUAD, wantedLevel } from './wanted';
 
 export type PickupKind = 'coin' | 'medkit' | 'glitch' | 'item' | 'teleporter' | 'surgery' | 'terminal';
 
@@ -82,7 +83,8 @@ export function populateRoom(g: Game, r: LevelRoom) {
   const rng = g.rng;
   const cells = (r.w * r.h) / (30 * 18);
   const strong = r.role === 'elite' || r.role === 'miniboss' ? 1.5 : 1;
-  let budget = (3.5 + g.floorNum * 1.4) * Math.pow(cells, 0.75) * (g.hard ? 1.2 : 1) * strong;
+  // розыск (14а): чем выше ступень, тем больше отряд (+10% за ступень)
+  let budget = (3.5 + g.floorNum * 1.4) * Math.pow(cells, 0.75) * (g.hard ? 1.2 : 1) * strong * (1 + WANTED_SQUAD * wantedLevel(g));
   const pool = enemyPool(g.floorNum);
   const spawned: Enemy[] = [];
   let guard = 0;
