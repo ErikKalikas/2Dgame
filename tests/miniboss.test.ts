@@ -107,3 +107,33 @@ describe('мини-боссы', () => {
     setAim(g, null);
   });
 });
+
+describe('узоры боссов стреляют (ключи таймеров не совпадают с полями состояния)', () => {
+  it('каждая фаза каждого босса и мини-босса выпускает пули за 6 с', () => {
+    const quiet: string[] = [];
+    for (const b of [...BOSSES, ...MINIBOSSES]) {
+      b.phases!.forEach((ph) => {
+        const g = game('phases');
+        const r = g.plan.rooms[g.plan.exitId];
+        g.enterRoom(r);
+        g.enemies = [];
+        const e = new Enemy(b, g.player.x, g.player.y - 80, 1);
+        e.spawn = 0;
+        e.home = r.id;
+        if (b.id === 'twins' || b.id === 'mbTwins') e.mem.twin = 1;
+        let shots = 0;
+        for (let i = 0; i < 60 * 6; i++) {
+          setAim(g, e);
+          const before = g.ebullets.length;
+          ph.update(e, g, 1 / 60);
+          for (const x of g.ebullets.slice(before)) if (Number.isFinite(x.angle)) shots++;
+          setAim(g, null);
+          g.ebullets.length = 0;
+        }
+        // меньше 10 пуль за 6 с — фаза «молчит» (у «Минного поля» главное — мины, пуль мало)
+        if (shots < 10) quiet.push(`${b.id}: ${ph.name.ru} (${shots})`);
+      });
+    }
+    expect(quiet).toEqual([]);
+  });
+});

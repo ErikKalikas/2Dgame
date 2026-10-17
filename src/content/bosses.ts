@@ -13,6 +13,7 @@ import { POLLUX_SWAP } from '../gfx/art/surveillance';
 import { drawDispatcher, hand, kick, point, raise, reach, reachRel, stepArms } from './dispatcher-rig';
 import { ENEMY_BY_ID } from './enemies';
 
+// Угол вращения узоров — e.mem.ang: ключи таймеров every() тоже живут в e.mem ('a', 'b', …), им нельзя совпадать.
 // Боссы — по одному на этаж. У каждого несколько фаз (как спелл-карты в Touhou):
 // при переходе фазы экран очищается от пуль, и босс меняет рисунок атаки.
 
@@ -86,8 +87,8 @@ export const BOSSES: EnemyDef[] = [
       {
         name: { ru: 'Вращающийся периметр', en: 'Rotating Perimeter' }, until: 0.33,
         update(e, g, dt) {
-          e.mem.a = (e.mem.a ?? 0) + dt * 1.25;
-          if (every(e, g, 'a', 0.085, dt)) for (let k = 0; k < 4; k++) shoot(g, e.x, e.y, e.mem.a + (k * TAU) / 4, 95, { skin: 'orb' });
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 1.25;
+          if (every(e, g, 'a', 0.085, dt)) for (let k = 0; k < 4; k++) shoot(g, e.x, e.y, e.mem.ang + (k * TAU) / 4, 95, { skin: 'orb' });
           if (every(e, g, 'b', 1.8, dt)) shoot(g, e.x, e.y, aim(g, e.x, e.y), 120, { skin: 'big', color: 'amber' });
         },
       },
@@ -139,8 +140,8 @@ export const BOSSES: EnemyDef[] = [
         update(e, g, dt) {
           e.phaseT += dt;
           const dir = Math.floor(e.phaseT / 3) % 2 ? -1 : 1;
-          e.mem.a = (e.mem.a ?? 0) + dt * 1.6 * dir;
-          if (every(e, g, 'a', 0.11, dt)) for (let k = 0; k < 6; k++) shoot(g, e.x, e.y, e.mem.a + (k * TAU) / 6, 85, { skin: 'rice', color: k % 2 ? 'red' : 'amber' });
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 1.6 * dir;
+          if (every(e, g, 'a', 0.11, dt)) for (let k = 0; k < 6; k++) shoot(g, e.x, e.y, e.mem.ang + (k * TAU) / 6, 85, { skin: 'rice', color: k % 2 ? 'red' : 'amber' });
         },
       },
       {
@@ -199,8 +200,8 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Ковровая бомбардировка', en: 'Carpet Bombing' }, until: 0,
         update(e, g, dt) {
           drift(e, g, dt, 40, 0.3);
-          e.mem.a = (e.mem.a ?? 0) + dt * 0.7;
-          if (every(e, g, 'a', 0.6, dt)) ring(g, e.x, e.y, 22, 75, e.mem.a, { skin: 'small' });
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 0.7;
+          if (every(e, g, 'a', 0.6, dt)) ring(g, e.x, e.y, 22, 75, e.mem.ang, { skin: 'small' });
           if (every(e, g, 'b', 1.6, dt)) spread(g, e.x, e.y, aim(g, e.x, e.y), 3, 1.2, 60, { skin: 'shard', color: 'violet', homing: 1.1 });
         },
       },
@@ -232,8 +233,8 @@ export const BOSSES: EnemyDef[] = [
         update(e, g, dt) {
           twinOrbit(e, g, dt);
           const rage = twinRage(e, g);
-          e.mem.a = (e.mem.a ?? 0) + dt * 1.4 * e.mem.twin;
-          if (every(e, g, 'a', 0.12 * rage, dt)) for (let k = 0; k < 3; k++) shoot(g, e.x, e.y, e.mem.a + (k * TAU) / 3, 90, { skin: 'orb', color: e.mem.twin < 0 ? 'red' : 'amber' });
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 1.4 * e.mem.twin;
+          if (every(e, g, 'a', 0.12 * rage, dt)) for (let k = 0; k < 3; k++) shoot(g, e.x, e.y, e.mem.ang + (k * TAU) / 3, 90, { skin: 'orb', color: e.mem.twin < 0 ? 'red' : 'amber' });
           if (every(e, g, 'b', 2.2 * rage, dt)) spread(g, e.x, e.y, aim(g, e.x, e.y), 5, 0.6, 120, { skin: 'rice' });
         },
       },
@@ -284,8 +285,8 @@ export const BOSSES: EnemyDef[] = [
         name: { ru: 'Цветок улья', en: 'Hive Bloom' }, until: 0.66,
         update(e, g, dt) {
           drift(e, g, dt, 20);
-          e.mem.a = (e.mem.a ?? 0) + dt * 0.6;
-          if (every(e, g, 'a', 0.55, dt)) flower(g, e.x, e.y, 6, 3, 80, e.mem.a, { skin: 'small', color: 'amber' });
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 0.6;
+          if (every(e, g, 'a', 0.55, dt)) flower(g, e.x, e.y, 6, 3, 80, e.mem.ang, { skin: 'small', color: 'amber' });
         },
       },
       {
@@ -301,17 +302,17 @@ export const BOSSES: EnemyDef[] = [
               g.enemies.push(m);
             }
           }
-          e.mem.a = (e.mem.a ?? 0) - dt * 0.5;
-          if (every(e, g, 'a', 0.9, dt)) flower(g, e.x, e.y, 5, 2, 70, e.mem.a, { skin: 'orb' });
+          e.mem.ang = (e.mem.ang ?? 0) - dt * 0.5;
+          if (every(e, g, 'a', 0.9, dt)) flower(g, e.x, e.y, 5, 2, 70, e.mem.ang, { skin: 'orb' });
         },
       },
       {
         name: { ru: 'Спираль сот', en: 'Honeycomb Spiral' }, until: 0,
         update(e, g, dt) {
-          e.mem.a = (e.mem.a ?? 0) + dt * 2.1;
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 2.1;
           if (every(e, g, 'a', 0.07, dt)) {
-            shoot(g, e.x, e.y, e.mem.a, 30, { skin: 'orb', color: 'amber', accel: 60, maxSpeed: 130 });
-            shoot(g, e.x, e.y, -e.mem.a + Math.PI, 30, { skin: 'orb', color: 'red', accel: 60, maxSpeed: 130 });
+            shoot(g, e.x, e.y, e.mem.ang, 30, { skin: 'orb', color: 'amber', accel: 60, maxSpeed: 130 });
+            shoot(g, e.x, e.y, -e.mem.ang + Math.PI, 30, { skin: 'orb', color: 'red', accel: 60, maxSpeed: 130 });
           }
         },
       },
@@ -405,13 +406,13 @@ export const BOSSES: EnemyDef[] = [
           // к центру зала, руки разведены, ладони чертят круги: две спирали навстречу друг другу
           const c = g.arena;
           move(e, g, (c.cx - e.x) * Math.min(1, dt * 1.5), 0);
-          e.mem.a = (e.mem.a ?? 0) + dt * 0.9;
-          for (const s of [0, 1]) reach(e, s, e.x + (s ? 92 : -92) + Math.cos(e.mem.a * 3) * 5, e.y - 10 + Math.sin(e.mem.a * 3 + s * Math.PI) * 6);
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 0.9;
+          for (const s of [0, 1]) reach(e, s, e.x + (s ? 92 : -92) + Math.cos(e.mem.ang * 3) * 5, e.y - 10 + Math.sin(e.mem.ang * 3 + s * Math.PI) * 6);
           if (every(e, g, 'a', 0.16, dt)) {
             const L = hand(e, 0), R = hand(e, 1);
             for (let k = 0; k < 5; k++) {
-              shoot(g, L.x, L.y, e.mem.a + (k * TAU) / 5, 70, { skin: 'orb', color: 'red' });
-              shoot(g, R.x, R.y, -e.mem.a + (k * TAU) / 5, 70, { skin: 'orb', color: 'violet' });
+              shoot(g, L.x, L.y, e.mem.ang + (k * TAU) / 5, 70, { skin: 'orb', color: 'red' });
+              shoot(g, R.x, R.y, -e.mem.ang + (k * TAU) / 5, 70, { skin: 'orb', color: 'violet' });
             }
           }
         }),
@@ -438,7 +439,7 @@ export const BOSSES: EnemyDef[] = [
       {
         name: { ru: 'Очистка реестра', en: 'Registry Purge' }, until: 0.2,
         update: armed((e, g, dt) => {
-          e.mem.a = (e.mem.a ?? 0) + dt * 0.5;
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 0.5;
           // левая рука: замах в сторону и резкое смахивание вниз — вдоль неё проходит стена
           const tc = cue(e, 'c', dt, 0.55, 0.35);
           if (tc !== null) {
@@ -448,7 +449,7 @@ export const BOSSES: EnemyDef[] = [
           // правая рука: прицел по игроку, на выстреле — отдача
           const tb = cue(e, 'b', dt, 0.6, 0.25);
           if (tb !== null) point(e, 1, g.player.x, g.player.y, tb > -0.3, 0.92);
-          if (every(e, g, 'a', 0.5, dt)) flower(g, e.x, e.y - 6, 7, 3, 85, e.mem.a, { skin: 'small', color: 'amber' });
+          if (every(e, g, 'a', 0.5, dt)) flower(g, e.x, e.y - 6, 7, 3, 85, e.mem.ang, { skin: 'small', color: 'amber' });
           if (volley(e, g, 'b', 2.2, dt)) {
             const h = palm(e, g, 1);
             spread(g, h.x, h.y, aim(g, h.x, h.y), 4, 1.5, 55, { skin: 'big', color: 'violet', homing: 1.0, life: 5 });
@@ -464,7 +465,7 @@ export const BOSSES: EnemyDef[] = [
       {
         name: { ru: 'Последний наряд', en: 'The Final Order' }, until: 0,
         update: armed((e, g, dt) => {
-          e.mem.a = (e.mem.a ?? 0) + dt * 2.6;
+          e.mem.ang = (e.mem.ang ?? 0) + dt * 2.6;
           // хлопок: руки расходятся и сходятся перед корпусом, кольцо — из точки хлопка;
           // между хлопками руки дрожат от перегрузки
           const t = cue(e, 'b', dt, 0.55, 0.3);
@@ -476,8 +477,8 @@ export const BOSSES: EnemyDef[] = [
             else reach(e, s, cx + (s ? 5 : -5), cy, false, t < 0 ? 24 : 12);
           }
           if (every(e, g, 'a', 0.06, dt)) {
-            shoot(g, e.x, e.y - 6, e.mem.a, 40, { skin: 'orb', color: 'red', accel: 70, maxSpeed: 150 });
-            shoot(g, e.x, e.y - 6, e.mem.a + Math.PI, 40, { skin: 'orb', color: 'violet', accel: 70, maxSpeed: 150 });
+            shoot(g, e.x, e.y - 6, e.mem.ang, 40, { skin: 'orb', color: 'red', accel: 70, maxSpeed: 150 });
+            shoot(g, e.x, e.y - 6, e.mem.ang + Math.PI, 40, { skin: 'orb', color: 'violet', accel: 70, maxSpeed: 150 });
           }
           if (volley(e, g, 'b', 1.4, dt)) {
             const L = hand(e, 0), R = hand(e, 1);
@@ -567,7 +568,8 @@ function railgun(e: Enemy, g: Game, dt: number) {
   const m = e.mem;
   if (m.rail === undefined) {
     drift(e, g, dt, 25);
-    if (every(e, g, 'rail', 2.6, dt)) {
+    // таймер — свой ключ: mem.rail — состояние зарядки (раньше совпадали: прицела не было, угол NaN)
+    if (every(e, g, 'railT', 2.6, dt)) {
       m.rail = 1.3;
       m.laser = angleToPlayer(e, g);
     }
