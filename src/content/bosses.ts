@@ -9,6 +9,7 @@ import type { Game } from '../game/game';
 import { actorDensity, aim, flower, n, ring, shoot, spread, stream } from '../game/patterns';
 import { MINIBOSS_PAUSE } from '../game/status';
 import { dispatcherBody } from '../gfx/art/dispatcher';
+import { POLLUX_SWAP } from '../gfx/art/surveillance';
 import { drawDispatcher, hand, kick, point, raise, reach, reachRel, stepArms } from './dispatcher-rig';
 import { ENEMY_BY_ID } from './enemies';
 
@@ -212,6 +213,8 @@ export const BOSSES: EnemyDef[] = [
     name: { ru: 'Близнецы КАСТОР и ПОЛЛУКС', en: 'Twins CASTOR & POLLUX' },
     hp: 700, speed: 60, r: 11,
     frames: () => twinsArt(),
+    // Поллукс — красные метки и маячки, Кастор — янтарные
+    framesAlt: () => twinsArt(POLLUX_SWAP),
     update() {},
     phases: [
       {

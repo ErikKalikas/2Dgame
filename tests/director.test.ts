@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registerContent } from '../src/content';
 import { ENEMIES } from '../src/content/enemies';
-import { HUNTER_HP, WAVE_CALM, sendWave, updateDirector, waveKind } from '../src/game/director';
+import { HUNTER_ART, HUNTER_HP, WAVE_CALM, sendWave, updateDirector, waveKind } from '../src/game/director';
 import { Game } from '../src/game/game';
 import { addHeat } from '../src/game/wanted';
 
@@ -11,6 +11,7 @@ beforeAll(() => {
   registerContent();
   // в Node нет холста: кадры врагов пустые
   for (const d of ENEMIES) d.frames = () => [];
+  HUNTER_ART.frames = () => [];
 });
 
 function game(seed = 'director-test'): Game {

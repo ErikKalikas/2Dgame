@@ -3,6 +3,7 @@ import { tr, type L } from '../core/i18n';
 import { input } from '../core/input';
 import { TAU, angleDiff, angleTo, dist2 } from '../core/math';
 import { RNG } from '../core/rng';
+import { domeCameraArt, jammerArt, wallCameraArt } from '../gfx/art/surveillance';
 import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import type { LevelRoom } from '../world/levelgen';
@@ -222,22 +223,26 @@ export function renderSurveillance(g: Game, ctx: CanvasRenderingContext2D, cx: n
     }
     const ix = Math.round(x), iy = Math.round(y);
     if (c.kind === 'wall') {
-      // кронштейн у стены и корпус с объективом по направлению взгляда
-      ctx.fillStyle = C.metal;
-      ctx.fillRect(ix - 1, iy - 4, 3, 3);
-      ctx.fillStyle = C.void;
-      ctx.fillRect(ix - 3, iy - 2, 7, 5);
-      ctx.fillStyle = c.state === 'broken' ? C.dark : C.steelL;
-      ctx.fillRect(ix - 2, iy - 1, 5, 3);
+      // корпус на кронштейне: поворот по направлению взгляда (влево-вниз / вниз / вправо-вниз)
+      const d = angleDiff(Math.PI / 2, c.a);
+      const spr = wallCameraArt(d > 0.35 ? 'l' : d < -0.35 ? 'r' : 'd', c.state);
+      ctx.drawImage(spr, ix - 4, iy - 7);
+      // объектив мигает, пока камера ищет; в тревоге горит
+      if (c.state === 'on' && c.cd <= 0 && Math.floor(t * 2 + c.ph) % 2) {
+        ctx.fillStyle = C.red;
+        ctx.fillRect(d > 0.35 ? ix - 3 : d < -0.35 ? ix + 3 : ix, iy + 1 - (d > 0.35 || d < -0.35 ? 1 : 0), 1, 1);
+      }
     } else {
-      ctx.fillStyle = C.void;
-      ctx.fillRect(ix - 3, iy - 3, 7, 7);
-      ctx.fillStyle = c.state === 'broken' ? C.dark : C.steel;
-      ctx.fillRect(ix - 2, iy - 2, 5, 5);
+      ctx.drawImage(domeCameraArt(c.state), ix - 4, iy - 4);
+      // объектив купола вращается вместе со взглядом
+      if (c.state !== 'broken') {
+        const lx = Math.round(x + Math.cos(c.a) * 2), ly = Math.round(y + Math.sin(c.a) * 2);
+        ctx.fillStyle = C.black;
+        ctx.fillRect(Math.round(x + Math.cos(c.a)), Math.round(y + Math.sin(c.a)), 1, 1);
+        ctx.fillStyle = c.state === 'on' ? (c.cd > 0 || Math.floor(t * 2 + c.ph) % 2 ? C.redL : C.red) : C.metal;
+        ctx.fillRect(lx, ly, 1, 1);
+      }
     }
-    const lx = Math.round(x + Math.cos(c.a) * 2), ly = Math.round(y + Math.sin(c.a) * 2);
-    ctx.fillStyle = c.state === 'on' ? (c.cd > 0 || Math.floor(t * 2 + c.ph) % 2 ? C.redL : C.red) : c.state === 'off' ? C.metal : C.black;
-    ctx.fillRect(lx, ly, 1, 1);
     if (c.state === 'broken' && Math.random() < 0.02) g.fx.add({ kind: 'spark', x: c.x, y: c.y, vx: (Math.random() - 0.5) * 40, vy: 20, color: C.amber, life: 0.2, glow: true });
   }
 }
@@ -253,20 +258,12 @@ function drawJammer(g: Game, ctx: CanvasRenderingContext2D, r: LevelRoom, cx: nu
     ctx.globalAlpha = 0.35 * (1 - ph);
     ctx.strokeStyle = C.steelL;
     ctx.beginPath();
-    ctx.arc(x, y - 10, 6 + ph * 40, 0, TAU);
+    ctx.arc(x, y - 15, 6 + ph * 40, 0, TAU);
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  ctx.fillStyle = C.void;
-  ctx.fillRect(x - 5, y - 2, 11, 5);
-  ctx.fillStyle = C.metal;
-  ctx.fillRect(x - 4, y - 1, 9, 3);
-  ctx.fillRect(x, y - 12, 1, 11);
-  ctx.fillStyle = C.steelL;
-  ctx.fillRect(x - 3, y - 15, 7, 2);
-  ctx.fillRect(x - 2, y - 13, 5, 1);
-  ctx.fillStyle = Math.floor(t * 3) % 2 ? C.amber : C.yellow;
-  ctx.fillRect(x, y - 16, 1, 1);
+  const spr = jammerArt()[Math.floor(t * 3) % 2];
+  ctx.drawImage(spr, x - 8, y - 18);
 }
 
 /** Подсказка и полоса взлома камеры */

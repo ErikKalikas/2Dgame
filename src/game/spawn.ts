@@ -118,6 +118,8 @@ export function spawnBoss(g: Game, def: EnemyDef, r: LevelRoom, x: number, y: nu
     for (const s of [-1, 1]) {
       const e = new Enemy(def, p.x + s * 60, p.y, hpMult * 0.55);
       e.mem.twin = s;
+      // второй близнец (Поллукс) — в своей раскраске
+      if (s > 0 && def.framesAlt) e.frames = def.framesAlt();
       out.push(e);
     }
   } else out.push(new Enemy(def, p.x, p.y, hpMult));

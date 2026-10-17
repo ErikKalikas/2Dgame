@@ -2,6 +2,7 @@ import { TILE, VIEW_H, VIEW_W } from '../config';
 import type { L } from '../core/i18n';
 import { dist2 } from '../core/math';
 import { ENEMIES, ENEMY_BY_ID } from '../content/enemies';
+import { hunterDroneArt } from '../gfx/art/surveillance';
 import { C } from '../gfx/palette';
 import type { Role } from '../world/roles';
 import { walkable } from '../world/tiles';
@@ -32,6 +33,8 @@ const SAFE: ReadonlySet<Role> = new Set<Role>(['surgery', 'jammer', 'exit']);
 /** Шанс мини-босса вместо волны охотников (раз за уровень) и где он может появиться */
 export const MINIBOSS_WAVE_CHANCE = 0.3;
 const MINIBOSS_ROOMS: ReadonlySet<Role> = new Set<Role>(['combat', 'ambush', 'elite']);
+/** Кадры дрона-охотника (тесты в Node подменяют: там нет холста) */
+export const HUNTER_ART = { frames: hunterDroneArt };
 /** Дрон-охотник: прочнее обычного дрона и идёт по следу через коридоры */
 export const HUNTER_HP = 1.6;
 
@@ -158,7 +161,11 @@ export function sendWave(g: Game, kind: WaveKind): Enemy[] {
     return e;
   };
   for (const d of defs) add(d, 1);
-  for (const d of hunters) add(d, HUNTER_HP).hunter = true;
+  for (const d of hunters) {
+    const e = add(d, HUNTER_HP);
+    e.hunter = true;
+    e.frames = HUNTER_ART.frames();
+  }
   const turret = kind === 'heavy' ? dropTurret(g) : null;
   if (turret) out.push(turret);
   g.enemies.push(...out);

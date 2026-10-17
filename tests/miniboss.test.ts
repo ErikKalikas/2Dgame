@@ -5,7 +5,7 @@ import { ENEMIES } from '../src/content/enemies';
 import { FLOOR_THEMES } from '../src/content/floors';
 import { MINIBOSSES, MINIBOSS_BY_FLOOR, MINIBOSS_HP, bossDef } from '../src/content/minibosses';
 import { every } from '../src/game/ai';
-import { sendMiniboss } from '../src/game/director';
+import { HUNTER_ART, sendMiniboss } from '../src/game/director';
 import { Enemy } from '../src/game/enemy';
 import { Game } from '../src/game/game';
 import { n } from '../src/game/patterns';
@@ -17,7 +17,8 @@ import { setAim } from '../src/game/team';
 
 beforeAll(() => {
   registerContent();
-  for (const d of [...ENEMIES, ...BOSSES, ...MINIBOSSES]) d.frames = () => [];
+  for (const d of [...ENEMIES, ...BOSSES, ...MINIBOSSES]) d.frames = d.framesAlt = () => [];
+  HUNTER_ART.frames = () => [];
 });
 
 function game(seed = 'mb-test'): Game {

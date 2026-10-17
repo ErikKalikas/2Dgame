@@ -29,6 +29,8 @@ export interface EnemyDef {
   /** Сколько штук появляется за раз */
   group?: [number, number];
   frames: () => Sprite[];
+  /** Кадры второго из пары (близнецы: Поллукс в своей раскраске, 14а) */
+  framesAlt?: () => Sprite[];
   update(e: Enemy, g: Game, dt: number): void;
   /** Урон при касании (по умолчанию да) */
   contact?: boolean;

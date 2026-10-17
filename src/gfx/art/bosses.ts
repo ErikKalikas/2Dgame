@@ -45,7 +45,8 @@ export interface Ctx {
   S: (m: Mask, ramp: number[], o?: ShadeOpts) => void;
 }
 
-export function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ctx) => void): Sprite {
+/** recolor — перекраска готового спрайта (второй близнец, 14а) */
+export function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ctx) => void, recolor?: Record<number, number>): Sprite {
   const g = new Grid(W, H);
   const c: Ctx = {
     g, W, H,
@@ -56,6 +57,7 @@ export function boss(W: number, H: number, draw: (c: Ctx) => void, post?: (c: Ct
   draw(c);
   g.outline(0);
   post?.(c);
+  if (recolor) g.swap(recolor);
   return g.toSprite();
 }
 
@@ -458,7 +460,8 @@ export function goliathArt(): Sprite[] {
 // ---------------------------------------------------------------------------
 // 5. КАСТОР и ПОЛЛУКС — парные патрульные андроиды жилого яруса: бетонно-серая
 //    броня, визор со сканером, маячки (красный и янтарный), ручная пушка.
-export function twinsArt(): Sprite[] {
+/** recolor — второй близнец в своей раскраске (Поллукс, POLLUX_SWAP) */
+export function twinsArt(recolor?: Record<number, number>): Sprite[] {
   return FRAMES.map((f) =>
     boss(26, 38, ({ g, M, F, S }) => {
       const p = f - 1;
@@ -527,7 +530,7 @@ export function twinsArt(): Sprite[] {
       g.rect(19, 27 + by, 3, 1, p >= 0 && p % 2 ? 11 : 10);
       // шокер дубинки
       g.set(3, 29 + by, f % 2 ? 14 : 13);
-    }),
+    }, recolor),
   );
 }
 
