@@ -33,8 +33,9 @@ export function move(e: Enemy, g: Game, dx: number, dy: number) {
 export function chase(e: Enemy, g: Game, dt: number, speed = e.def.speed) {
   const s = speed * e.speedMult * dt;
   let dir: [number, number] | null = null;
-  // поле путей ведёт к игроку; к другой цели — напрямую
-  if (!e.def.flying && g.aimPlayer) dir = g.flow.direction(e.x, e.y);
+  // поле путей ведёт к игроку; к другой цели — напрямую. Летающие из волны Диспетчера тоже идут по полю:
+  // напрямую они застряли бы в стенах коридоров
+  if ((!e.def.flying || e.wave) && g.aimPlayer) dir = g.flow.direction(e.x, e.y);
   if (!dir) {
     const a = angleToPlayer(e, g);
     dir = [Math.cos(a), Math.sin(a)];

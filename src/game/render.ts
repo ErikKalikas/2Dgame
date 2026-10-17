@@ -19,6 +19,7 @@ import { item, type Gauge } from './items';
 import { renderObjs } from './objects';
 import { STACK_COLOR, STACK_LIT, tossHeight } from './status';
 import { renderSurveillance } from './surveillance';
+import { renderDirector } from './director';
 
 const QUALITY_COLOR = ['', C.grey, C.amber, C.red, C.violet];
 export const qualityColor = (q: number) => QUALITY_COLOR[q];
@@ -111,6 +112,7 @@ export function renderGame(g: Game, r: Renderer) {
   renderObjs(g, ctx, cx, cy, 'air');
   // камеры и глушилки (розыск, 14а)
   renderSurveillance(g, ctx, cx, cy);
+  renderDirector(g, ctx, cx, cy);
   // сварочные стенки (левая рука)
   for (const w of g.barriers) {
     ctx.strokeStyle = Math.floor(g.time * 20) % 2 ? C.amber : C.yellow;

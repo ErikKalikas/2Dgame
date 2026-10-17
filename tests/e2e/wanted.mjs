@@ -92,6 +92,38 @@ const jam2 = await ev(() => {
 check('комната-глушилка: розыск снижается', jam && jam2.jammed && jam2.heat < 3.2, JSON.stringify(jam2));
 await page.screenshot({ path: `${out}/wanted-jammer.png` });
 
+// --- 14а.3 волны Диспетчера
+const wave = await ev(async () => {
+  const g = window.__game.scene.game;
+  g.startFloor(2);
+  const r = g.plan.rooms.find((x) => x.role === 'combat');
+  r.visited = r.cleared = true;
+  g.enterRoom(r);
+  g.enemies = [];
+  g.surv.cameras = [];
+  g.wanted.heat = 4.2;
+  g.levelTimes[1] = 40;
+  g.director.waveT = 0.01;
+  g.director.calm = 30;
+  return true;
+});
+await page.waitForTimeout(400);
+const wv1 = await ev(() => {
+  const g = window.__game.scene.game;
+  const w = g.enemies.filter((e) => e.wave);
+  return { n: w.length, hunters: w.filter((e) => e.hunter).length, log: g.logLines.map((l) => l.text.ru) };
+});
+check('волна охотников на розыске 4', wave && wv1.n > 0 && wv1.hunters >= 2 && wv1.log.some((l) => l.includes('дроны-охотники')), JSON.stringify(wv1));
+await page.waitForTimeout(4000);
+const wv2 = await ev(() => {
+  const g = window.__game.scene.game;
+  const p = g.player;
+  const w = g.enemies.filter((e) => e.wave);
+  return { near: w.filter((e) => Math.hypot(e.x - p.x, e.y - p.y) < 200).length, n: w.length };
+});
+check('волна дошла до игрока', wv2.near > 0, JSON.stringify(wv2));
+await page.screenshot({ path: `${out}/wanted-wave.png` });
+
 check('нет ошибок в консоли', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();
 if (fails.length) {
