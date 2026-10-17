@@ -19,6 +19,7 @@ import { ItemBrowser } from './item-browser';
 import { MainMenu } from './main-menu';
 import { Menu } from './menu-widget';
 import { SettingsScene } from './settings';
+import { patchList } from '../game/patches';
 
 /** Сцена забега: игра + наложенные окна (пауза, выбор модификации, снаряжение) */
 export class GameScene implements Scene {
@@ -149,7 +150,14 @@ class PauseOverlay implements Scene {
     r.text(`${tr({ ru: 'Забег', en: 'Run' })} ${clock(g.playTime)} · ${tr({ ru: 'уровень', en: 'level' })} ${g.floorNum}: ${cur}`, VIEW_W / 2, 34, { size: 5, color: C.steelL, align: 'center' });
     const past = g.levelTimes.slice(0, g.floorNum - 1).map((t, i) => `${i + 1}·${clock(t ?? 0)}`).join(' ');
     if (past) r.text(past, VIEW_W / 2, 42, { size: 4, color: C.steel, align: 'center' });
-    r.text(tr(S.controls), VIEW_W / 2, 200, { size: 4, color: C.steel, align: 'center' });
+    // действующие патчи Диспетчера (14а)
+    const patches = patchList(g);
+    if (patches.length) {
+      r.rect(4, 172, VIEW_W - 8, 10 + patches.length * 6, C.void, 0.9);
+      r.text(tr({ ru: 'Патчи Диспетчера:', en: 'Dispatcher patches:' }), VIEW_W / 2, 176, { size: 4, color: C.red, align: 'center' });
+      patches.forEach((l, i) => r.text(l, VIEW_W / 2, 183 + i * 6, { size: 4, color: C.grey, align: 'center' }));
+    }
+    r.text(tr(S.controls), VIEW_W / 2, patches.length ? 209 : 200, { size: 4, color: C.steel, align: 'center' });
   }
 }
 

@@ -1,6 +1,7 @@
 import { TAU, angleTo } from '../core/math';
 import { makeEBullet, type EBulletOpts } from './bullets';
 import type { Game } from './game';
+import { patchAim } from './patches';
 import { MINIBOSS_DENSITY } from './status';
 import { markAlert } from './wanted';
 
@@ -24,8 +25,11 @@ export function shoot(g: Game, x: number, y: number, angle: number, speed: numbe
 
 /** Угол на цель (обычно игрок; приманка или союзник — см. Game.setAim) с погрешностью по сложности */
 export function aim(g: Game, x: number, y: number, extraError = 0): number {
-  const err = g.diff.aim + extraError;
-  return angleTo(x, y, g.aimX, g.aimY) + (Math.random() - 0.5) * 2 * err;
+  let err = g.diff.aim + extraError;
+  // «Ловушки на траекториях» (патч): после рывка игрока — точнее и с упреждением
+  const pa = patchAim(g);
+  if (pa) err *= pa.err;
+  return angleTo(x, y, g.aimX + (pa?.lx ?? 0), g.aimY + (pa?.ly ?? 0)) + (Math.random() - 0.5) * 2 * err;
 }
 
 /** Плотность пуль текущего актёра: у мини-босса ×0,8 (сложность — отдельно, в n) */

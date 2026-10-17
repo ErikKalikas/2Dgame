@@ -27,6 +27,7 @@ import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './in
 import { updateObjs, type WorldObj } from './objects';
 import { FACE_TURN, STACK_SEEK, bossLike, tickStacks, updateToss } from './status';
 import { asActor, setAim, updateTeams } from './team';
+import { PatchState, hackMult, patchBurn, patchGlitchR, patchTurn, releasePatch, updatePatches } from './patches';
 import { DirectorState, directorFloorStart, updateDirector } from './director';
 import { SurveillanceState, placeCameras, updateSurveillance } from './surveillance';
 import { WantedState, noise, noteShot, updateWanted, wantedFloorStart, wantedKill } from './wanted';
@@ -150,6 +151,8 @@ export class Game {
   surv = new SurveillanceState();
   /** Диспетчер-режиссёр: волны подкреплений по розыску (этап 14а) */
   director = new DirectorState();
+  /** Патчи Диспетчера и статистика стилей за ярус (этап 14а) */
+  patches = new PatchState();
 
   constructor(readonly seed: string, readonly difficulty: Difficulty) {
     this.rng = new RNG(seed + ':run');
@@ -329,6 +332,7 @@ export class Game {
     p.emit('tick', this, dt);
     updateInstability(this, dt);
     updateWanted(this, dt);
+    updatePatches(this, dt);
     this.updateDrones(dt);
 
     this.updateGlitch();
@@ -340,7 +344,10 @@ export class Game {
     const edt = this.slowmo > 0 ? dt * 0.3 : dt;
     this.flow.update(p.x, p.y);
     this.updateEnemies(edt);
+    // урон объектов игрока — стиль «союзники и объекты» (патчи)
+    this.patches.inObjs = true;
     updateObjs(this, dt);
+    this.patches.inObjs = false;
     updatePBullets(this, dt);
     collidePlayerShots(this);
     updateEBullets(this, edt);
@@ -390,12 +397,13 @@ export class Game {
       this.hackT = Math.max(0, this.hackT - dt * 2);
       return;
     }
-    // скорость взлома («Ключница»): прогресс копится быстрее, полоса в HUD та же
-    this.hackT += dt * p.stats.hackSpeed;
+    // скорость взлома («Ключница»; патч «Экранирование» — медленнее): полоса в HUD та же
+    this.hackT += dt * p.stats.hackSpeed * hackMult(this);
     if (Math.random() < dt * 20) this.fx.add({ kind: 'spark', x: near.x + (Math.random() - 0.5) * 12, y: near.y - 8, vx: (Math.random() - 0.5) * 60, vy: -30, color: C.yellow, life: 0.25, glow: true });
     if (this.hackT >= TERMINAL_TIME) {
       this.hackT = 0;
       near.done = true;
+      this.patches.hacks++;
       this.openGate(near.loop ?? 0);
       this.fx.burst(near.x, near.y - 8, C.yellow, 12, 60, 0.4, 1, true);
       p.emit('onHack', this);
@@ -437,8 +445,10 @@ export class Game {
       }
       // статусы
       if (e.burnT > 0) {
-        e.burnT -= dt;
-        e.hp -= e.burnDps * dt;
+        // «Огнеупорная обшивка» (патч): урон огнём меньше, поджог гаснет быстрее
+        const burn = patchBurn(this, e, e.burnDps * dt);
+        e.burnT -= dt * burn.fade;
+        e.hp -= burn.dmg;
         if (Math.random() < dt * 12) this.fx.add({ kind: 'dot', x: e.x + (Math.random() - 0.5) * e.r * 2, y: e.y - e.r, vy: -30, color: C.amber, life: 0.3, glow: true });
         if (e.hp <= 0) {
           this.killEnemy(e, true);
@@ -484,7 +494,7 @@ export class Game {
       }
       // взгляд поворачивается к цели с конечной скоростью (повреждённый привод — медленнее)
       const want = angleTo(e.x, e.y, this.aimX, this.aimY);
-      e.mem.face = e.mem.face === undefined ? want : turnTowards(e.mem.face, want, FACE_TURN * dt * (e.driveT > 0 ? 1 - e.driveK : 1));
+      e.mem.face = e.mem.face === undefined ? want : turnTowards(e.mem.face, want, FACE_TURN * dt * (e.driveT > 0 ? 1 - e.driveK : 1) * patchTurn(this, e));
       if (e.dead) continue;
 
       // электропол бьёт и врагов
@@ -873,6 +883,8 @@ export class Game {
   private onBossDefeated() {
     this.clearBullets(true);
     if (this.lastBoss) this.log(LOG.bossDown(this.lastBoss));
+    // после босса яруса Диспетчер выпускает патч против самого частого стиля (14а)
+    if (this.theme.tierBoss && this.floorNum < FLOORS) releasePatch(this);
     // босс открывает новую систему тела
     const sys = SYSTEM_BY_FLOOR[this.floorNum];
     if (sys && !this.player.systems.has(sys)) {
@@ -914,6 +926,7 @@ export class Game {
     this.lightFlash(p.x, p.y, R * 2);
     this.log(emergency ? LOG.emergency : LOG.glitch);
     noise(this, 'glitch');
+    this.patches.glitches++;
     p.emit('onGlitch', this);
   }
 
@@ -926,7 +939,8 @@ export class Game {
     const base = baseStats();
     let any = false;
     for (const b of this.ebullets) {
-      if (dist2(b.x, b.y, p.x, p.y) > R2) continue;
+      // «Экранирование» (патч): пули охраны стираются в меньшем радиусе
+      if (dist2(b.x, b.y, p.x, p.y) > R2 * patchGlitchR(this, b.owner) ** 2) continue;
       b.dead = any = true;
       if (this.pbullets.length > 500) continue;
       let target: Enemy | null = null, best = Infinity;

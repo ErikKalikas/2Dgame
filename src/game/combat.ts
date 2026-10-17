@@ -9,6 +9,7 @@ import type { Game } from './game';
 import type { DamageSource } from './items';
 import { STACK_VULN, isFlank } from './status';
 import { finalDamage, finalFireDelay, type Stats } from './stats';
+import { patchDamage } from './patches';
 import { blastCameras } from './surveillance';
 import { noise } from './wanted';
 
@@ -46,6 +47,8 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
   if (e.windup > 0) dmg *= s.windupMult;
   if (e.stacks.size && STACK_VULN.size) for (const k of e.stacks.keys()) dmg *= 1 + (STACK_VULN.get(k) ?? 0);
   if (o.crit) dmg *= s.critMult;
+  // патчи Диспетчера (14а): мягкая защита от самого частого стиля; заодно учёт стиля
+  dmg = patchDamage(g, e, dmg, o, flank && o.by !== 'ally', s.flankMult);
   e.lastHit = { source: o.source ?? 'other', tag: o.tag, by: o.by ?? 'player' };
   // подброшенный враг копит урон до падения
   if (e.toss) {

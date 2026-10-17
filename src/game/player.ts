@@ -8,6 +8,7 @@ import { ITEMS, SYNERGIES, item, type Hooks, type ItemDef, type Slot, type Syner
 import { baseStats, finalFireDelay, type Stats } from './stats';
 import { C } from '../gfx/palette';
 import type { Disable } from './instability';
+import { noteDash } from './patches';
 
 /** Временный бафф: меняет характеристики, пока идёт таймер (или пока условие держит его включённым) */
 export interface Buff {
@@ -417,6 +418,7 @@ export class Player {
       this.dashCd = s.dashCd;
     }
     this.invuln = Math.max(this.invuln, 0.2);
+    noteDash(g);
     this.emit('onDash', g);
   }
 

@@ -9,6 +9,7 @@ import type { LevelRoom } from '../world/levelgen';
 import { T } from '../world/tiles';
 import { lineOfSight } from './collision';
 import type { Game } from './game';
+import { hackMult } from './patches';
 import { addHeat, noise } from './wanted';
 
 // Камеры и глушилки (этап 14а, Механики#Розыск). Камера на стене комнаты (качается) или купол
@@ -191,15 +192,12 @@ function updateCameraHack(g: Game, dt: number) {
     near.state = 'off';
     near.spot = 0;
     addHeat(g, CAMERA_HACK_HEAT);
+    g.patches.hacks++;
     g.log(SURV_LOG.hacked);
     p.emit('onHack', g);
   }
 }
 
-/** Множитель скорости взлома (патч «Экранирование» замедлит — этап 14а.5) */
-export function hackMult(_g: Game): number {
-  return 1;
-}
 
 // ---------------------------------------------------------------- отрисовка
 
