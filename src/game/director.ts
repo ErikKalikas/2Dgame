@@ -70,6 +70,7 @@ function sheltered(g: Game): boolean {
 export function updateDirector(g: Game, dt: number) {
   const d = g.director;
   if (g.state !== 'play') return;
+  animateDrops(g);
   if (g.inCombat()) d.calm = 0;
   else d.calm += dt;
   if ((g.levelTimes[g.floorNum - 1] ?? 0) < FLOOR_GRACE || sheltered(g) || d.calm === 0) return;
@@ -201,11 +202,42 @@ function dropTurret(g: Game): Enemy | null {
   e.wave = true;
   e.home = z.id;
   e.spawn = 1.2;
+  // падает сверху (animateDrops): сначала только круг-телеграф на полу
+  e.mem.drop = true;
+  e.mem.h = DROP_H;
   g.fx.ring(pos.x, pos.y, C.red, 16, 1.2);
   return e;
 }
 
-/** Отметка дронов-охотников: красный огонёк над корпусом */
+/** С какой высоты падает турель (px) */
+const DROP_H = 90;
+
+/**
+ * Сброшенная турель: первые 0,6 с её нет (горит круг на полу), потом она падает с ускорением,
+ * проявляясь, и на посадке поднимает пыль
+ */
+function animateDrops(g: Game) {
+  for (const e of g.enemies) {
+    if (!e.mem.drop) continue;
+    if (e.spawn > 0) {
+      e.mem.h = e.spawn > 0.6 ? DROP_H : DROP_H * (e.spawn / 0.6) ** 2;
+      continue;
+    }
+    e.mem.h = 0;
+    e.mem.drop = false;
+    g.fx.burst(e.x, e.y + 4, C.steelL, 12, 70, 0.4, 2);
+    g.fx.ring(e.x, e.y + 4, C.bone, 14, 0.25);
+    g.lightFlash(e.x, e.y, 30);
+  }
+}
+
+/** Перед залпом сенсор охотника «заряжается» за столько секунд */
+const HUNTER_TELL = 0.45;
+
+/**
+ * Дроны-охотники: красный огонёк-отметка над корпусом; перед залпом вокруг сенсора сжимается
+ * алое кольцо (телеграф атаки — видно, когда уходить)
+ */
 export function renderDirector(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   for (const e of g.enemies) {
     if (!e.hunter || e.dead || e.spawn > 0) continue;
@@ -214,6 +246,17 @@ export function renderDirector(g: Game, ctx: CanvasRenderingContext2D, cx: numbe
     ctx.fillStyle = Math.floor(g.time * 6 + e.id) % 2 ? C.redL : C.red;
     ctx.fillRect(x - 1, y, 3, 1);
     ctx.fillRect(x, y - 1, 1, 3);
+    // таймер залпа ИИ дрона (every 'fire'): тикает, только пока цель в досягаемости
+    const left = e.mem.fire;
+    if (left === undefined || left > HUNTER_TELL || Math.hypot(e.x - g.player.x, e.y - g.player.y) > 250) continue;
+    const k = Math.max(0, left / HUNTER_TELL);
+    const bob = 3 + Math.round(Math.sin(g.time * 3 + e.id));
+    ctx.strokeStyle = C.redL;
+    ctx.globalAlpha = 0.9 - k * 0.5;
+    ctx.beginPath();
+    ctx.arc(x + (e.facing < 0 ? -1 : 1), Math.round(e.y - cy - bob - 1), 2 + k * 7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 }
 

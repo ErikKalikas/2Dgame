@@ -126,6 +126,20 @@ const wv2 = await ev(() => {
 check('волна дошла до игрока', wv2.near > 0, JSON.stringify(wv2));
 await page.screenshot({ path: `${out}/wanted-wave.png` });
 
+// турель тяжёлой волны падает сверху и садится
+const drop = await ev(async () => {
+  const g = window.__game.scene.game;
+  const D = await import('/src/game/director.ts');
+  g.wanted.heat = 3.2;
+  const w = D.sendWave(g, 'heavy');
+  const t = w.find((e) => e.def.id === 'turret');
+  if (!t) return { turret: false };
+  const h0 = t.mem.h;
+  await new Promise((r) => setTimeout(r, 1700));
+  return { turret: true, h0, h1: t.mem.h, landed: !t.mem.drop };
+});
+check('турель падает сверху и садится', drop.turret && drop.h0 > 50 && drop.h1 === 0 && drop.landed, JSON.stringify(drop));
+
 // --- 14а.4 мини-боссы
 const mb = await ev(() => {
   const g = window.__game.scene.game;

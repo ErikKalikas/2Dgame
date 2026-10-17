@@ -3,7 +3,7 @@ import { tr, type L } from '../core/i18n';
 import { input } from '../core/input';
 import { TAU, angleDiff, angleTo, dist2 } from '../core/math';
 import { RNG } from '../core/rng';
-import { domeCameraArt, jammerArt, wallCameraArt } from '../gfx/art/surveillance';
+import { domeCameraArt, jammerArt, wallCameraArt, type CamDir } from '../gfx/art/surveillance';
 import { C } from '../gfx/palette';
 import type { Renderer } from '../gfx/renderer';
 import type { LevelRoom } from '../world/levelgen';
@@ -50,6 +50,9 @@ export const CAMERA_HACK_HEAT = -0.3;
 const HACK_R = 22;
 /** Глушилка: розыск падает на 1 ступень за 40 с */
 export const JAMMER_RATE = 1 / 40;
+
+/** Где объектив на спрайте стенной камеры (по положению корпуса) */
+const WALL_LENS: Record<CamDir, [number, number]> = { l: [1, 7], ld: [1, 7], d: [4, 8], rd: [7, 7], r: [7, 7] };
 
 /** Сколько камер на уровне: в комнатах и в коридорах */
 function cameraCount(floor: number): { rooms: number; corridors: number } {
@@ -223,14 +226,23 @@ export function renderSurveillance(g: Game, ctx: CanvasRenderingContext2D, cx: n
     }
     const ix = Math.round(x), iy = Math.round(y);
     if (c.kind === 'wall') {
-      // корпус на кронштейне: поворот по направлению взгляда (влево-вниз / вниз / вправо-вниз)
+      // корпус на кронштейне плавно поворачивается за взглядом: 5 положений
       const d = angleDiff(Math.PI / 2, c.a);
-      const spr = wallCameraArt(d > 0.35 ? 'l' : d < -0.35 ? 'r' : 'd', c.state);
-      ctx.drawImage(spr, ix - 4, iy - 7);
-      // объектив мигает, пока камера ищет; в тревоге горит
-      if (c.state === 'on' && c.cd <= 0 && Math.floor(t * 2 + c.ph) % 2) {
-        ctx.fillStyle = C.red;
-        ctx.fillRect(d > 0.35 ? ix - 3 : d < -0.35 ? ix + 3 : ix, iy + 1 - (d > 0.35 || d < -0.35 ? 1 : 0), 1, 1);
+      const dir = d > 0.6 ? 'l' : d > 0.2 ? 'ld' : d < -0.6 ? 'r' : d < -0.2 ? 'rd' : 'd';
+      ctx.drawImage(wallCameraArt(dir, c.state), ix - 4, iy - 7);
+      const [lx, ly] = WALL_LENS[dir];
+      if (c.state === 'on') {
+        // объектив: при взломе мигает янтарём, в поиске — гаснет через такт, в тревоге горит
+        const hacking = g.surv.hackTarget === c && g.surv.hackT > 0;
+        const dark = !hacking && c.cd <= 0 && Math.floor(t * 2 + c.ph) % 2 === 0;
+        if (hacking || dark) {
+          ctx.fillStyle = hacking ? (Math.floor(t * 12) % 2 ? C.yellow : C.amber) : C.redD;
+          ctx.fillRect(ix - 4 + lx, iy - 7 + ly, 1, 1);
+        }
+      } else if (c.state === 'broken') {
+        // оборванный провод качается под корпусом
+        ctx.fillStyle = C.metal;
+        for (let k = 1; k <= 3; k++) ctx.fillRect(ix + Math.round(Math.sin(t * 3 + c.ph) * k * 0.7), iy + 2 + k, 1, 1);
       }
     } else {
       ctx.drawImage(domeCameraArt(c.state), ix - 4, iy - 4);
@@ -262,7 +274,7 @@ function drawJammer(g: Game, ctx: CanvasRenderingContext2D, r: LevelRoom, cx: nu
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
-  const spr = jammerArt()[Math.floor(t * 3) % 2];
+  const spr = jammerArt()[Math.floor(t * 6) % 4];
   ctx.drawImage(spr, x - 8, y - 18);
 }
 
