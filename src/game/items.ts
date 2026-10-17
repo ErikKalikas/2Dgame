@@ -110,6 +110,8 @@ export interface Hooks {
   onShotEnd?(g: Game, b: PBullet, wall: boolean): void;
   /** Ваш взрыв (любой источник: снаряды, мины, паучки) */
   onExplode?(g: Game, x: number, y: number, r: number): void;
+  /** Снаряд создан залпом оружия (можно превратить, например, в навесной) */
+  onVolleyShot?(g: Game, b: PBullet): void;
   /** Поправка направления выстрела (доворот ствола к врагу); вернуть новый угол */
   adjustAim?(g: Game, angle: number): number;
   tick?(g: Game, dt: number): void;

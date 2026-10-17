@@ -4,7 +4,7 @@ import {
   flamerArt, gekkoArt, guardArt, heavyArt, mantisArt, mechanoidArt, netrunnerArt, psychoArt,
   punkArt, repairArt, scavArt, sniperArt, spiderMineArt, swarmArt, turretArt, watcherArt,
 } from '../gfx/art/enemies';
-import { angleToPlayer, chase, distToPlayer, every, inRange, keepRange, move, wander } from '../game/ai';
+import { angleToPlayer, chase, distToPlayer, every, inRange, keepRange, move, startWindup, wander } from '../game/ai';
 import type { EnemyDef } from '../game/enemy';
 import { aim, flower, ring, shoot, spread, stream } from '../game/patterns';
 import { lineOfSight } from '../game/collision';
@@ -73,7 +73,16 @@ export const ENEMIES: EnemyDef[] = [
         return;
       }
       chase(e, g, dt);
-      if (distToPlayer(e, g) < 30) e.mem.arm = 0.55;
+      if (distToPlayer(e, g) < 30) {
+        e.mem.arm = 0.55;
+        startWindup(e, 0.55);
+      }
+    },
+    // сорванный замах: мина не взводится, а отскакивает назад
+    interrupt(e) {
+      e.mem.arm = undefined;
+      e.kx = -Math.cos(e.face) * 120;
+      e.ky = -Math.sin(e.face) * 120;
     },
   },
   {
@@ -169,6 +178,7 @@ export const ENEMIES: EnemyDef[] = [
         if (inRange(e, g, 180) && every(e, g, 'dash', 2.6, dt)) {
           e.mem.st = 'tell';
           e.mem.tt = 0.45;
+          startWindup(e, 0.45);
           e.mem.da = angleToPlayer(e, g);
         }
       } else if (st === 'tell') {
@@ -187,6 +197,9 @@ export const ENEMIES: EnemyDef[] = [
         }
         if (e.mem.tt <= 0 || r.hx || r.hy) e.mem.st = 'walk';
       }
+    },
+    interrupt(e) {
+      e.mem.st = 'walk';
     },
   },
   {
@@ -246,6 +259,7 @@ export const ENEMIES: EnemyDef[] = [
         if (every(e, g, 'aim', 3, dt) && lineOfSight(g.room, e.x, e.y, g.aimX, g.aimY)) {
           e.mem.st = 'aim';
           e.mem.tt = 1.1;
+          startWindup(e, 1.1);
         }
       } else {
         e.mem.tt -= dt;
@@ -261,6 +275,10 @@ export const ENEMIES: EnemyDef[] = [
           e.mem.laser = undefined;
         }
       }
+    },
+    interrupt(e) {
+      e.mem.st = 'move';
+      e.mem.laser = undefined;
     },
   },
   {

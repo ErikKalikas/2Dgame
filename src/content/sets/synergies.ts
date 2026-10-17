@@ -8,7 +8,9 @@ import { summonAlly } from '../../game/team';
 import { ENEMY_BY_ID } from '../enemies';
 import { heavyJunk, sparkRing } from './class1';
 import { flickering, fireFiveFrom, spawnCross } from './class2';
-import { CLOSE, SYN, hasSyn } from './common';
+import { childShot, CLOSE, eraseBullets, hasSyn, ignite, SYN } from './common';
+import { isFoe } from '../../game/status';
+import { isSmallBullet } from '../../game/zones';
 
 // Синергии наборов врагов (этап 12б). Ступень 1 — «ядро набора»: ровно три первых предмета из drops
 // врага; ступень 2 — весь набор (у врагов I класса набор из 3 предметов, синергия одна).
@@ -192,6 +194,77 @@ export const SET_SYNERGIES: SynergyDef[] = [
       tick(g) {
         for (const a of g.enemies) if (!a.dead && a.summon && a.spawn <= 0) collectScraps(g, 'part', a.x, a.y, 12, a);
       },
+    }),
+
+  // ---------------------------------------------------------------- III класс
+  setSyn('mantis', 1, SYN.cutter1,
+    { ru: 'Цепной росчерк', en: 'Chain Slash' },
+    {
+      ru: 'Рез сквозь врага в замахе или убийство резом сразу перезаряжает [E] (до 3 раз подряд); лезвия «Стружки» доворачивают к врагам.',
+      en: 'A cut through a winding-up enemy or a kill with a cut instantly recharges [E] (up to 3 times in a row); Shavings blades curve toward enemies.',
+    }),
+  setSyn('mantis', 2, SYN.cutter2,
+    { ru: 'Жатва', en: 'Harvest' },
+    {
+      ru: 'Лезвия «Ножен» срывают по 1 насечке при касании; «Росчерк» сквозь врага с 5 насечками — вскрытие: +8 за насечку и мгновенная перезарядка [E]; лезвия «Стружки» ставят насечки, враг в замахе получает 2 насечки за укол.',
+      en: 'Scabbard blades rip 1 notch per touch; a Slash through an enemy with 5 notches opens it up: +8 per notch and an instant [E] recharge; Shavings blades leave notches, and an enemy winding up gets 2 notches per stab.',
+    }),
+  setSyn('flamer', 1, SYN.stoker1,
+    { ru: 'Полная топка', en: 'Full Stoke' },
+    {
+      ru: 'Раз в 5 с огненное кольцо (100) поджигает врагов и сжигает мелкие пули в радиусе 50; стоя в своём огне, бак распылителя не расходуется.',
+      en: 'Every 5 s a ring of fire (100) ignites enemies and burns small bullets within 50; while you stand in your own fire, the sprayer tank does not drain.',
+    },
+    {
+      tick(g, dt) {
+        g.mem.stokeT = (g.mem.stokeT ?? 0) + dt;
+        if (g.mem.stokeT < 5 || !g.inCombat()) return;
+        g.mem.stokeT = 0;
+        const p = g.player;
+        for (const e of g.enemies) if (isFoe(e) && dist2(e.x, e.y, p.x, p.y) <= (100 + e.r) ** 2) ignite(e, 6);
+        eraseBullets(g, p.x, p.y, 50, C.amber, isSmallBullet);
+        g.fx.ring(p.x, p.y, C.amber, 100, 0.45);
+        g.fx.ring(p.x, p.y, C.red, 50, 0.3);
+      },
+    }),
+  setSyn('flamer', 2, SYN.stoker2,
+    { ru: 'Доменная печь', en: 'Blast Furnace' },
+    {
+      ru: '«Топка» берёт огонь со всей комнаты; угли и лужи дают усиленный «жар» (×2, взрыв 18); каждые 4 попавших «жара» — −1 с перезарядки, не больше 6 с за выброс.',
+      en: 'The Firebox draws fire from the whole room; embers and puddles give boosted heat (×2, blast 18); every 4 heat hits cut 1 s of cooldown, at most 6 s per release.',
+    }),
+  setSyn('heavy', 1, SYN.heavy1,
+    { ru: 'Живая стена', en: 'Living Wall' },
+    {
+      ru: 'Пули «Вала» в точке схождения замирают на 0,8 с и смыкаются в стену: гасит пули, ранит проходящих врагов; с полной «Лентой» — 1,6 с.',
+      en: 'Rampart bullets freeze at the convergence point for 0.8 s and lock into a wall that cancels bullets and wounds enemies passing through; with a full Belt — 1.6 s.',
+    }),
+  setSyn('heavy', 2, SYN.heavy2,
+    { ru: 'Огневой вал', en: 'Barrage Wall' },
+    {
+      ru: 'Болванка подхватывает спецзаряды без паузы — взрыв при каждом пробитии врага или щита; сбитая плита «Утюга» сразу выпускает болванку.',
+      en: 'The slug picks up special charges without a pause — exploding at every enemy or shield it punches through; a broken Flatiron plate instantly fires a slug.',
+    }),
+  setSyn('gekko', 1, SYN.flea1,
+    { ru: 'Жёсткая посадка', en: 'Hard Landing' },
+    {
+      ru: 'В прыжке каждый выстрел дублируется навесом; приземление подбрасывает всех обычных врагов в радиусе 80.',
+      en: 'Mid-jump, every shot is duplicated as a lob; landing tosses every normal enemy within 80.',
+    },
+    {
+      onVolleyShot(g, b) {
+        const p = g.player;
+        if (p.dashT <= 0 || !p.stats.dashJump) return;
+        childShot(g, b.x, b.y, b.angle, {
+          speed: b.speed, life: b.life, maxLife: b.maxLife, arc: 22, landR: 18, dmg: b.dmg * 1.5, r: b.r, color: b.color, style: b.style, tag: 'lobDup',
+        });
+      },
+    }),
+  setSyn('gekko', 2, SYN.flea2,
+    { ru: 'Блошиный цирк', en: 'Flea Circus' },
+    {
+      ru: 'Каждый 3-й укус блохи кусает в привод; новый носитель получает половину замедления прежнего; снаряды «Навеса» при падении сажают блоху; подброшенный «Катапультой» враг при падении рассыпает по блохе на врагов в радиусе 60.',
+      en: 'Every 3rd flea bite is a drive bite; a new host gets half of the previous host’s slow; Lob shells plant a flea when they land; an enemy tossed by the Catapult scatters a flea onto each enemy within 60 when it lands.',
     }),
 ];
 

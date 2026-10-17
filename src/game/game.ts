@@ -98,6 +98,8 @@ export class Game {
   aimNone = false;
   /** Состояние предметов на забег (счётчики, таймеры): вместо переменных модулей контента */
   mem: Record<string, any> = {};
+  /** Идёт залп оружия (fireWeapon): создаваемые снаряды — «основные» */
+  inVolley = false;
   pickups: Pickup[] = [];
   fx = new FxSystem();
   camX = 0;
@@ -430,6 +432,7 @@ export class Game {
       if (e.driveT > 0) e.driveT -= dt;
       else e.driveK = 0;
       if (e.shieldOff > 0) e.shieldOff -= dt;
+      if (e.windup > 0) e.windup -= dt;
       if (e.exposedT > 0) e.exposedT -= dt;
       tickStacks(e, dt);
       // подброшенный враг не действует, пока не упадёт

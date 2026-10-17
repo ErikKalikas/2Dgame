@@ -38,7 +38,11 @@ function game(...ids: string[]): Game {
 function equip(g: Game, id: string) {
   const p = g.player, it = item(id);
   if (it.kind === 'weapon') p.weapon = it;
-  else if (it.kind === 'implant') p.slots[it.slot!] = id;
+  else if (it.kind === 'implant') {
+    p.slots[it.slot!] = id;
+    // рука-оружие становится оружием (как после операции)
+    if (it.weapon) p.weapon = it;
+  }
   else p.passives.set(id, 1);
   p.recalc();
 }
@@ -457,5 +461,226 @@ describe('Ремонтный дрон', () => {
     const ally = g.enemies.find((e) => e.summon)!;
     expect(ally.allyT).toBe(Infinity);
     expect(ally.allyRoom).toBe(g.zone!.id);
+  });
+});
+
+// ---------------------------------------------------------------- III класс (12б.3)
+
+describe('Резчик', () => {
+  it('«Росчерк»: замах 0,3 с, рез-бросок ~130, враг на пути получает ×4', () => {
+    const g = game('iCutterSickle');
+    const p = g.player;
+    const e = foe(g, 'heavy', 60);
+    // взгляд вправо
+    input.simulate('ArrowRight', true);
+    step(g, 1 / 60);
+    input.simulate('ArrowRight', false);
+    const x0 = p.x, hp = e.hp;
+    input.simulate('KeyE', true);
+    step(g, 0.2);
+    expect(p.x).toBeCloseTo(x0, 0);
+    input.simulate('KeyE', false);
+    input.simulate('ArrowRight', true);
+    step(g, 0.3);
+    expect(p.x - x0).toBeGreaterThan(80);
+    expect(hp - e.hp).toBeGreaterThanOrEqual(g.player.stats.damage * 4 - 1);
+    expect(p.shoveCd).toBeGreaterThan(2);
+  });
+
+  it('сенсор «Замах»: ×1,75 по врагу в замахе, первое попадание срывает атаку (50%)', () => {
+    const g = game('iCutterSensor');
+    const e = foe(g, 'mantis', 60, 0, false);
+    e.mem.st = 'tell';
+    e.mem.tt = 0.4;
+    e.windup = 0.4;
+    vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    const hp = e.hp;
+    damageEnemy(g, e, 4, g.player.x, g.player.y, { source: 'bullet' });
+    expect(hp - e.hp).toBeCloseTo(7);
+    expect(e.windup).toBe(0);
+    expect(e.mem.st).toBe('walk');
+  });
+
+  it('«Шило»: насечки до 5; удар вплотную срывает их (+4 за каждую); при убийстве переходят на соседа', () => {
+    const g = game('wCutterAwl');
+    const e = foe(g, 'heavy', 50);
+    input.simulate('ArrowRight', true);
+    step(g, 1.2);
+    input.simulate('ArrowRight', false);
+    expect(stackCount(e, 'notch')).toBe(5);
+    const hp = e.hp;
+    damageEnemy(g, e, 1, g.player.x, g.player.y, { source: 'melee' });
+    expect(hp - e.hp).toBeCloseTo(1 + 20);
+    expect(stackCount(e, 'notch')).toBe(0);
+    const a = foe(g, 'scav', 60, 30);
+    const b = foe(g, 'heavy', 60, 60);
+    a.stacks.set('notch', { n: 3, t: 4 });
+    kill(g, a);
+    expect(stackCount(b, 'notch')).toBe(3);
+  });
+
+  it('«Ножны»: лезвия вокруг, пока E перезаряжается; «Стружка» — лезвия после рывка', () => {
+    const g = game('iCutterSheath', 'iCutterTrail');
+    const p = g.player;
+    const e = foe(g, 'heavy', 22);
+    input.simulate('KeyE', true);
+    step(g, 1 / 60);
+    input.simulate('KeyE', false);
+    expect(objsOf(g, 'sheath').length).toBe(1);
+    step(g, 0.5);
+    expect(e.hp).toBeLessThan(e.maxHp);
+    step(g, 0.5);
+    expect(objsOf(g, 'sheath').length).toBe(0);
+    input.simulate('KeyS', true);
+    input.simulate('Space', true);
+    step(g, 0.2);
+    const sh = g.pbullets.filter((b) => b.tag === 'shaving');
+    expect(sh.length).toBeGreaterThan(1);
+    expect(sh[0].speed).toBe(0);
+    step(g, 0.5);
+    expect(sh[0].speed).toBeGreaterThan(0);
+    void p;
+  });
+});
+
+describe('Кочегар', () => {
+  it('распылитель: лужи горючего, бак тратится; подошвы: горящий след; бак: попадание поджигает', () => {
+    const g = game('iStokerSprayer', 'iStokerSoles', 'iStokerTank');
+    input.simulate('KeyE', true);
+    step(g, 0.5);
+    input.simulate('KeyE', false);
+    expect(g.objs.filter((o) => o.kind === 'zone' && o.data.tag === 'fuel').length).toBeGreaterThan(3);
+    expect(g.mem.tank).toBeLessThan(1.6);
+    input.simulate('KeyD', true);
+    step(g, 0.4);
+    input.simulate('KeyD', false);
+    expect(g.objs.some((o) => o.kind === 'zone' && o.data.tag === 'trail')).toBe(true);
+    const e = foe(g, 'heavy', -60);
+    damageEnemy(g, e, 1, g.player.x, g.player.y, { source: 'bullet' });
+    expect(e.burnDps).toBeGreaterThanOrEqual(3);
+    const n = foe(g, 'heavy', -60, 30);
+    step(g, 1.1);
+    expect(n.burnT).toBeGreaterThan(0);
+  });
+
+  it('кочерга: удар по горящему — 3 угля; «Топка»: огонь → снаряды «жар»', () => {
+    const g = game('iStokerPoker', 'iStokerFurnace');
+    const p = g.player;
+    const e = foe(g, 'heavy', 20);
+    e.burnT = 2;
+    e.burnDps = 3;
+    input.simulate('ArrowRight', true);
+    step(g, 1 / 60);
+    input.simulate('ArrowRight', false);
+    expect(g.pbullets.filter((b) => b.tag === 'ember').length).toBe(3);
+    step(g, 0.5);
+    expect(g.objs.some((o) => o.kind === 'zone' && o.data.tag === 'ember')).toBe(true);
+    const fires = g.objs.filter((o) => o.kind === 'zone' && o.data.zone === 'fire').length;
+    input.simulate('KeyQ', true);
+    step(g, 1 / 60);
+    input.simulate('KeyQ', false);
+    // источники: угли и горящий враг
+    expect(g.pbullets.filter((b) => b.tag === 'heat').length).toBe(fires + 1);
+    expect(g.objs.some((o) => o.kind === 'zone' && o.data.zone === 'fire')).toBe(false);
+    expect(p.activeCd).toBeGreaterThan(13);
+  });
+});
+
+describe('Тяжёлый штурмовик', () => {
+  it('«Вал»: три залпа по 5 сходятся; все три в одного — сбит с ног', () => {
+    const g = game('wHeavyRampart');
+    const e = foe(g, 'mantis', 0, 90);
+    input.simulate('ArrowDown', true);
+    step(g, 0.2);
+    input.simulate('ArrowDown', false);
+    expect(g.pbullets.filter((b) => b.tag === 'rampart').length).toBeGreaterThanOrEqual(10);
+    step(g, 0.5);
+    expect(e.shockT).toBeGreaterThan(0);
+  });
+
+  it('«Лента»: каждую секунду огня пробивание +1 (до 3), затем гильзы; «Болванка» каждые 3 с; «Заряжающий» — гранаты после паузы', () => {
+    const g = game('iHeavyBelt', 'iHeavyBraces', 'iHeavyLoader');
+    const p = g.player;
+    p.systems.add('tentacles');
+    p.recalc();
+    input.simulate('ArrowUp', true);
+    step(g, 3.2);
+    expect(p.stats.pierce).toBe(3);
+    expect(g.objs.some((o) => o.kind === 'zone' && o.data.zone === 'shells')).toBe(true);
+    expect(g.pbullets.some((b) => b.tag === 'slug')).toBe(true);
+    expect(g.mem.loads).toBe(2);
+    input.simulate('ArrowUp', false);
+    step(g, 0.4);
+    input.simulate('ArrowUp', true);
+    step(g, 1 / 60);
+    expect(g.pbullets.filter((b) => b.tag === 'grenade').length).toBe(2);
+  });
+
+  it('«Утюг»: 8 с огня — плита; сбитая плита отбрасывает и стирает пули; скорость −20% при стрельбе', () => {
+    const g = game('iHeavyPlates');
+    const p = g.player;
+    input.simulate('ArrowUp', true);
+    step(g, 0.1);
+    expect(p.stats.speed).toBeCloseTo(150 * 0.8);
+    const s0 = p.shieldLeft;
+    step(g, 8);
+    expect(p.shieldLeft).toBe(s0 + 1);
+    input.simulate('ArrowUp', false);
+    g.ebullets.push(makeEBullet(p.x + 30, p.y, 0, 0));
+    p.invuln = 0;
+    g.hurtPlayer({ kind: 'floor' });
+    expect(g.ebullets.length).toBe(0);
+  });
+});
+
+describe('Прыгун «Блоха»', () => {
+  it('«Подскок»: прыжок дальше, приземление стирает пули; «Жёсткая посадка» подбрасывает обычных', () => {
+    const g = game('pFleaHop', 'pFleaLob', 'pFleaCatapult');
+    const p = g.player;
+    expect(p.stats.dashJump).toBe(true);
+    const e = foe(g, 'punk', 30, 50);
+    input.simulate('KeyS', true);
+    input.simulate('Space', true);
+    step(g, 0.1);
+    input.simulate('Space', false);
+    input.simulate('KeyS', false);
+    g.ebullets.push(makeEBullet(p.x + 10, p.y, 0, 0));
+    step(g, 0.1);
+    expect(g.ebullets.length).toBe(0);
+    expect(e.toss || e.dead).toBeTruthy();
+  });
+
+  it('«Навес»: снаряды залпа летят навесом и отскакивают дважды', () => {
+    const g = game('pFleaLob');
+    input.simulate('ArrowRight', true);
+    step(g, 1 / 60);
+    input.simulate('ArrowRight', false);
+    const b = g.pbullets.find((x) => x.arc);
+    expect(b).toBeTruthy();
+    expect(b!.landR).toBe(18);
+    // после первого падения — два отскока (lob 1 и 2)
+    const seen = new Set<number>();
+    for (let i = 0; i < 90; i++) {
+      step(g, 1 / 60);
+      for (const x of g.pbullets) if (x.tag === 'lob') seen.add(x.data!.lob);
+    }
+    expect([...seen].sort()).toEqual([1, 2]);
+  });
+
+  it('«Катапульта» (8%): подброс обычного врага; «Зуд»: блоха на 5-м попадании; «Укус»: привод на 4-м', () => {
+    const g = game('pFleaCatapult', 'pFleaItch', 'pFleaBite');
+    const e = foe(g, 'punk', 60);
+    const h = foe(g, 'heavy', -60);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    for (let i = 0; i < 5; i++) damageEnemy(g, h, 0.01, g.player.x, g.player.y, { source: 'bullet' });
+    expect(stackCount(h, 'flea')).toBe(1);
+    expect(h.driveK).toBeCloseTo(0.15);
+    vi.spyOn(Math, 'random').mockReturnValue(0.01);
+    damageEnemy(g, e, 0.01, g.player.x, g.player.y, { source: 'bullet' });
+    expect(e.toss).toBeTruthy();
+    vi.restoreAllMocks();
+    const hp = h.hp;
+    step(g, 0.55);
+    expect(hp - h.hp).toBeCloseTo(1, 1);
   });
 });

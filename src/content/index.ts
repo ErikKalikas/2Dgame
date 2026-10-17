@@ -6,6 +6,7 @@ import { SYNERGIES_LIST } from './synergies';
 import { WEAPONS } from './weapons';
 import { CLASS1 } from './sets/class1';
 import { CLASS2 } from './sets/class2';
+import { CLASS3 } from './sets/class3';
 import { SET_SYNERGIES } from './sets/synergies';
 
 let done = false;
@@ -21,6 +22,7 @@ export function registerContent() {
   // предметы наборов врагов (этап 12б)
   registerItems(CLASS1);
   registerItems(CLASS2);
+  registerItems(CLASS3);
   registerSynergies(SYNERGIES_LIST);
   registerSynergies(SET_SYNERGIES);
 }

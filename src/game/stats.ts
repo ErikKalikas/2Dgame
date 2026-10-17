@@ -72,6 +72,7 @@ export interface Stats {
   critMult: number;
   lifesteal: number; // шанс вернуть жизнь при убийстве (очень малый)
   flankMult: number; // урон при попадании сбоку или со спины
+  windupMult: number; // урон по врагу, готовящему атаку (замах)
   shieldPierce: number; // доля лобового щита врага, которую игнорирует ваш урон (0..1)
 
   // экономика
@@ -142,6 +143,7 @@ export function baseStats(): Stats {
     critMult: 2,
     lifesteal: 0,
     flankMult: 1,
+    windupMult: 1,
     shieldPierce: 0,
 
     magnet: 40,

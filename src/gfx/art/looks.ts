@@ -49,6 +49,7 @@ export const LOOKS: Record<string, Look> = {
   iGuardVisor: { p: ['3bb3'], side: ['bb'] },
   iBlinkAntenna: { p: ['...f', '..5.'], up: ['.f', '5.'], dy: -2 },
   iSniperRange: { p: ['.a33'], side: ['a3'], dx: 1 },
+  iCutterSensor: { p: ['9e9'], side: ['e9'] },
   // ---- корпус
   subdermal: { p: ['5665', '5445'] },
   iDermalWeave: { p: ['6.6.', '.6.6', '6.6.'] },
@@ -61,6 +62,9 @@ export const LOOKS: Record<string, Look> = {
   iPunkBandolier: { p: ['d...', '.d..', '..d.', '...d'], side: ['d.', '.d'], dy: -1 },
   iGuardPlate: { p: ['5555', '4664'], side: ['55', '46'] },
   iBlinkTorso: { p: ['f..f', '.ff.'], side: ['f.', '.f'] },
+  iCutterSheath: { p: ['7..7', '6..6'], side: ['76'] },
+  iStokerFurnace: { p: ['3333', '3ad3'], side: ['33', 'ad'] },
+  iHeavyPlates: { p: ['4444', '4554', '4444'], side: ['44', '45'] },
   // ---- ноги (рисунок ставится на обе ноги)
   iServoAnkles: { p: ['.e'], side: ['e.'] },
   iNapalmDropper: { p: ['d', 'a'] },
@@ -70,6 +74,8 @@ export const LOOKS: Record<string, Look> = {
   iPunkSoles: { p: ['9a'], side: ['a9'], dy: 2 },
   iBlinkLegs: { p: ['f', '5'], side: ['5f'] },
   iSniperTripod: { p: ['5', '4'], side: ['4.5'], dy: 1 },
+  iStokerSoles: { p: ['ad'], side: ['da'], dy: 2 },
+  iHeavyBraces: { p: ['4', '33'], side: ['334'], dy: 1 },
   // ---- спина (сверху из-за плеча, сзади — целиком)
   twinBarrel: { p: ['3.', '3.', '3.'], up: ['3..3', '3..3', '4..4'], dy: 1 },
   iShoulderMounts: { p: ['453'], up: ['453..354'], dx: 0, dy: 2 },
@@ -82,6 +88,9 @@ export const LOOKS: Record<string, Look> = {
   iScavCrate: { p: ['cd', 'cc'], up: ['cddc', 'c44c', 'cccc'] },
   iGuardKeys: { p: ['e.', '.e'], up: ['.e.', 'e.e', '.e.'], dy: 2 },
   iSniperSpotter: { p: ['.4.', '4a4'], up: ['4.4', '.a.', '4.4'], dy: -3 },
+  iCutterTrail: { p: ['7.', '6.'], up: ['7.7', '6.6', '7.7'] },
+  iStokerTank: { p: ['c', 'd'], up: ['cddc', 'cddc', '.aa.'], dy: 1 },
+  iHeavyBelt: { p: ['d.', 'c.', 'd.'], up: ['dcdc', 'cdcd', '3333'], dy: 1 },
   // ---- правая рука: рука-оружие (вместо кисти)
   wPowerFist: { p: ['444', '454', '444', '.4.'], side: ['44', '45', '44'] },
   wMantis: { p: ['7', '7', '6', '6'], side: ['7', '7', '6'], dy: 1 },
@@ -90,6 +99,7 @@ export const LOOKS: Record<string, Look> = {
   wWeldingTorch: { p: ['3', '3', 'e'], side: ['3', 'e'], dy: 1 },
   wMonowire: { p: ['5', '.', '6', '.', '7'], side: ['6', '7'] },
   wArcThrower: { p: ['3e', '3e', 'e.'], side: ['e', 'e'] },
+  iStokerPoker: { p: ['3', '3', '3', 'ad'], side: ['3', '3', 'a'], dy: 1 },
   // ---- левая рука: модули атаки на E
   iShockPalm: { p: ['e', 'e'], dy: 2 },
   lhShield: { p: ['55', '45', '45', '44'], up: ['55', '44'] },
@@ -99,6 +109,8 @@ export const LOOKS: Record<string, Look> = {
   lhMagnet: { p: ['f.f', 'fff'], dy: 2 },
   lhWeldWall: { p: ['dd', 'c.'], dy: 2 },
   lhClamp: { p: ['3.3', '3.3', '.3.'], dy: 1 },
+  iCutterSickle: { p: ['.7', '77', '7.', '6.'], dy: 1 },
+  iStokerSprayer: { p: ['cc', '.d', '.a'], dy: 2 },
   // ---- кровеносная система: трубки по корпусу
   iAdrenalPump: { p: ['a', 'a', '9'] },
   iNanoSwarm: { p: ['6.', '.6', '6.'] },
@@ -108,6 +120,7 @@ export const LOOKS: Record<string, Look> = {
   iMantisBlades: { p: ['3', '3', '7'], up: ['3..3', '3..3', '7..7'] },
   iCreditSniffer: { p: ['3', '3', 'e'], up: ['.33.', '.3e.'] },
   iMirrorField: { p: ['3', '3', 'f'], up: ['3.3', '3.3', 'f.f'] },
+  iHeavyLoader: { p: ['3', '3', 'd'], up: ['3..3', '3..3', 'd..d'] },
   // ---- нервная система: контакты на затылке/темени
   reflexBooster: { p: ['.b'], up: ['bb'] },
   iPainEditor: { p: ['a.'], up: ['a.a'] },

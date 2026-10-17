@@ -85,6 +85,12 @@ export function every(e: Enemy, g: Game, key: string, period: number, dt: number
   return false;
 }
 
+/** Враг начинает замах (телеграф атаки) на t секунд */
+export function startWindup(e: Enemy, t: number) {
+  e.windup = t;
+  e.windupHit = false;
+}
+
 /** Враги стреляют, только если игрок достаточно близко (большие комнаты) */
 export function inRange(e: Enemy, g: Game, r = 250): boolean {
   return !g.aimNone && distToPlayer(e, g) < r;

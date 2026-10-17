@@ -41,6 +41,7 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
   if (e.def.frontShield && !flank && e.shieldOff <= 0) dmg *= 1 - e.def.frontShield * (1 - s.shieldPierce);
   if (flank && o.by !== 'ally') dmg *= s.flankMult;
   if (e.hackT > 0) dmg *= 1 + e.hackK;
+  if (e.windup > 0) dmg *= s.windupMult;
   if (e.stacks.size && STACK_VULN.size) for (const k of e.stacks.keys()) dmg *= 1 + (STACK_VULN.get(k) ?? 0);
   if (o.crit) dmg *= s.critMult;
   e.lastHit = { source: o.source ?? 'other', tag: o.tag, by: o.by ?? 'player' };
@@ -141,6 +142,7 @@ export function spawnShot(g: Game, angle: number, s: Stats, over: Partial<PBulle
     ...over,
   };
   g.pbullets.push(b);
+  if (g.inVolley && !b.isChild) p.emit('onVolleyShot', g, b);
   return b;
 }
 
@@ -163,27 +165,33 @@ export function fireWeapon(g: Game, angle: number, chargeK: number) {
   const s = p.stats;
   const w = p.gun.weapon!;
   g.fx.flash(p.x + Math.cos(angle) * 7, p.y - 3 + Math.sin(angle) * 7, s.shotColor, 3, 0.05);
-  switch (w.mode) {
-    case 'beam':
-      fireBeam(g, angle, s);
-      break;
-    case 'melee':
-      if (w.fire) w.fire(g, angle, s);
-      else fireMelee(g, angle, s);
-      break;
-    case 'charge': {
-      const over: Partial<PBullet> = {
-        dmg: finalDamage(s) * (0.35 + chargeK * 2.4),
-        r: 2.5 * s.size * (0.7 + chargeK * 0.8),
-        pierce: s.pierce + Math.floor(chargeK * 3),
-      };
-      if (w.fire) w.fire(g, angle, { ...s, damage: s.damage * (0.35 + chargeK * 2.4) });
-      else fan(g, angle, s, over);
-      break;
+  // снаряды самого залпа (не хуков onShoot) видны хуку onVolleyShot («Навес»)
+  g.inVolley = true;
+  try {
+    switch (w.mode) {
+      case 'beam':
+        fireBeam(g, angle, s);
+        break;
+      case 'melee':
+        if (w.fire) w.fire(g, angle, s);
+        else fireMelee(g, angle, s);
+        break;
+      case 'charge': {
+        const over: Partial<PBullet> = {
+          dmg: finalDamage(s) * (0.35 + chargeK * 2.4),
+          r: 2.5 * s.size * (0.7 + chargeK * 0.8),
+          pierce: s.pierce + Math.floor(chargeK * 3),
+        };
+        if (w.fire) w.fire(g, angle, { ...s, damage: s.damage * (0.35 + chargeK * 2.4) });
+        else fan(g, angle, s, over);
+        break;
+      }
+      default:
+        if (w.fire) w.fire(g, angle, s);
+        else fan(g, angle, s);
     }
-    default:
-      if (w.fire) w.fire(g, angle, s);
-      else fan(g, angle, s);
+  } finally {
+    g.inVolley = false;
   }
   p.emit('onShoot', g, angle);
 }

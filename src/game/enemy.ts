@@ -47,6 +47,8 @@ export interface EnemyDef {
   /** Модификатор входящего урона (например, щит спереди) */
   damageTaken?(e: Enemy, g: Game, dmg: number, fromX: number, fromY: number): number;
   onDeath?(e: Enemy, g: Game): void;
+  /** Сорвать готовящуюся атаку (замах): вернуть ИИ в обычное состояние */
+  interrupt?(e: Enemy, g: Game): void;
   /**
    * Своя отрисовка из нескольких частей (вместо одного кадра). x, y — левый верхний угол
    * кадра frames[0] на экране; fx — преобразование спрайта (вспышка попадания).
@@ -146,6 +148,10 @@ export class Enemy {
   lastHit: LastHit | null = null;
   /** Перезарядка касания союзника/врага в драке между ними */
   brawlCd = 0;
+  /** Готовит атаку (замах), с: ставит ИИ (startWindup); по нему бьёт сенсор «Замах» */
+  windup = 0;
+  /** В этот замах уже было попадание (сенсор срывает атаку только первым) */
+  windupHit = false;
   frames: Sprite[];
 
   constructor(public def: EnemyDef, x: number, y: number, hpMult: number) {
