@@ -696,7 +696,8 @@ export class Game {
     for (let i = 0; i < 2 && pool.length; i++) {
       const cand = pool.filter((x) => !used.has(x.id));
       if (!cand.length) break;
-      const it = this.rng.weighted(cand, (x) => [0, 10, 6, 3, 1.5][x.quality]);
+      // прошивки из наборов врагов в общем пуле реже (как в rollItem)
+      const it = this.rng.weighted(cand, (x) => [0, 10, 6, 3, 1.5][x.quality] * (x.fromEnemy ? 0.5 : 1));
       used.add(it.id);
       out.push(it);
     }
@@ -713,6 +714,8 @@ export class Game {
   // ---------------------------------------------------------------- бой
 
   fireWeapon(angle: number, chargeK: number) {
+    // доворот ствола (поворотный станок и т. п.)
+    for (const h of this.player.hooks) if (h.adjustAim) angle = h.adjustAim(this, angle);
     fireWeapon(this, angle, chargeK);
     // бонус нестабильности: сдвоенный залп
     if (this.unstable.doubleT > 0) fireWeapon(this, angle + 0.1, chargeK);
@@ -884,7 +887,7 @@ export class Game {
       }
       const a = target ? Math.atan2(target.y - b.y, target.x - b.x) : b.angle + Math.PI;
       spawnShot(this, a, base, {
-        x: b.x, y: b.y, bx: b.x, by: b.y, speed: 170, dmg, homing: 4, life: 1.6, maxLife: 1.6,
+        x: b.x, y: b.y, bx: b.x, by: b.y, speed: 170, dmg, homing: p.stats.glitchHoming, life: 1.6, maxLife: 1.6,
         r: 2.5, color: C.violet, style: 'shard', crit: false,
       });
       if (Math.random() < 0.3) this.fx.add({ kind: 'spark', x: b.x, y: b.y, vx: (Math.random() - 0.5) * 60, vy: (Math.random() - 0.5) * 60, color: C.violet, life: 0.2, glow: true });
@@ -931,7 +934,7 @@ export class Game {
     const hr = p.stats.hitR;
     const charging = p.glitch < 1;
     for (const b of this.ebullets) {
-      if (b.delay > 0 || b.dead) continue;
+      if (b.delay > 0 || b.dead || b.phased) continue;
       const r = b.r * 0.8 + hr;
       const d2 = dist2(b.x, b.y, p.x, p.y);
       if (d2 < r * r) return this.hurtPlayer({ kind: 'bullet', bullet: b, enemy: b.owner });
@@ -958,7 +961,13 @@ export class Game {
   hurtPlayer(hit: IncomingHit = { kind: 'floor' }) {
     const p = this.player;
     for (const h of p.hooks) {
-      if (h.onIncoming?.(this, hit)) {
+      const res = h.onIncoming?.(this, hit);
+      if (res === 'pass' && hit.bullet) {
+        // пуля проходит сквозь героя и летит дальше (больше его не задевает)
+        hit.bullet.phased = true;
+        return;
+      }
+      if (res) {
         if (hit.bullet) hit.bullet.dead = true;
         p.invuln = Math.max(p.invuln, 0.1);
         p.emit('onDefend', this, 'intercept');

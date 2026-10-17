@@ -37,6 +37,8 @@ export interface EBullet {
   slow?: number;
   /** Луч (не сбивается «КАЗ») */
   beam?: boolean;
+  /** Прошла сквозь героя (мерцание) — больше его не задевает */
+  phased?: boolean;
 }
 
 export interface EBulletOpts {

@@ -16,6 +16,8 @@ export interface Stats {
   glitchRadius: number;
   glitchGain: number;
   glitchPower: number;
+  /** Самонаведение переписанных сбоем пуль (рад/с) */
+  glitchHoming: number;
   /** Энергощит: сколько попаданий поглощается в каждой комнате */
   shield: number;
   /** Шанс полностью избежать попадания */
@@ -94,6 +96,7 @@ export function baseStats(): Stats {
     glitchRadius: 70,
     glitchGain: 1,
     glitchPower: 6,
+    glitchHoming: 4,
     shield: 0,
     dodge: 0,
     drones: 0,

@@ -1,7 +1,7 @@
 import { nearestWalkable } from '../world/level';
 import type { Enemy, EnemyDef } from './enemy';
 import type { Game } from './game';
-import { ITEMS } from './items';
+import { ITEMS, SYSTEM_SLOTS, type Slot } from './items';
 import { qualityColor } from './render';
 import { dropLoot, makePickup } from './spawn';
 
@@ -18,9 +18,16 @@ export const PITY_STEP = 0.25;
 export const SCANNER = 'iScrapScanner';
 export const SCANNER_MULT = 1.2;
 
-/** Предметы набора, которые ещё могут выпасть (есть в игре и ещё не встречались в забеге) */
-export function remainingDrops(def: EnemyDef, seen: Set<string>): string[] {
-  return (def.drops ?? []).filter((id) => ITEMS.has(id) && !seen.has(id));
+/**
+ * Предметы набора, которые ещё могут выпасть: есть в игре, ещё не встречались в забеге,
+ * а модули систем тела (нервная, кровеносная, щупальца, реактор) — только после открытия системы
+ */
+export function remainingDrops(def: EnemyDef, seen: Set<string>, systems?: Set<Slot>): string[] {
+  return (def.drops ?? []).filter((id) => {
+    const it = ITEMS.get(id);
+    if (!it || seen.has(id)) return false;
+    return !(systems && it.slot && SYSTEM_SLOTS.includes(it.slot) && !systems.has(it.slot));
+  });
 }
 
 export type DropResult = string | 'cells' | null;
@@ -55,7 +62,7 @@ export function enemyDrop(g: Game, e: Enemy) {
   const def = e.def;
   if (def.boss || !def.value) return;
   const p = g.player;
-  const rem = remainingDrops(def, g.seenItems);
+  const rem = remainingDrops(def, g.seenItems, p.systems);
   const res = g.drops.roll(def, rem, p.stats.luck, p.has(SCANNER), () => g.rng.next(), e.elite, g.dropMult);
   if (!res) return;
   if (res === 'cells') {
@@ -71,5 +78,5 @@ export function enemyDrop(g: Game, e: Enemy) {
 
 /** Есть ли у врага несобранный набор (для метки над ним) */
 export function hasOpenSet(g: Game, def: EnemyDef): boolean {
-  return !def.boss && !!def.value && remainingDrops(def, g.seenItems).length > 0;
+  return !def.boss && !!def.value && remainingDrops(def, g.seenItems, g.player.systems).length > 0;
 }

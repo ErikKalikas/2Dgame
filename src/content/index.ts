@@ -4,6 +4,9 @@ import { IMPLANTS } from './implants';
 import { PASSIVES } from './passives';
 import { SYNERGIES_LIST } from './synergies';
 import { WEAPONS } from './weapons';
+import { CLASS1 } from './sets/class1';
+import { CLASS2 } from './sets/class2';
+import { SET_SYNERGIES } from './sets/synergies';
 
 let done = false;
 
@@ -15,5 +18,9 @@ export function registerContent() {
   registerItems(IMPLANTS);
   registerItems(PASSIVES);
   registerItems(BODY_ITEMS);
+  // предметы наборов врагов (этап 12б)
+  registerItems(CLASS1);
+  registerItems(CLASS2);
   registerSynergies(SYNERGIES_LIST);
+  registerSynergies(SET_SYNERGIES);
 }

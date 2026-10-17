@@ -150,6 +150,9 @@ export function updateTeams(g: Game, dt: number) {
   for (const a of al) {
     if (a.dead) continue;
     a.allyT -= dt;
+    // союзник «до конца комнаты»: комната зачищена или игрок ушёл в другую
+    const room = a.allyRoom >= 0 ? g.plan.rooms[a.allyRoom] : null;
+    if (room && (room.cleared || (g.zone && g.zone.id !== room.id))) a.allyT = 0;
     if (a.allyT <= 0) {
       endAlly(g, a);
       continue;

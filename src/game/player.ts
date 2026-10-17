@@ -332,7 +332,7 @@ export class Player {
         if (k > 0.15) g.fireWeapon(this.shootAngle, k);
         this.charge = 0;
       }
-    } else if (this.shooting && this.fireCd <= 0) {
+    } else if (this.shooting && this.fireCd <= 0 && !w.manual) {
       this.fireCd = finalFireDelay(s);
       if (s.burst > 1) {
         this.burstLeft = s.burst - 1;

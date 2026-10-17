@@ -95,8 +95,11 @@ export interface Hooks {
   onDashEnd?(g: Game): void;
   /** Сработал сбой (F или аварийный) */
   onGlitch?(g: Game): void;
-  /** Попадание по игроку ещё до уклонения и щита; true — попадание перехвачено («КАЗ») */
-  onIncoming?(g: Game, hit: IncomingHit): boolean;
+  /**
+   * Попадание по игроку ещё до уклонения и щита: true — перехвачено (пуля гаснет, «КАЗ»),
+   * 'pass' — пуля проходит сквозь героя и летит дальше («Мерцающий корпус»)
+   */
+  onIncoming?(g: Game, hit: IncomingHit): boolean | 'pass';
   /** Попадание прошло щит и уклонение и отнимет жизнь (до аварийного окна); true — отменить («Долг боли») */
   onLifeHit?(g: Game, hit: IncomingHit): boolean;
   /** Попадание поглощено: уклонение, заряд щита или перехват */
@@ -105,6 +108,10 @@ export interface Hooks {
   onHack?(g: Game): void;
   /** Снаряд игрока погас: врезался в стену (wall) или долетел до конца */
   onShotEnd?(g: Game, b: PBullet, wall: boolean): void;
+  /** Ваш взрыв (любой источник: снаряды, мины, паучки) */
+  onExplode?(g: Game, x: number, y: number, r: number): void;
+  /** Поправка направления выстрела (доворот ствола к врагу); вернуть новый угол */
+  adjustAim?(g: Game, angle: number): number;
   tick?(g: Game, dt: number): void;
   /** Индикатор у героя или в HUD (вызывается при отрисовке) */
   gauge?(g: Game): Gauge | Gauge[] | null;
@@ -123,9 +130,11 @@ export interface WeaponSpec {
   hands?: 1 | 2;
   /** Базовые параметры оружия (применяются сразу после базовых характеристик) */
   stats: (s: Stats) => void;
-  /** Нестандартный рисунок выстрела. По умолчанию — веер из s.count снарядов */
+  /** Нестандартный рисунок выстрела (и удара для melee). По умолчанию — веер из s.count снарядов */
   fire?: (g: Game, angle: number, s: Stats) => void;
   chargeTime?: number;
+  /** Ручной спуск: зажатая стрелка не стреляет сама — выстрел делает хук оружия (g.fireWeapon), например по захвату цели */
+  manual?: boolean;
 }
 
 export interface IconSpec {
@@ -167,6 +176,9 @@ export interface SynergyDef {
   id: string;
   name: L;
   desc: L;
+  /** Синергия набора врага (этап 12б): id врага и ступень — 1 (ядро, три первых предмета) или 2 (весь набор) */
+  set?: string;
+  tier?: 1 | 2;
   requires: (has: (id: string) => boolean, tags: (t: Tag) => number) => boolean;
   stats?: (s: Stats) => void;
   hooks?: Hooks;

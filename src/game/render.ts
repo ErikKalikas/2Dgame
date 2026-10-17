@@ -17,7 +17,7 @@ import type { Enemy } from './enemy';
 import type { Game } from './game';
 import { item, type Gauge } from './items';
 import { renderObjs } from './objects';
-import { STACK_COLOR, tossHeight } from './status';
+import { STACK_COLOR, STACK_LIT, tossHeight } from './status';
 
 const QUALITY_COLOR = ['', C.grey, C.amber, C.red, C.violet];
 export const qualityColor = (q: number) => QUALITY_COLOR[q];
@@ -230,7 +230,10 @@ function renderLighting(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: 
     if (k.kind === 'item' || k.kind === 'teleporter') light(k.x, k.y, 40, 0.7);
     else if (k.kind === 'terminal') light(k.x, k.y - 8, 26, 0.6);
   }
-  for (const e of g.enemies) if (e.def.boss) light(e.x, e.y, 80, 0.6);
+  for (const e of g.enemies) {
+    if (e.def.boss) light(e.x, e.y, 80, 0.6);
+    else if (e.stacks.size) for (const k of e.stacks.keys()) if (STACK_LIT.has(k)) light(e.x, e.y, 26, 0.75);
+  }
   lc.globalAlpha = 1;
   lc.globalCompositeOperation = 'source-over';
   ctx.drawImage(lightCanvas, 0, 0);

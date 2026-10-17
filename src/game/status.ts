@@ -35,6 +35,10 @@ export function isFlank(e: Enemy, x: number, y: number): boolean {
 
 /** Цвета стаков, которые видны над врагом огоньками (ключ → цвет); предметы регистрируют свои */
 export const STACK_COLOR = new Map<string, string>();
+/** Стаки, с которыми враг виден в темноте (отметка дрона-корректировщика) */
+export const STACK_LIT = new Set<string>();
+/** Стаки-уязвимости: враг с таким стаком получает больше урона (ключ → +доля) */
+export const STACK_VULN = new Map<string, number>();
 
 /** Добавить n стаков (не больше max), таймер обновляется. Возвращает новое число */
 export function addStack(e: Enemy, key: string, n: number, max: number, dur: number): number {

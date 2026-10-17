@@ -7,7 +7,7 @@ import type { Enemy } from './enemy';
 import { boltPoints } from './fx';
 import type { Game } from './game';
 import type { DamageSource } from './items';
-import { isFlank } from './status';
+import { STACK_VULN, isFlank } from './status';
 import { finalDamage, finalFireDelay, type Stats } from './stats';
 
 export interface DamageOpts {
@@ -41,6 +41,7 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
   if (e.def.frontShield && !flank && e.shieldOff <= 0) dmg *= 1 - e.def.frontShield * (1 - s.shieldPierce);
   if (flank && o.by !== 'ally') dmg *= s.flankMult;
   if (e.hackT > 0) dmg *= 1 + e.hackK;
+  if (e.stacks.size && STACK_VULN.size) for (const k of e.stacks.keys()) dmg *= 1 + (STACK_VULN.get(k) ?? 0);
   if (o.crit) dmg *= s.critMult;
   e.lastHit = { source: o.source ?? 'other', tag: o.tag, by: o.by ?? 'player' };
   // подброшенный враг копит урон до падения
@@ -79,6 +80,7 @@ export function damageEnemy(g: Game, e: Enemy, dmg: number, fromX: number, fromY
 export function explode(g: Game, x: number, y: number, radius: number, dmg: number, color: string = C.amber, tag?: string) {
   g.fx.explosion(x, y, radius, color);
   g.lightFlash(x, y, radius * 2.2);
+  g.player.emit('onExplode', g, x, y, radius);
   for (const e of g.enemies) {
     if (e.dead || e.team !== 'foe') continue;
     const r = radius + e.r;
@@ -166,7 +168,8 @@ export function fireWeapon(g: Game, angle: number, chargeK: number) {
       fireBeam(g, angle, s);
       break;
     case 'melee':
-      fireMelee(g, angle, s);
+      if (w.fire) w.fire(g, angle, s);
+      else fireMelee(g, angle, s);
       break;
     case 'charge': {
       const over: Partial<PBullet> = {
@@ -229,11 +232,22 @@ export function fireBeam(g: Game, angle: number, s: Stats) {
   }
 }
 
+export interface MeleeOpts {
+  /** Досягаемость и дуга (по умолчанию — из характеристик) */
+  reach?: number;
+  arc?: number;
+  tag?: string;
+  /** Резать ли вражеские пули в дуге (по умолчанию да) */
+  cut?: boolean;
+  /** После удара по врагу */
+  onHitEnemy?(g: Game, e: Enemy): void;
+}
+
 /** Удар по дуге: бьёт врагов рядом и разрезает вражеские пули */
-export function fireMelee(g: Game, angle: number, s: Stats) {
+export function fireMelee(g: Game, angle: number, s: Stats, o: MeleeOpts = {}) {
   const p = g.player;
-  const reach = 30 * s.size + s.range * 0.05;
-  const arc = Math.min(TAU, 1.7 + (s.count - 1) * 0.5 + s.spread);
+  const reach = o.reach ?? 30 * s.size + s.range * 0.05;
+  const arc = o.arc ?? Math.min(TAU, 1.7 + (s.count - 1) * 0.5 + s.spread);
   const dmg = finalDamage(s);
   g.fx.add({ kind: 'slash', x: p.x, y: p.y - 3, angle, arc, size: reach, color: s.shotColor, life: 0.14, glow: true });
   const dirs = [angle];
@@ -247,13 +261,14 @@ export function fireMelee(g: Game, angle: number, s: Stats) {
       if (Math.abs(angleDiff(a, Math.atan2(e.y - p.y, e.x - p.x))) > arc / 2 + 0.2) continue;
       const crit = Math.random() < s.crit;
       damageEnemy(g, e, dmg, p.x, p.y, {
-        burn: s.burn, shock: s.shock, slow: s.slow, hack: s.hack, knockback: s.knockback * 2, crit, source: 'melee',
+        burn: s.burn, shock: s.shock, slow: s.slow, hack: s.hack, knockback: s.knockback * 2, crit, source: 'melee', tag: o.tag,
       });
+      o.onHitEnemy?.(g, e);
       if (s.chain) chainLightning(g, e, s.chain, dmg * 0.5);
       if (s.explode) explode(g, e.x, e.y, s.explode * 0.6, dmg * 0.5);
     }
     // разрезаем пули в дуге
-    for (const b of g.ebullets) {
+    if (o.cut !== false) for (const b of g.ebullets) {
       if (dist2(p.x, p.y, b.x, b.y) > reach * reach) continue;
       if (Math.abs(angleDiff(a, Math.atan2(b.y - p.y, b.x - p.x))) > arc / 2) continue;
       b.dead = true;

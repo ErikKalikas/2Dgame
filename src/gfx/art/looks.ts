@@ -45,6 +45,10 @@ export const LOOKS: Record<string, Look> = {
   iFlashEmitter: { p: ['.77.', '7ee7'], dy: -1 },
   // лупа-монокль утильщика
   iScrapScanner: { p: ['.dd', 'de.', '.d.'], up: null, dx: 2, dy: -1 },
+  // наборы врагов (этап 12б)
+  iGuardVisor: { p: ['3bb3'], side: ['bb'] },
+  iBlinkAntenna: { p: ['...f', '..5.'], up: ['.f', '5.'], dy: -2 },
+  iSniperRange: { p: ['.a33'], side: ['a3'], dx: 1 },
   // ---- корпус
   subdermal: { p: ['5665', '5445'] },
   iDermalWeave: { p: ['6.6.', '.6.6', '6.6.'] },
@@ -54,11 +58,18 @@ export const LOOKS: Record<string, Look> = {
   iFragCasing: { p: ['.7.', '7a7', '.7.'] },
   iThermopticCamo: { p: ['ffff'], side: ['ff'] },
   iEmpBurst: { p: ['.e.', 'eae', '.e.'] },
+  iPunkBandolier: { p: ['d...', '.d..', '..d.', '...d'], side: ['d.', '.d'], dy: -1 },
+  iGuardPlate: { p: ['5555', '4664'], side: ['55', '46'] },
+  iBlinkTorso: { p: ['f..f', '.ff.'], side: ['f.', '.f'] },
   // ---- ноги (рисунок ставится на обе ноги)
   iServoAnkles: { p: ['.e'], side: ['e.'] },
   iNapalmDropper: { p: ['d', 'a'] },
   iAfterimage: { p: ['f', 'f'] },
   iMagPulse: { p: ['6f'] },
+  iScavLegs: { p: ['4', '45'], side: ['45'], dy: 1 },
+  iPunkSoles: { p: ['9a'], side: ['a9'], dy: 2 },
+  iBlinkLegs: { p: ['f', '5'], side: ['5f'] },
+  iSniperTripod: { p: ['5', '4'], side: ['4.5'], dy: 1 },
   // ---- спина (сверху из-за плеча, сзади — целиком)
   twinBarrel: { p: ['3.', '3.', '3.'], up: ['3..3', '3..3', '4..4'], dy: 1 },
   iShoulderMounts: { p: ['453'], up: ['453..354'], dx: 0, dy: 2 },
@@ -68,6 +79,9 @@ export const LOOKS: Record<string, Look> = {
   iMicroMissiles: { p: ['aa', '33'], up: ['a.a.', '3333', '3443'], dy: 0 },
   iSentryPod: { p: ['53', '33'], up: ['.55.', '5335', '.33.'], dy: 1 },
   iOrbitalStrike: { p: ['d.', 'd.', 'c.'], up: ['d..d', 'cddc'], dy: -2 },
+  iScavCrate: { p: ['cd', 'cc'], up: ['cddc', 'c44c', 'cccc'] },
+  iGuardKeys: { p: ['e.', '.e'], up: ['.e.', 'e.e', '.e.'], dy: 2 },
+  iSniperSpotter: { p: ['.4.', '4a4'], up: ['4.4', '.a.', '4.4'], dy: -3 },
   // ---- правая рука: рука-оружие (вместо кисти)
   wPowerFist: { p: ['444', '454', '444', '.4.'], side: ['44', '45', '44'] },
   wMantis: { p: ['7', '7', '6', '6'], side: ['7', '7', '6'], dy: 1 },

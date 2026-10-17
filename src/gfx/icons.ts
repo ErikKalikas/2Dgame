@@ -115,6 +115,61 @@ const SHAPES: Record<string, string[]> = {
   cloak: [
     '....dddd', '...dxxxxd', '..dxxwxxxd', '..dxaaaaxd', '.dxxxxxxxxd', '.dxxxxxxxxd', 'dxxxxxxxxxxd', 'dxdxxxxxxdxd', 'dd.dxxxxd.dd', '...dddddd',
   ],
+  // ---- предметы наборов врагов (этап 12б)
+  hook: [
+    '....ddd', '...dxxxd', '..dxd.dxd', '..dxd..dd', '...dxd', '....dxd', '.dddddxd', 'dxxxxxxxd', 'dxaxaxaxd', 'dxxxxxxwd', '.ddddddd',
+  ],
+  crate: [
+    '', '.dddddddddd', '.dwxxxxxxxd', '.dxxxxxxxxd', '.dddddddddd', '.dxadxxdaxd', '.dxxdxxdxxd', '.dxxdxxdxxd', '.dxxdxxdxxd', '.dddddddddd',
+  ],
+  boot: [
+    '', '...dddd', '...dxxd', '...dxwd', '...dxxd', '...dxxd', '...dxxdddd', '..dxxxxxxxd', '.dxxxxxxxxd', '.daaaaaaaad', '.dddddddddd',
+  ],
+  web: [
+    'x....x....x', '.x...x...x', '..x..x..x', '...xxxxx', '..xx.x.xx', 'xxxxxaxxxxx', '..xx.x.xx', '...xxxxx', '..x..x..x', '.x...x...x', 'x....x....x',
+  ],
+  spider: [
+    '', '.d..dd..d', 'dxd.dd.dxd', '.dxdxxdxd', '..dxaaxd', 'ddxxwxxxdd', 'xdxxxxxxdx', '.dxdxxdxd', 'dxd.dd.dxd', '.d......d',
+  ],
+  swarm: [
+    '..dd....dd', '.dxad..dxad', '..dd....dd', '.....dd', '....dxad', '.....dd', '.dd......dd', 'dxad....dxad', '.dd..dd..dd', '....dxad', '.....dd',
+  ],
+  burst: [
+    '.....dd', '.....ad', '..dd....dd', '..dad..dad', '....dddd', 'dda.dxwd.add', '....dxxd', '..dad.ddad', '..dd....dd', '.....ad', '.....dd',
+  ],
+  plate: [
+    '', '.dddddddddd', 'dxxxxwxxxxxd', 'dxaxxxxxxaxd', 'dxxxxxxxxxxd', 'dxxxdddxxxxd', 'dxxxd.dxxxxd', '.dxxdddxxxd', '..dxxxxxxd', '...dddddd',
+  ],
+  visor: [
+    '', '', '..dddddddd', '.dxxxxxxxxd', 'dxxxxwxxxxxd', 'dxdddaadddxd', 'dxxxxxxxxxxd', '.dxxxxxxxxd', '..dddddddd',
+  ],
+  keys: [
+    '..ddd', '.dxxxd', '.dx.xd', '.dxwxd', '..dxd', '..dxd.dd', '..dxddxad', '..dxxxdd', '..dxd', '..dxdd', '..dxad', '..ddd',
+  ],
+  pipe: [
+    '', '', '.ddddddddddd', 'dxxxxxxxxxxd', 'dwxxxxxxxxad', 'dxxxxxxxxxxd', '.dddddxdddd', '....dxad', '....dxxd', '....dddd',
+  ],
+  antenna: [
+    '.....d', '....dad', '.....d', '.....d', '....dxd', '...ddxdd', '..dxxxxxd', '..dxwxxxd', '..dxxxxxd', '...ddddd',
+  ],
+  tripod: [
+    '....dd', '...dxad', '...dxxd', '...dxxd', '..dxddxd', '..dxd.dxd', '.dxd...dxd', '.dxd...dxd', 'dxd.....dxd', 'dd.......dd',
+  ],
+  rotor: [
+    '....ddd', '....dxd', '....dxd', '.ddddxdddd', 'dxxxxaxxxxd', '.ddddxdddd', '....dxd', '...ddxdd', '..dxxwxxd', '..ddddddd',
+  ],
+  petal: [
+    '....dd', '...dxxd', '..dxwxd', '.ddddxddd', 'dxxdaadxxd', 'dxxdaadxxd', '.dddxxddd', '...dxxd', '....dd',
+  ],
+  wrench: [
+    '.dd...dd', 'dxd...dxd', 'dxxdddxxd', '.dxxwxxd', '..dxxxd', '...dxd', '...dxd', '...dxd', '...dad', '...ddd',
+  ],
+  crossbow: [
+    '', 'd.........d', '.d.......d', '..ddddddddd', 'ddxxxxxxxwad', '..ddddddddd', '.d.......d', 'd.........d',
+  ],
+  belt: [
+    'dd', 'dxdd', '.dxxdd', '..dxaxdd', '...dxaxdd', '....dxaxdd', '.....dxaxd', '......dxwd', '.......dd',
+  ],
 };
 
 const cache = new Map<string, Sprite>();

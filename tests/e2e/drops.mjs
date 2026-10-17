@@ -27,10 +27,8 @@ await page.waitForTimeout(300);
 // тестовые предметы: один предмет набора Падальщика и нестабильные прошивки
 await ev(() => {
   const I = window.__items;
-  const legs = I.item('iServoAnkles');
   const cores = I.item('heavyRounds');
   I.registerItems([
-    { ...legs, id: 'iScavLegs', fromEnemy: 'scav', name: { ru: 'Тест: лапы', en: 'Test legs' } },
     ...[1, 2, 3, 4].map((n) => ({ ...cores, id: 'pTestUnstable' + n, unstable: 2, name: { ru: 'Тест: нестаб ' + n, en: 'Test unstable ' + n } })),
   ]);
   const g = window.__game.scene.game;
@@ -74,8 +72,9 @@ const drop = await ev(() => {
   const e = g.enemies.at(-1);
   e.hp = 0;
   g.killEnemy(e, true);
-  const it = g.pickups.find((k) => k.kind === 'item' && k.itemId === 'iScavLegs');
-  return { dropped: !!it, seen: g.seenItems.has('iScavLegs'), misses: g.drops.misses.get('scav') };
+  const set = ['wScavHook', 'iScavLegs', 'iScavCrate'];
+  const it = g.pickups.find((k) => k.kind === 'item' && set.includes(k.itemId));
+  return { dropped: !!it, seen: !!it && g.seenItems.has(it.itemId), misses: g.drops.misses.get('scav') };
 });
 check('с врага выпал предмет его набора, счётчик невезения сброшен', drop.dropped && drop.seen && drop.misses === 0, JSON.stringify(drop));
 
@@ -84,6 +83,7 @@ const cells = await ev(() => {
   const g = window.__game.scene.game;
   const before = g.pickups.filter((k) => k.kind === 'coin').length;
   const e = g.enemies.at(-1);
+  for (const id of ['wScavHook', 'iScavLegs', 'iScavCrate']) g.seenItems.add(id);
   // набор собран: дроп всегда «успешен» при 100%, но выпадает горсть ячеек
   const D = g.drops;
   const orig = D.chance.bind(D);

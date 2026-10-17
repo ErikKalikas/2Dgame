@@ -3,7 +3,7 @@ import { registerContent } from '../src/content';
 import { ENEMIES } from '../src/content/enemies';
 import { DROP_BASE, DropState, PITY_STEP, SCANNER, SCANNER_MULT, SET_SIZE, remainingDrops } from '../src/game/drops';
 import { DISABLE_TABLE, rollDisable, unstableLevel, unstablePoints } from '../src/game/instability';
-import { ITEMS } from '../src/game/items';
+import { ITEMS, SYNERGIES } from '../src/game/items';
 import { Player } from '../src/game/player';
 import type { EnemyDef } from '../src/game/enemy';
 
@@ -46,6 +46,45 @@ describe('наборы врагов (этап 12)', () => {
       const it = ITEMS.get(id);
       if (it) expect(it.fromEnemy, id).toBe(e.id);
     }
+  });
+
+  // классы, предметы которых уже в игре (12б.2 — I–II; расширяется по мере частей 12б)
+  const DONE = [1, 2];
+  const done = () => ENEMIES.filter((e) => !e.boss && DONE.includes(e.value!));
+
+  it('все id из drops готовых классов существуют, редкость = класс врага', () => {
+    for (const e of done()) for (const id of e.drops!) {
+      const it = ITEMS.get(id);
+      expect(it, `${e.id}: ${id}`).toBeTruthy();
+      expect(it!.quality, id).toBe(e.value);
+    }
+  });
+
+  it('у предметов наборов III–IV есть очки нестабильности, у I–II — нет', () => {
+    for (const it of ITEMS.values()) {
+      if (!it.fromEnemy) continue;
+      if (it.quality >= 3) expect([1, 2], it.id).toContain(it.unstable);
+      else expect(it.unstable, it.id).toBeUndefined();
+    }
+  });
+
+  it('у каждого набора 2 синергии (у I класса — 1): ядро — ровно три первых id, полная — весь набор', () => {
+    for (const e of done()) {
+      const list = SYNERGIES.filter((s) => s.set === e.id);
+      expect(list.length, e.id).toBe(e.value === 1 ? 1 : 2);
+      for (const s of list) {
+        const need = s.tier === 1 ? e.drops!.slice(0, 3) : e.drops!;
+        expect(s.requires((id) => need.includes(id), () => 0), s.id).toBe(true);
+        for (const miss of need) expect(s.requires((id) => need.includes(id) && id !== miss, () => 0), `${s.id} без ${miss}`).toBe(false);
+      }
+    }
+  });
+
+  it('иконка предмета набора — своя пара «форма + цвета»', () => {
+    const key = (i: { icon: { shape: string; color: string; accent?: string } }) => `${i.icon.shape}|${i.icon.color}|${i.icon.accent ?? ''}`;
+    const all = new Map<string, string[]>();
+    for (const it of ITEMS.values()) all.set(key(it), [...(all.get(key(it)) ?? []), it.id]);
+    for (const it of ITEMS.values()) if (it.fromEnemy) expect(all.get(key(it)), it.id).toEqual([it.id]);
   });
 
   it('«Сканер утильщика» — модуль головы редкости 2', () => {
