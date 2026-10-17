@@ -7,6 +7,23 @@ import type { Renderer } from '../gfx/renderer';
 import { kindLabel } from '../game/hud';
 import type { ItemDef, SynergyDef } from '../game/items';
 import { qualityColor } from '../game/render';
+import { ENEMY_BY_ID } from '../content/enemies';
+
+/** Предмет — «ядро набора» врага (три первых предмета: первая ступень синергии) */
+function isCore(it: ItemDef): boolean {
+  const d = it.fromEnemy ? ENEMY_BY_ID.get(it.fromEnemy)?.drops : undefined;
+  return !!d && d.indexOf(it.id) >= 0 && d.indexOf(it.id) < 3;
+}
+
+/** Строка о наборе: «набор: Вахтёр · ядро набора» (для предмета) или ступень синергии */
+function setLine(en: BrowserEntry): string | null {
+  const enemy = en.item?.fromEnemy ?? en.synergy?.set;
+  const def = enemy ? ENEMY_BY_ID.get(enemy) : undefined;
+  if (!def) return null;
+  const name = tr(def.name);
+  if (en.item) return isCore(en.item) ? tr({ ru: `набор: ${name} · ядро набора`, en: `set: ${name} · set core` }) : tr({ ru: `набор: ${name}`, en: `set: ${name}` });
+  return en.synergy!.tier === 1 ? tr({ ru: `набор: ${name} · ядро (3 предмета)`, en: `set: ${name} · core (3 items)` }) : tr({ ru: `набор: ${name} · весь набор`, en: `set: ${name} · full set` });
+}
 
 export interface BrowserEntry {
   item?: ItemDef;
@@ -90,6 +107,8 @@ export class ItemBrowser {
       r.frame(x, y, cell - 2, cell - 2, en.item ? qualityColor(en.item.quality) : C.violet);
       if (en.item) r.sprite(icon(en.item.icon), x + 3, y + 3);
       else r.text('∞', x + 9, y + 5, { size: 6, color: C.violet, align: 'center' });
+      // ядро набора — фиолетовая точка в углу
+      if (en.item && isCore(en.item)) r.rect(x + cell - 5, y + 1, 2, 2, C.violet);
       if (en.count && en.count > 1) r.text('x' + en.count, x + cell - 3, y + cell - 8, { size: 4, color: C.yellow, align: 'right' });
     }
     if (!entries.length) r.text('—', gx + 4, gy + 4, { color: C.steel });
@@ -106,9 +125,20 @@ export class ItemBrowser {
         r.text(line, dx, y, { size: 6, color: col });
         y += 9;
       }
+      const set = setLine(en);
+      if (set) {
+        for (const line of r.wrap(set, dw, 5)) {
+          r.text(line, dx, y, { size: 5, color: C.violet });
+          y += 8;
+        }
+      }
       if (en.item) {
         r.text(kindLabel(en.item), dx, y, { size: 5, color: C.steelL });
         y += 9;
+        if (en.item.unstable) {
+          r.text(tr({ ru: `нестабильный · ${en.item.unstable}`, en: `unstable · ${en.item.unstable}` }), dx, y, { size: 5, color: C.violet });
+          y += 9;
+        }
         const tags = en.item.tags.map((t) => tr(TAG_NAMES[t])).join(' · ');
         if (tags) {
           r.text(tags, dx, y, { size: 5, color: C.amberD });
