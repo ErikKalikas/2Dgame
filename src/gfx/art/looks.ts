@@ -50,6 +50,7 @@ export const LOOKS: Record<string, Look> = {
   iBlinkAntenna: { p: ['...f', '..5.'], up: ['.f', '5.'], dy: -2 },
   iSniperRange: { p: ['.a33'], side: ['a3'], dx: 1 },
   iCutterSensor: { p: ['9e9'], side: ['e9'] },
+  iSnapSocket: { p: ['a..b'], side: ['b'] },
   // ---- корпус
   subdermal: { p: ['5665', '5445'] },
   iDermalWeave: { p: ['6.6.', '.6.6', '6.6.'] },
@@ -65,6 +66,7 @@ export const LOOKS: Record<string, Look> = {
   iCutterSheath: { p: ['7..7', '6..6'], side: ['76'] },
   iStokerFurnace: { p: ['3333', '3ad3'], side: ['33', 'ad'] },
   iHeavyPlates: { p: ['4444', '4554', '4444'], side: ['44', '45'] },
+  iSnapRam: { p: ['a44a', '4aa4'], side: ['a4', '4a'] },
   // ---- ноги (рисунок ставится на обе ноги)
   iServoAnkles: { p: ['.e'], side: ['e.'] },
   iNapalmDropper: { p: ['d', 'a'] },
@@ -91,6 +93,7 @@ export const LOOKS: Record<string, Look> = {
   iCutterTrail: { p: ['7.', '6.'], up: ['7.7', '6.6', '7.7'] },
   iStokerTank: { p: ['c', 'd'], up: ['cddc', 'cddc', '.aa.'], dy: 1 },
   iHeavyBelt: { p: ['d.', 'c.', 'd.'], up: ['dcdc', 'cdcd', '3333'], dy: 1 },
+  iHeatPack: { p: ['a.', 'd.'], up: ['adda', 'dbbd', 'adda'], dy: 1 },
   // ---- правая рука: рука-оружие (вместо кисти)
   wPowerFist: { p: ['444', '454', '444', '.4.'], side: ['44', '45', '44'] },
   wMantis: { p: ['7', '7', '6', '6'], side: ['7', '7', '6'], dy: 1 },
@@ -111,11 +114,13 @@ export const LOOKS: Record<string, Look> = {
   lhClamp: { p: ['3.3', '3.3', '.3.'], dy: 1 },
   iCutterSickle: { p: ['.7', '77', '7.', '6.'], dy: 1 },
   iStokerSprayer: { p: ['cc', '.d', '.a'], dy: 2 },
+  iSnapLeash: { p: ['3', '9', '.9', '.a'], dy: 1 },
   // ---- кровеносная система: трубки по корпусу
   iAdrenalPump: { p: ['a', 'a', '9'] },
   iNanoSwarm: { p: ['6.', '.6', '6.'] },
   iNaniteVeil: { p: ['f', '5', 'f'] },
   iBackupHeart: { p: ['ab', '9a'] },
+  iSnapDebt: { p: ['b', 'a', 'b'] },
   // ---- щупальца из спины
   iMantisBlades: { p: ['3', '3', '7'], up: ['3..3', '3..3', '7..7'] },
   iCreditSniffer: { p: ['3', '3', 'e'], up: ['.33.', '.3e.'] },
@@ -126,6 +131,7 @@ export const LOOKS: Record<string, Look> = {
   iPainEditor: { p: ['a.'], up: ['a.a'] },
   sandevistan: { p: ['f.f'], up: ['fff'] },
   iExecutionCortex: { p: ['bab'], up: ['bab'] },
+  iSnapLoop: { p: ['f.b'], up: ['fbf'] },
   // ---- реактор: свечение в груди
   iChainRelay: { p: ['e'] },
   iCapacitorArm: { p: ['ee'] },

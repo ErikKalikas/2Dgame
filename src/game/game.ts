@@ -25,7 +25,7 @@ import { bossReward, dropLoot, furnishRoom, makePickup, populateRoom, roomClearR
 import { DropState, enemyDrop } from './drops';
 import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './instability';
 import { updateObjs, type WorldObj } from './objects';
-import { FACE_TURN, tickStacks, updateToss } from './status';
+import { FACE_TURN, STACK_SEEK, tickStacks, updateToss } from './status';
 import { asActor, setAim, updateTeams } from './team';
 
 export interface DiffParams {
@@ -529,7 +529,7 @@ export class Game {
     p.droneT = Math.max(0.15, 0.7 / Math.sqrt(p.stats.fireRateMult));
     for (let i = 0; i < n; i++) {
       const d = this.dronePos(i);
-      const t = this.nearestEnemy(d.x, d.y, 200);
+      const t = this.seekEnemy(d.x, d.y, 200);
       if (!t) continue;
       const a = Math.atan2(t.y - d.y, t.x - d.x);
       spawnShot(this, a, p.stats, {
@@ -727,6 +727,29 @@ export class Game {
   /** Идёт бой: есть живой агрессивный враг (для нестабильности «до конца боя») */
   inCombat(): boolean {
     return this.enemies.some((e) => !e.dead && e.spawn <= 0 && e.aggro);
+  }
+
+  /**
+   * Цель самонаведения (снаряды, ракеты, дроны): враг с приоритетной отметкой (пеленг) в радиусе
+   * вдвое больше обычного — иначе ближайший
+   */
+  seekEnemy(x: number, y: number, maxDist: number): Enemy | null {
+    if (STACK_SEEK.size) {
+      let best: Enemy | null = null, bd = (maxDist * 2) ** 2;
+      for (const e of this.enemies) {
+        if (e.dead || e.spawn > 0 || e.hidden || e.team !== 'foe' || !e.stacks.size) continue;
+        let marked = false;
+        for (const k of STACK_SEEK) if (e.stacks.has(k)) marked = true;
+        if (!marked) continue;
+        const d = dist2(x, y, e.x, e.y);
+        if (d < bd) {
+          bd = d;
+          best = e;
+        }
+      }
+      if (best) return best;
+    }
+    return this.nearestEnemy(x, y, maxDist);
   }
 
   nearestEnemy(x: number, y: number, maxDist: number): Enemy | null {
@@ -965,9 +988,9 @@ export class Game {
     const p = this.player;
     for (const h of p.hooks) {
       const res = h.onIncoming?.(this, hit);
-      if (res === 'pass' && hit.bullet) {
-        // пуля проходит сквозь героя и летит дальше (больше его не задевает)
-        hit.bullet.phased = true;
+      if (res === 'pass') {
+        // пуля проходит сквозь героя и летит дальше (больше его не задевает); касание просто не ранит
+        if (hit.bullet) hit.bullet.phased = true;
         return;
       }
       if (res) {

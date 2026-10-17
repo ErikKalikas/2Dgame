@@ -192,6 +192,13 @@ export class Player {
     this.recalc();
   }
 
+  /** Бафф с меняющейся силой: stats — новые характеристики (null — снять); всегда пересчёт */
+  putBuff(id: string, stats: ((s: Stats) => void) | null) {
+    if (stats) this.buffs.set(id, { t: Infinity, stats });
+    else if (!this.buffs.delete(id)) return;
+    this.recalc();
+  }
+
   hasBuff(id: string): boolean {
     return this.buffs.has(id);
   }

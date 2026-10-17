@@ -684,3 +684,187 @@ describe('Прыгун «Блоха»', () => {
     expect(hp - h.hp).toBeCloseTo(1, 1);
   });
 });
+
+// ---------------------------------------------------------------- IV класс и общий пул (12б.4)
+
+describe('Сорванный', () => {
+  it('«Петля срыва»: в бою гон (+35% скорости, +25% урона), в 3,5 с — выплеск из 20 снарядов', () => {
+    const g = game('iSnapLoop');
+    const p = g.player;
+    p.systems.add('nervous');
+    p.recalc();
+    foe(g, 'heavy', 100);
+    step(g, 0.2);
+    expect(p.stats.speed).toBeCloseTo(150 * 1.35);
+    step(g, 1.5);
+    expect(p.hasBuff('loopRush')).toBe(false);
+    step(g, 1.9);
+    expect(g.pbullets.filter((b) => b.tag === 'surge').length).toBe(20);
+  });
+
+  it('«Таран»: касание обычного врага не ранит, враг получает ×3; «Полный срыв» — соседи сорваны', () => {
+    const g = game('iSnapLoop', 'iSnapRam', 'iSnapSocket');
+    const p = g.player;
+    const e = foe(g, 'scav', 0, 0);
+    e.hp = 1;
+    const n = foe(g, 'punk', 40, 0);
+    const lives = p.lives;
+    g.update(1 / 60);
+    expect(p.lives).toBe(lives);
+    expect(p.pendingHit).toBe(0);
+    expect(e.dead).toBe(true);
+    expect(n.team).toBe('ally');
+  });
+
+  it('«Бешеный разъём»: сбой срывает с поводка, босса замедляет', () => {
+    const g = game('iSnapSocket');
+    const e = foe(g, 'punk', 30);
+    const b = foe(g, 'punk', -30, 0, true);
+    b.def = { ...b.def, boss: true };
+    g.glitch(false);
+    expect(e.team).toBe('ally');
+    expect(e.allyT).toBeCloseTo(4);
+    expect(b.team).toBe('foe');
+    expect(b.slowK).toBeCloseTo(0.4);
+  });
+
+  it('«Долг боли»: жизнь становится долгом; 2 убийства списывают, иначе жизнь теряется', () => {
+    const g = game('iSnapDebt');
+    const p = g.player;
+    p.systems.add('blood');
+    p.recalc();
+    const lives = p.lives;
+    g.hurtPlayer({ kind: 'floor' });
+    expect(p.lives).toBe(lives);
+    expect(g.mem.debt).toBeTruthy();
+    kill(g, foe(g, 'scav', 60));
+    kill(g, foe(g, 'scav', 60));
+    expect(g.mem.debt).toBeNull();
+    // не чаще раза в 20 с: следующий удар — обычный (аварийное окно и потеря жизни)
+    p.invuln = 0;
+    g.hurtPlayer({ kind: 'floor' });
+    expect(p.pendingHit > 0 || p.lives < lives).toBe(true);
+  });
+
+  it('«Долг боли»: не списан за 3 с — жизнь теряется', () => {
+    const g = game('iSnapDebt');
+    const p = g.player;
+    p.systems.add('blood');
+    p.recalc();
+    const lives = p.lives;
+    g.hurtPlayer({ kind: 'floor' });
+    step(g, 3.1);
+    expect(p.lives).toBe(lives - 1);
+  });
+
+  it('«Обрывок поводка»: обычный срывается на 2,5 с, тяжёлый оглушён', () => {
+    const g = game('iSnapLeash');
+    const a = foe(g, 'punk', 0, 40);
+    const h = foe(g, 'heavy', 20, 40);
+    input.simulate('KeyE', true);
+    step(g, 1 / 60);
+    expect(a.team).toBe('ally');
+    expect(h.team).toBe('foe');
+    expect(h.shockT).toBeGreaterThan(0.3);
+  });
+
+  it('цепь «Обрыв»: раскрутка бьёт касанием, бросок с полной раскруткой — 30 урона', () => {
+    const g = game('wSnapChain');
+    const near = foe(g, 'heavy', 36, 0);
+    const far = foe(g, 'heavy', 0, 120);
+    input.simulate('ArrowDown', true);
+    step(g, 1.6);
+    expect(near.hp).toBeLessThan(near.maxHp);
+    input.simulate('ArrowDown', false);
+    step(g, 0.5);
+    expect(far.maxHp - far.hp).toBeGreaterThanOrEqual(29);
+  });
+});
+
+describe('Механоид', () => {
+  it('«Вилка»: 8-е попадание по врагу — пара ракет, взрыв на цели', () => {
+    const g = game('pMechFork');
+    const e = foe(g, 'heavy', 60);
+    for (let i = 0; i < 8; i++) damageEnemy(g, e, 0.01, g.player.x, g.player.y, { source: 'bullet' });
+    expect(g.pbullets.filter((b) => b.tag === 'fork').length).toBe(2);
+    const hp = e.hp;
+    step(g, 0.6);
+    expect(hp - e.hp).toBeGreaterThan(g.player.stats.damage * 4);
+  });
+
+  it('«Колонна»: 4 пули по 30%, скорострельность −20%', () => {
+    const g = game('pMechColumn');
+    const p = g.player;
+    expect(p.stats.fireRateMult).toBeCloseTo(0.8);
+    input.simulate('ArrowRight', true);
+    step(g, 1 / 60);
+    const col = g.pbullets.filter((b) => b.data?.col);
+    expect(col.length).toBe(4);
+    expect(col[0].dmg).toBeCloseTo(p.stats.damage * 0.3);
+  });
+
+  it('«Пеленг»: самонаведение выбирает цель с пеленгом; «КАЗ» сбивает пулю раз в 10 с', () => {
+    const g = game('pMechBearing', 'pMechAps');
+    const p = g.player;
+    const near = foe(g, 'heavy', 30);
+    const far = foe(g, 'heavy', -90);
+    damageEnemy(g, far, 0.01, p.x, p.y, { source: 'bullet' });
+    expect(stackCount(far, 'bearing')).toBe(1);
+    expect(g.seekEnemy(p.x, p.y, 170)).toBe(far);
+    void near;
+    const b = makeEBullet(p.x, p.y, 0, 0);
+    const lives = p.lives;
+    g.hurtPlayer({ kind: 'bullet', bullet: b });
+    expect(b.dead).toBe(true);
+    expect(p.lives).toBe(lives);
+    p.invuln = 0;
+    g.hurtPlayer({ kind: 'bullet', bullet: makeEBullet(p.x, p.y, 0, 0) });
+    expect(p.pendingHit > 0 || p.lives < lives).toBe(true);
+  });
+
+  it('«Заградогонь»: полоса огня между вами и врагом; «Боекомплект»: ракеты за убийства, сбой выпускает их', () => {
+    const g = game('pMechBarrage', 'pMechAmmo');
+    foe(g, 'heavy', 100);
+    step(g, 4.1);
+    expect(g.objs.some((o) => o.kind === 'zone' && o.data.zone === 'strip')).toBe(true);
+    kill(g, foe(g, 'scav', 50));
+    kill(g, foe(g, 'scav', 50));
+    expect(g.mem.ammo).toBe(2);
+    g.glitch(false);
+    expect(g.pbullets.filter((b) => b.tag === 'ammo').length).toBe(2);
+  });
+
+  it('«Ответный удар»: сбитая «КАЗом» пуля — ракеты «Вилки» в стрелявшего и пеленг на него', () => {
+    const g = game('pMechFork', 'pMechColumn', 'pMechBearing', 'pMechAps', 'pMechBarrage', 'pMechAmmo');
+    const shooter = foe(g, 'heavy', 80);
+    const b = makeEBullet(g.player.x, g.player.y, 0, 0);
+    b.owner = shooter;
+    g.hurtPlayer({ kind: 'bullet', bullet: b });
+    expect(stackCount(shooter, 'bearing')).toBe(1);
+    expect(g.pbullets.filter((x) => x.tag === 'fork').length).toBe(2);
+  });
+});
+
+describe('общий пул', () => {
+  it('«Накал»: убийство рядом — заряд (+3% урона), попадание сжигает половину', () => {
+    const g = game('iHeatPack');
+    const p = g.player;
+    for (let i = 0; i < 4; i++) kill(g, foe(g, 'scav', 30));
+    expect(g.mem.heatN).toBe(4);
+    expect(p.stats.damageMult).toBeCloseTo(1.12);
+    p.shieldLeft = 1;
+    g.hurtPlayer({ kind: 'floor' });
+    expect(g.mem.heatN).toBe(2);
+  });
+
+  it('«Ковровый удар»: 40-е попадание — 6 меток, через 0,5 с — взрывы', () => {
+    const g = game('pCarpetStrike');
+    const e = foe(g, 'heavy', 0, 85);
+    // взгляд вниз (по умолчанию)
+    for (let i = 0; i < 40; i++) damageEnemy(g, e, 0.01, g.player.x, g.player.y, { source: 'bullet' });
+    expect(objsOf(g, 'carpet').length).toBe(6);
+    const hp = e.hp;
+    step(g, 0.55);
+    expect(hp - e.hp).toBeGreaterThan(10);
+  });
+});

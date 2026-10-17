@@ -37,6 +37,8 @@ export function isFlank(e: Enemy, x: number, y: number): boolean {
 export const STACK_COLOR = new Map<string, string>();
 /** Стаки, с которыми враг виден в темноте (отметка дрона-корректировщика) */
 export const STACK_LIT = new Set<string>();
+/** Стаки-приоритеты: самонаведение ищет врага с таким стаком (пеленг) */
+export const STACK_SEEK = new Set<string>();
 /** Стаки-уязвимости: враг с таким стаком получает больше урона (ключ → +доля) */
 export const STACK_VULN = new Map<string, number>();
 

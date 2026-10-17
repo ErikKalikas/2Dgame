@@ -49,7 +49,7 @@ describe('наборы врагов (этап 12)', () => {
   });
 
   // классы, предметы которых уже в игре (12б.2 — I–II; расширяется по мере частей 12б)
-  const DONE = [1, 2, 3];
+  const DONE = [1, 2, 3, 4];
   const done = () => ENEMIES.filter((e) => !e.boss && DONE.includes(e.value!));
 
   it('все id из drops готовых классов существуют, редкость = класс врага', () => {
@@ -84,7 +84,8 @@ describe('наборы врагов (этап 12)', () => {
     const key = (i: { icon: { shape: string; color: string; accent?: string } }) => `${i.icon.shape}|${i.icon.color}|${i.icon.accent ?? ''}`;
     const all = new Map<string, string[]>();
     for (const it of ITEMS.values()) all.set(key(it), [...(all.get(key(it)) ?? []), it.id]);
-    for (const it of ITEMS.values()) if (it.fromEnemy) expect(all.get(key(it)), it.id).toEqual([it.id]);
+    // предметы наборов и два предмета общего пула этапа 12б
+    for (const it of ITEMS.values()) if (it.fromEnemy || ['iHeatPack', 'pCarpetStrike'].includes(it.id)) expect(all.get(key(it)), it.id).toEqual([it.id]);
   });
 
   it('«Сканер утильщика» — модуль головы редкости 2', () => {

@@ -9,7 +9,9 @@ import { ENEMY_BY_ID } from '../enemies';
 import { heavyJunk, sparkRing } from './class1';
 import { flickering, fireFiveFrom, spawnCross } from './class2';
 import { childShot, CLOSE, eraseBullets, hasSyn, ignite, SYN } from './common';
-import { isFoe } from '../../game/status';
+import { isFoe, stackCount } from '../../game/status';
+import { snapEnemy } from '../../game/team';
+import { forkPair } from './class4';
 import { isSmallBullet } from '../../game/zones';
 
 // Синергии наборов врагов (этап 12б). Ступень 1 — «ядро набора»: ровно три первых предмета из drops
@@ -265,6 +267,52 @@ export const SET_SYNERGIES: SynergyDef[] = [
     {
       ru: 'Каждый 3-й укус блохи кусает в привод; новый носитель получает половину замедления прежнего; снаряды «Навеса» при падении сажают блоху; подброшенный «Катапультой» враг при падении рассыпает по блохе на врагов в радиусе 60.',
       en: 'Every 3rd flea bite is a drive bite; a new host gets half of the previous host’s slow; Lob shells plant a flea when they land; an enemy tossed by the Catapult scatters a flea onto each enemy within 60 when it lands.',
+    }),
+
+  // ---------------------------------------------------------------- IV класс
+  setSyn('psycho', 1, SYN.snap1,
+    { ru: 'Полный срыв', en: 'Total Snap' },
+    {
+      ru: 'Убийство тараном или выплеском срывает с поводка врагов в радиусе 70 на 3 с и даёт 10% заряда сбоя; в момент выплеска каждый сорванный враг тоже бьёт кольцом — по своим.',
+      en: 'A kill by ram or outburst snaps the leash of enemies within 70 for 3 s and gives 10% glitch charge; at the moment of the outburst, every snapped enemy also fires a ring — at its own side.',
+    },
+    {
+      onKill(g, e) {
+        const tag = e.lastHit?.tag;
+        if (tag !== 'ram' && tag !== 'surge') return;
+        for (const o of g.enemies) if (o !== e && isFoe(o) && dist2(o.x, o.y, e.x, e.y) <= 70 * 70) snapEnemy(g, o, 3);
+        const p = g.player;
+        if (p.glitchT <= 0) p.glitch = Math.min(1, p.glitch + 0.1);
+        g.fx.ring(e.x, e.y, C.violet, 70, 0.35);
+      },
+    }),
+  setSyn('psycho', 2, SYN.snap2,
+    { ru: 'Без поводка', en: 'Off the Leash' },
+    {
+      ru: 'Враги, сорванные «Обрывком» или «Разъёмом», дерутся за вас — их убийства закрывают «Долг боли»; выплеск «Петли срыва» сам бросает цепь «Обрыв» в ближайшего врага с полным уроном; пока горит долг, «Таран» сносит и тяжёлых врагов.',
+      en: 'Enemies snapped by the Torn Leash or the Rabid Socket fight for you — their kills pay off the Pain Debt; the Snap Loop outburst throws the Snapback chain at the nearest enemy at full damage; while a debt burns, the Ram bowls over heavy enemies too.',
+    }),
+  setSyn('mechanoid', 1, SYN.mech1,
+    { ru: 'Огневой расчёт', en: 'Fire Crew' },
+    {
+      ru: 'Каждые 3 убийства целей с пеленгом — внеочередная пара ракет «Вилки».',
+      en: 'Every 3 kills of targets with a bearing call an extra pair of Fork rockets.',
+    },
+    {
+      onKill(g, e) {
+        if (stackCount(e, 'bearing') === 0) return;
+        g.mem.crewN = (g.mem.crewN ?? 0) + 1;
+        if (g.mem.crewN % 3) return;
+        const p = g.player;
+        const t = g.seekEnemy(p.x, p.y, 200);
+        if (t) forkPair(g, t);
+      },
+    }),
+  setSyn('mechanoid', 2, SYN.mech2,
+    { ru: 'Ответный удар', en: 'Counterstrike' },
+    {
+      ru: 'Пуля, сбитая «КАЗом», сразу отвечает парой ракет «Вилки» в стрелявшего и ставит на него пеленг; каждая цель с пеленгом, убитая ракетами, — −2 с перезарядки «КАЗ» (не больше −6 с за цикл).',
+      en: 'A bullet shot down by the APS instantly answers with a pair of Fork rockets at the shooter and puts a bearing on it; every bearing target killed by rockets cuts the APS cooldown by 2 s (at most 6 s per cycle).',
     }),
 ];
 

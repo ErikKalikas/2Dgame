@@ -106,6 +106,12 @@ for (const s of sets) {
   console.log(`${s.id}: ${s.items.length} предм., синергии: ${syn.join(', ') || '—'}`);
   await page.screenshot({ path: `${out}/set-${s.id}.png` });
 }
+// предметы общего пула этапа 12б (не в наборах)
+for (const id of ['iHeatPack', 'pCarpetStrike']) {
+  await loadout([id]);
+  await fight(1200);
+  tested++;
+}
 const st = await ev(() => {
   const g = window.__game.scene.game;
   return { pb: g.pbullets.length, eb: g.ebullets.length, objs: g.objs.length, state: g.state };

@@ -226,7 +226,7 @@ export function updatePBullets(g: Game, dt: number) {
     if (b.spiral) b.angle += b.spiral * dt;
 
     if (b.homing) {
-      const target = g.nearestEnemy(b.bx, b.by, 170);
+      const target = g.seekEnemy(b.bx, b.by, 170);
       if (target) {
         const want = angleTo(b.bx, b.by, target.x, target.y);
         const d = angleDiff(b.angle, want);
