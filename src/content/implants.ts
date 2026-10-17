@@ -127,7 +127,7 @@ export const IMPLANTS: ItemDef[] = [
     id: 'iHelixRifling', kind: 'passive', maxStacks: 1, quality: 1, tags: ['kinetic'],
     name: { ru: 'Спиральная нарезка', en: 'Helix Rifling' },
     desc: { ru: 'Снаряды летят по закручивающейся дуге и пробивают +1 врага.', en: 'Shots fly in a curling arc and pierce +1 enemy.' },
-    icon: { shape: 'coil', color: C.steel, accent: C.yellow },
+    icon: { shape: 'coil', color: C.steelL, accent: C.yellow },
     stats: (s) => {
       s.spiral += 1.6;
       s.pierce += 1;
@@ -765,7 +765,7 @@ export const IMPLANTS: ItemDef[] = [
     id: 'iOrbitalStrike', kind: 'implant', slot: 'back', quality: 4, tags: ['explosive', 'smart'],
     name: { ru: 'Сброс с крана', en: 'Crane Drop' },
     desc: { ru: '[Q] Кран сбрасывает груз на каждого врага в комнате (радиус 26, урон ×4). Перезарядка 30 с.', en: '[Q] A crane drops cargo on every enemy in the room (26 px, ×4 damage). Cooldown 30 s.' },
-    icon: { shape: 'crosshair', color: C.red, accent: C.yellow },
+    icon: { shape: 'crosshair', color: C.amber, accent: C.red },
     active: {
       cooldown: 30,
       use: (g) => {

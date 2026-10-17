@@ -37,7 +37,7 @@ export const PASSIVES: ItemDef[] = [
     id: 'ricochet', kind: 'passive', quality: 2, tags: ['kinetic'], maxStacks: 2,
     name: { ru: 'Рикошет', en: 'Ricochet' },
     desc: { ru: 'Снаряды отскакивают от стен.', en: 'Shots bounce off walls.' },
-    icon: { shape: 'disc', color: C.steelL, accent: C.amber },
+    icon: { shape: 'disc', color: C.steel, accent: C.yellow },
     stats: (s, n) => {
       s.bounce += 2 * n;
     },
@@ -112,7 +112,7 @@ export const PASSIVES: ItemDef[] = [
       ru: 'Снаряды — костяные осколки с пробиванием +1. При ранении из тела вырываются 8 шпор. Скорость бега −6%.',
       en: 'Shots become bone shards, pierce +1. When hurt, 8 spurs burst from your body. Move speed −6%.',
     },
-    icon: { shape: 'spine', color: C.bone, accent: C.redD },
+    icon: { shape: 'spine', color: C.bone, accent: C.redL },
     stats: (s, n) => {
       s.shotStyle = 'shard';
       s.pierce += n;
@@ -270,7 +270,7 @@ export const PASSIVES: ItemDef[] = [
       ru: 'Снаряды закручиваются по дуге. Шанс оглушения +8%, дальность +10%.',
       en: 'Shots curve along a spiral arc. Stun chance +8%, range +10%.',
     },
-    icon: { shape: 'coil', color: C.amber, accent: C.yellow },
+    icon: { shape: 'coil', color: C.amber, accent: C.red },
     stats: (s, n) => {
       s.spiral += 1.2 * n;
       s.shock += 0.08 * n;
@@ -284,7 +284,7 @@ export const PASSIVES: ItemDef[] = [
       ru: 'Снаряды стартуют на 10% медленнее, но разгоняются в полёте. Урон +8%, отбрасывание сильнее.',
       en: 'Shots start 10% slower but accelerate in flight. Damage +8%, more knockback.',
     },
-    icon: { shape: 'battery', color: C.steel, accent: C.yellow },
+    icon: { shape: 'battery', color: C.steelL, accent: C.red },
     stats: (s, n) => {
       s.accel *= 1 + 0.7 * n;
       s.shotSpeed *= 1 - 0.1 * n;
