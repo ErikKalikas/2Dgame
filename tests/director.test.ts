@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { registerContent } from '../src/content';
 import { ENEMIES } from '../src/content/enemies';
-import { HUNTER_ART, HUNTER_HP, WAVE_CALM, sendWave, updateDirector, waveKind } from '../src/game/director';
+import { WAVE_CALM, sendWave, updateDirector, waveKind } from '../src/game/director';
 import { Game } from '../src/game/game';
 import { addHeat } from '../src/game/wanted';
 
@@ -11,7 +11,6 @@ beforeAll(() => {
   registerContent();
   // в Node нет холста: кадры врагов пустые
   for (const d of ENEMIES) d.frames = () => [];
-  HUNTER_ART.frames = () => [];
 });
 
 function game(seed = 'director-test'): Game {
@@ -73,7 +72,8 @@ describe('волны Диспетчера', () => {
     const w = sendWave(g, 'hunters');
     const hunters = w.filter((e) => e.hunter);
     expect(hunters.length).toBeGreaterThanOrEqual(2);
-    expect(hunters[0].maxHp).toBe(Math.round(hunters[0].def.hp * g.hpMult * HUNTER_HP));
+    expect(hunters[0].def.id).toBe('hunter');
+    expect(hunters[0].maxHp).toBe(Math.round(hunters[0].def.hp * g.hpMult));
     const h = sendWave(g, 'heavy');
     expect(h.some((e) => e.def.id === 'turret' && e.home === r.id)).toBe(true);
   });

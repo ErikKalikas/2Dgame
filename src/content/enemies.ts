@@ -4,12 +4,14 @@ import {
   flamerArt, gekkoArt, guardArt, heavyArt, mantisArt, mechanoidArt, netrunnerArt, psychoArt,
   punkArt, repairArt, scavArt, sniperArt, spiderMineArt, swarmArt, turretArt, watcherArt,
 } from '../gfx/art/enemies';
+import { hunterDroneArt } from '../gfx/art/surveillance';
 import { angleToPlayer, chase, distToPlayer, every, inRange, keepRange, move, startWindup, wander } from '../game/ai';
-import type { EnemyDef } from '../game/enemy';
+import type { Enemy, EnemyDef } from '../game/enemy';
+import type { Game } from '../game/game';
 import { aim, flower, ring, shoot, spread, stream } from '../game/patterns';
 import { lineOfSight } from '../game/collision';
 
-// 16 типов врагов. Вдохновлены уличными бандами, корпоративной охраной и боевыми роботами.
+// 16 типов врагов + дрон-гончая волн Диспетчера (14а). Вдохновлены уличными бандами, корпоративной охраной и боевыми роботами.
 // Этап 12: тип (киборг/робот), класс ценности I–IV и набор предметов — см. заметку «Наборы врагов».
 // Первые три id набора — «ядро» (первая ступень синергии). Предметы наборов появятся в 12б;
 // пока их нет в ITEMS, удачный дроп даёт горсть энергоячеек.
@@ -385,6 +387,94 @@ export const ENEMIES: EnemyDef[] = [
       if (inRange(e, g) && every(e, g, 'fire', target ? 3.2 : 1.8, dt)) flower(g, e.x, e.y, 5, 2, 70, e.mem.a, { skin: 'small', color: 'amber' });
     },
   },
+  // ---------------------------------------------------------------- Дрон-гончая (14а)
+  // Только в волнах Диспетчера на розыске 4–5 (в комнатах не встречается: minFloor 99).
+  {
+    id: 'hunter',
+    name: { ru: 'Дрон-гончая', en: 'Hound Drone' },
+    kind: 'robot', value: 2,
+    drops: ['pHuntLead', 'pHuntChase', 'pHuntQuiet', 'pHuntPack'],
+    hp: 14, speed: 70, r: 6, flying: true, xp: 4, coins: 0.8, minFloor: 99, weight: 0, cost: 3,
+    frames: () => hunterDroneArt(),
+    contact: false,
+    update(e, g, dt) {
+      const m = e.mem;
+      // «Свора»: союзный дрон быстрее и стреляет чаще
+      const fast = e.team === 'ally' && m.pack2 ? 1.5 : 1;
+      if (m.lost > 0) {
+        // сорванный залп: дрон потерял цель
+        m.lost -= dt;
+        wander(e, g, dt);
+        return;
+      }
+      if (m.dive !== undefined) return houndDive(e, g, dt);
+      if (m.tell !== undefined) {
+        // «Пеленг»: телеграф (алое кольцо у сенсора — director.renderDirector), затем очередь с упреждением
+        m.tell -= dt;
+        keepRange(e, g, dt, 70, 110, e.def.speed * 0.4);
+        if (m.tell <= 0) {
+          m.tell = undefined;
+          stream(g, e.x, e.y, houndAim(e, g), 3, 120, 16, { skin: 'rice', color: 'red' });
+        }
+        return;
+      }
+      keepRange(e, g, dt, 70, 110, e.def.speed * (fast > 1 ? 1.2 : 1));
+      if (!inRange(e, g)) return;
+      if (every(e, g, 'diveT', 5.2, dt)) {
+        // «Пике»: короткий замах-вспышка и бросок к цели
+        m.dive = 0.25;
+        m.diveA = angleToPlayer(e, g);
+        startWindup(e, 0.25);
+      } else if (every(e, g, 'fire', 2.2 / fast, dt)) {
+        m.tell = HOUND_TELL;
+        startWindup(e, HOUND_TELL);
+      }
+    },
+    // попадание во время телеграфа срывает залп: дрон теряет цель на 1 с
+    damageTaken(e, _g, dmg) {
+      if (e.mem.tell !== undefined) houndLose(e);
+      return dmg;
+    },
+    interrupt(e) {
+      houndLose(e);
+    },
+  },
 ];
 
 export const ENEMY_BY_ID = new Map(ENEMIES.map((e) => [e.id, e]));
+
+/** Телеграф «Пеленга» дрона-гончей (с) */
+export const HOUND_TELL = 0.45;
+
+/** Прицел гончей: по игроку — с упреждением на 0,3 с по его скорости */
+function houndAim(e: Enemy, g: Game): number {
+  if (!g.aimPlayer) return aim(g, e.x, e.y);
+  const tx = g.aimX + g.patches.vx * 0.3, ty = g.aimY + g.patches.vy * 0.3;
+  return Math.atan2(ty - e.y, tx - e.x) + (Math.random() - 0.5) * g.diff.aim;
+}
+
+function houndLose(e: Enemy) {
+  e.mem.tell = undefined;
+  e.mem.dive = undefined;
+  e.mem.lost = 1;
+  e.windup = 0;
+}
+
+/** «Пике»: 0,25 с вспышки, 0,45 с броска со следом искр, в конце — кольцо из 8 */
+function houndDive(e: Enemy, g: Game, dt: number) {
+  const m = e.mem;
+  m.dive -= dt;
+  if (m.diveGo === undefined) {
+    e.flash = Math.sin(m.dive * 50) > 0 ? 0.04 : 0;
+    if (m.dive > 0) return;
+    m.diveGo = 0.45;
+    m.diveA = angleToPlayer(e, g);
+  }
+  m.diveGo -= dt;
+  const r = move(e, g, Math.cos(m.diveA) * 240 * dt, Math.sin(m.diveA) * 240 * dt);
+  if (every(e, g, 'diveTrail', 0.06, dt, 0)) shoot(g, e.x, e.y, m.diveA + Math.PI, 0, { skin: 'small', color: 'amber', delay: 0.35, accel: 60, maxSpeed: 70 });
+  if (m.diveGo <= 0 || r.hx || r.hy) {
+    ring(g, e.x, e.y, 8, 80, Math.random(), { skin: 'small' });
+    m.dive = m.diveGo = undefined;
+  }
+}

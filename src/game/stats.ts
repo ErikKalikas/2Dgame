@@ -30,6 +30,10 @@ export interface Stats {
   dashJump: boolean;
   /** Скорость взлома (терминалы, позже двери и схроны) */
   hackSpeed: number;
+  /** Множитель роста розыска (14а: «Тихий сигнал») */
+  heatMult: number;
+  /** Во сколько раз дольше камере нужно смотреть, чтобы заметить (14а: «Тихий сигнал») */
+  spotTime: number;
 
   // выстрел
   damage: number;
@@ -104,6 +108,8 @@ export function baseStats(): Stats {
     dashCharges: 1,
     dashJump: false,
     hackSpeed: 1,
+    heatMult: 1,
+    spotTime: 1,
 
     damage: 3.5,
     damageMult: 1,

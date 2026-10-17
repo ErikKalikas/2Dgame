@@ -1,8 +1,7 @@
 import { TILE, VIEW_H, VIEW_W } from '../config';
 import type { L } from '../core/i18n';
 import { dist2 } from '../core/math';
-import { ENEMIES, ENEMY_BY_ID } from '../content/enemies';
-import { hunterDroneArt } from '../gfx/art/surveillance';
+import { ENEMIES, ENEMY_BY_ID, HOUND_TELL } from '../content/enemies';
 import { C } from '../gfx/palette';
 import type { Role } from '../world/roles';
 import { walkable } from '../world/tiles';
@@ -33,10 +32,6 @@ const SAFE: ReadonlySet<Role> = new Set<Role>(['surgery', 'jammer', 'exit']);
 /** Шанс мини-босса вместо волны охотников (раз за уровень) и где он может появиться */
 export const MINIBOSS_WAVE_CHANCE = 0.3;
 const MINIBOSS_ROOMS: ReadonlySet<Role> = new Set<Role>(['combat', 'ambush', 'elite']);
-/** Кадры дрона-охотника (тесты в Node подменяют: там нет холста) */
-export const HUNTER_ART = { frames: hunterDroneArt };
-/** Дрон-охотник: прочнее обычного дрона и идёт по следу через коридоры */
-export const HUNTER_HP = 1.6;
 
 export type WaveKind = 'patrol' | 'squad' | 'heavy' | 'hunters';
 
@@ -145,7 +140,8 @@ export function sendWave(g: Game, kind: WaveKind): Enemy[] {
       defs = roster(g, 4.5 + f, (d) => (heavyish(d) ? 3 : 1));
       break;
     case 'hunters': {
-      const drone = ENEMY_BY_ID.get('drone')!;
+      // дроны-охотники — свой вид врага «Дрон-гончая» (content/enemies.ts, только в волнах)
+      const drone = ENEMY_BY_ID.get('hunter')!;
       const n = lvl >= 5 ? g.rng.int(3, 4) : g.rng.int(2, 3);
       for (let i = 0; i < n; i++) hunters.push(drone);
       defs = roster(g, (3 + f * 0.8) * (lvl >= 5 ? 1.3 : 1), () => 1);
@@ -162,11 +158,7 @@ export function sendWave(g: Game, kind: WaveKind): Enemy[] {
     return e;
   };
   for (const d of defs) add(d, 1);
-  for (const d of hunters) {
-    const e = add(d, HUNTER_HP);
-    e.hunter = true;
-    e.frames = HUNTER_ART.frames();
-  }
+  for (const d of hunters) add(d, 1).hunter = true;
   const turret = kind === 'heavy' ? dropTurret(g) : null;
   if (turret) out.push(turret);
   g.enemies.push(...out);
@@ -231,25 +223,23 @@ function animateDrops(g: Game) {
   }
 }
 
-/** Перед залпом сенсор охотника «заряжается» за столько секунд */
-const HUNTER_TELL = 0.45;
-
 /**
- * Дроны-охотники: красный огонёк-отметка над корпусом; перед залпом вокруг сенсора сжимается
- * алое кольцо (телеграф атаки — видно, когда уходить)
+ * Дроны-гончие: у вражеских из волн — красный огонёк-отметка над корпусом; перед «Пеленгом»
+ * вокруг сенсора сжимается алое кольцо (телеграф — видно, когда уходить; у союзных «Стаи» тоже)
  */
 export function renderDirector(g: Game, ctx: CanvasRenderingContext2D, cx: number, cy: number) {
   for (const e of g.enemies) {
-    if (!e.hunter || e.dead || e.spawn > 0) continue;
+    if (e.def.id !== 'hunter' || e.dead || e.spawn > 0) continue;
     const x = Math.round(e.x - cx), y = Math.round(e.y - cy - e.r - 4);
     if (x < -8 || y < -8 || x > VIEW_W + 8 || y > VIEW_H + 8) continue;
-    ctx.fillStyle = Math.floor(g.time * 6 + e.id) % 2 ? C.redL : C.red;
-    ctx.fillRect(x - 1, y, 3, 1);
-    ctx.fillRect(x, y - 1, 1, 3);
-    // таймер залпа ИИ дрона (every 'fire'): тикает, только пока цель в досягаемости
-    const left = e.mem.fire;
-    if (left === undefined || left > HUNTER_TELL || Math.hypot(e.x - g.player.x, e.y - g.player.y) > 250) continue;
-    const k = Math.max(0, left / HUNTER_TELL);
+    if (e.hunter && e.team === 'foe') {
+      ctx.fillStyle = Math.floor(g.time * 6 + e.id) % 2 ? C.redL : C.red;
+      ctx.fillRect(x - 1, y, 3, 1);
+      ctx.fillRect(x, y - 1, 1, 3);
+    }
+    const left = e.mem.tell;
+    if (left === undefined) continue;
+    const k = Math.max(0, left / HOUND_TELL);
     const bob = 3 + Math.round(Math.sin(g.time * 3 + e.id));
     ctx.strokeStyle = C.redL;
     ctx.globalAlpha = 0.9 - k * 0.5;

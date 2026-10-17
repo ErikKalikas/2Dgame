@@ -72,7 +72,11 @@ export function wantedLevel(g: Game): number {
 /** Изменить шкалу (не ниже 0, не выше 5) и сообщить о смене ступени */
 export function addHeat(g: Game, amount: number) {
   const w = g.wanted;
-  if (amount > 0 && w.jammed) return;
+  if (amount > 0) {
+    // глушилка и «Охота» (синергия гончей: 2 с после убийства) — рост остановлен
+    if (w.jammed || g.time < (g.mem.huntQuiet ?? -1)) return;
+    amount *= g.player.stats.heatMult;
+  }
   w.heat = Math.max(0, Math.min(WANTED_MAX, w.heat + amount));
   syncLevel(g);
 }

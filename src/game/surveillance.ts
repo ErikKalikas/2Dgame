@@ -148,7 +148,7 @@ export function updateSurveillance(g: Game, dt: number) {
     }
     if (cameraSees(g, c)) {
       c.spot += dt;
-      if (c.spot >= CAMERA_SPOT) {
+      if (c.spot >= CAMERA_SPOT * p.stats.spotTime) {
         c.spot = 0;
         c.cd = CAMERA_CD;
         noise(g, 'camera');

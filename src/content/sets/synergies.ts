@@ -170,6 +170,24 @@ export const SET_SYNERGIES: SynergyDef[] = [
       ru: 'Вертушки стоят до конца комнаты (до 3) в режиме часового — сами бьют врагов в радиусе 90; при перегреве термоцикла пар сбрасывает и каждая вертушка.',
       en: 'Spinners stay until the room is over (up to 3) in sentry mode, hitting enemies within 90 by themselves; when the thermal cycle overheats, every spinner vents steam too.',
     }),
+  // Дрон-гончая (14а: волны розыска 4–5)
+  setSyn('hunter', 1, SYN.hunter1,
+    { ru: 'Охота', en: 'The Hunt' },
+    {
+      ru: '2 с после убийства розыск не растёт; сектор «Упреждения» вдвое шире (±50°).',
+      en: 'For 2 s after a kill your wanted level does not grow; the Lead sector is twice as wide (±50°).',
+    },
+    {
+      onKill(g) {
+        g.mem.huntQuiet = g.time + 2;
+      },
+    }),
+  setSyn('hunter', 2, SYN.hunter2,
+    { ru: 'Свора', en: 'The Pack' },
+    {
+      ru: 'Дрон-гончая «Стаи» прилетает вдвое чаще (раз в 5 с) и получает «Гон»: летает быстрее и стреляет в полтора раза чаще.',
+      en: 'The Pack hound arrives twice as often (every 5 s) and gets the Chase: it flies faster and fires one and a half times as often.',
+    }),
   setSyn('repair', 1, SYN.repair1,
     { ru: 'Полевой ремонт', en: 'Field Repair' },
     {

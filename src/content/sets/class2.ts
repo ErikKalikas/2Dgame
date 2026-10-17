@@ -12,15 +12,38 @@ import { STACK_COLOR, STACK_LIT, STACK_VULN, addStack, isFoe, stackCount, takeSt
 import { finalDamage, type Stats } from '../../game/stats';
 import { isSmallBullet } from '../../game/zones';
 import { nearestWalkable } from '../../world/level';
+import { summonAlly } from '../../game/team';
+import { ENEMY_BY_ID } from '../enemies';
 import { SYN, blink, coneTarget, eraseBullets, hasSyn, ignite, shotK, st, stun, visible } from './common';
 
 // Предметы наборов врагов II класса (редкость 2): Вахтёр, Мигун, Снайпер (киборги),
-// Автотурель, Ремонтный дрон (роботы). Числа — заметка «Наборы врагов — этап 12».
+// Автотурель, Ремонтный дрон, Дрон-гончая (роботы). Числа — заметка «Наборы врагов — этап 12».
 
 STACK_COLOR.set('turnstile', C.bone);
 STACK_COLOR.set('spot', C.redL);
 STACK_LIT.add('spot');
 STACK_VULN.set('spot', 0.35);
+
+// ---------------------------------------------------------------- Дрон-гончая (14а)
+
+/** Скорость врагов для «Упреждения»: по смещению за кадр, сглаженно */
+function trackFoes(g: Game, dt: number) {
+  if (dt <= 0) return;
+  const tr = st(g, 'huntLead', () => ({ v: new WeakMap<Enemy, { x: number; y: number; vx: number; vy: number }>() }));
+  for (const e of g.enemies) {
+    if (!isFoe(e)) continue;
+    const o = tr.v.get(e);
+    if (!o) {
+      tr.v.set(e, { x: e.x, y: e.y, vx: 0, vy: 0 });
+      continue;
+    }
+    const k = Math.min(1, dt * 8);
+    o.vx += ((e.x - o.x) / dt - o.vx) * k;
+    o.vy += ((e.y - o.y) / dt - o.vy) * k;
+    o.x = e.x;
+    o.y = e.y;
+  }
+}
 
 // ---------------------------------------------------------------- Вахтёр
 
@@ -440,7 +463,7 @@ export const CLASS2: ItemDef[] = [
       ru: 'Сбой начинается со скачка на 110 к прицелу; переписанные сбоем пули наводятся вдвое сильнее; сбой копится на 15% быстрее.',
       en: 'A glitch starts with a 110 leap toward your aim; glitch-rewritten bullets home twice as hard; glitch charges 15% faster.',
     },
-    icon: { shape: 'antenna', color: C.steel, accent: C.violet },
+    icon: { shape: 'antenna', color: C.metal, accent: C.bone },
     stats: (s) => {
       s.glitchGain *= 1.15;
       s.glitchHoming = Math.max(s.glitchHoming, 8);
@@ -817,6 +840,103 @@ export const CLASS2: ItemDef[] = [
       onKill(g, e) {
         if (e.def.kind !== 'robot' || e.summon) return;
         spawnScrap(g, 'part', e.x, e.y, 6, C.yellow, (g) => salvage(g));
+      },
+    },
+  },
+
+  // ================================================================ Дрон-гончая (14а: только волны розыска 4–5)
+  {
+    id: 'pHuntLead', kind: 'passive', quality: 2, tags: ['smart'], fromEnemy: 'hunter',
+    name: { ru: 'Прошивка «Упреждение»', en: '"Lead" Firmware' },
+    desc: {
+      ru: 'Выстрел доворачивает в точку упреждения движущегося врага в секторе ±25° от прицела. Скорость снарядов +10%.',
+      en: 'Shots turn toward the lead point of a moving enemy within ±25° of your aim. Shot speed +10%.',
+    },
+    icon: { shape: 'crosshair', color: C.redL, accent: C.steelL },
+    stats: (s) => {
+      s.shotSpeed *= 1.1;
+    },
+    hooks: {
+      tick: trackFoes,
+      adjustAim(g, angle) {
+        const p = g.player;
+        if (p.gun.weapon?.manual || p.gun.weapon?.mode === 'melee') return angle;
+        // «Охота» (ядро набора): сектор вдвое шире
+        const arc = ((hasSyn(g, SYN.hunter1) ? 50 : 25) * Math.PI) / 180;
+        const tr = st(g, 'huntLead', () => ({ v: new WeakMap<Enemy, { x: number; y: number; vx: number; vy: number }>() }));
+        let best: Enemy | null = null, bd = Infinity;
+        for (const e of g.enemies) {
+          if (!isFoe(e)) continue;
+          const d = Math.abs(angleDiff(angle, angleTo(p.x, p.y, e.x, e.y)));
+          if (d > arc || dist2(p.x, p.y, e.x, e.y) > p.stats.range ** 2) continue;
+          if (d < bd) {
+            bd = d;
+            best = e;
+          }
+        }
+        if (!best) return angle;
+        const v = tr.v.get(best);
+        const t = Math.sqrt(dist2(p.x, p.y, best.x, best.y)) / Math.max(60, p.stats.shotSpeed);
+        return angleTo(p.x, p.y - 3, best.x + (v?.vx ?? 0) * t, best.y + (v?.vy ?? 0) * t);
+      },
+    },
+  },
+  {
+    id: 'pHuntChase', kind: 'passive', quality: 2, tags: ['kinetic'], fromEnemy: 'hunter',
+    name: { ru: 'Прошивка «Гон»', en: '"Chase" Firmware' },
+    desc: {
+      ru: 'После убийства 2 с скорость +20%, а следующий залп наносит ×1,5 урона.',
+      en: 'After a kill: speed +20% for 2 s, and your next volley deals ×1.5 damage.',
+    },
+    icon: { shape: 'boot', color: C.redD, accent: C.yellow },
+    hooks: {
+      onKill(g) {
+        g.player.addBuff('huntChase', 2, (s) => {
+          s.speed *= 1.2;
+        });
+        g.mem.huntChaseShot = true;
+      },
+      onVolleyShot(g, b) {
+        if (g.mem.huntChaseShot) shotK(b, 'chase', 1.5);
+      },
+      onShoot(g) {
+        g.mem.huntChaseShot = false;
+      },
+    },
+  },
+  {
+    id: 'pHuntQuiet', kind: 'passive', quality: 2, tags: ['stealth'], fromEnemy: 'hunter',
+    name: { ru: 'Тихий сигнал', en: 'Quiet Signal' },
+    desc: {
+      ru: 'Розыск растёт на 20% медленнее; камерам нужно на 30% дольше, чтобы вас заметить.',
+      en: 'Wanted level grows 20% slower; cameras need 30% longer to spot you.',
+    },
+    icon: { shape: 'antenna', color: C.redD, accent: C.steelL },
+    stats: (s) => {
+      s.heatMult *= 0.8;
+      s.spotTime *= 1.3;
+    },
+  },
+  {
+    id: 'pHuntPack', kind: 'passive', quality: 2, tags: ['smart'], fromEnemy: 'hunter',
+    name: { ru: 'Прошивка «Стая»', en: '"Pack" Firmware' },
+    desc: {
+      ru: 'В бою раз в 10 с прилетает дрон-гончая — ваш союзник на 6 с: очереди по врагам и пике.',
+      en: 'In combat, every 10 s a hound drone arrives as your ally for 6 s: bursts at enemies and dives.',
+    },
+    icon: { shape: 'swarm', color: C.red, accent: C.steelL },
+    hooks: {
+      tick(g, dt) {
+        const s = st(g, 'huntPack', () => ({ t: 4 }));
+        if (!g.inCombat()) return;
+        s.t -= dt;
+        if (s.t > 0) return;
+        // «Свора» (весь набор): вдвое чаще и с «Гоном»
+        const pack = hasSyn(g, SYN.hunter2);
+        s.t = pack ? 5 : 10;
+        const p = g.player;
+        const a = summonAlly(g, ENEMY_BY_ID.get('hunter')!, p.x + (Math.random() - 0.5) * 30, p.y - 22, 1, 6);
+        a.mem.pack2 = pack;
       },
     },
   },

@@ -130,4 +130,5 @@ export const SYN = {
   cutter1: 'setCutter1', cutter2: 'setCutter2', stoker1: 'setStoker1', stoker2: 'setStoker2',
   heavy1: 'setHeavy1', heavy2: 'setHeavy2', flea1: 'setFlea1', flea2: 'setFlea2',
   snap1: 'setSnap1', snap2: 'setSnap2', mech1: 'setMech1', mech2: 'setMech2',
+  hunter1: 'setHunter1', hunter2: 'setHunter2',
 } as const;
