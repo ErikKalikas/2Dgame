@@ -52,31 +52,28 @@ const KNOWN_ROOTS = [
   'гарпун: lhHarpoon,wHarpoon',
   'дугово: pArcConductor,wArcThrower',
   'зеркал: iMirrorField,pMirrorPrism',
-  'клинки: iMantisBlades,wMantis',
   'катушк: iArcCoil,pHelixCoil',
   'конден: iCapacitorArm,wChargeShotgun',
   'костян: pMutBoneSpurs,wHedgehog',
   'нанито: iNaniteVeil,wNanoSwarm',
   'оптика: iFalconOptics,pSeekerOptics',
   'осколо: iFragCasing,pFragWarheads',
-  'орбита: iOrbitalGuard,pOrbitalShards',
   'плазме: iPlasmaInjector,wPlasmaMortar',
   'поводк: iDaemonUplink,iSnapLeash',
   'призма: pMirrorPrism,wPrism',
   'рельсо: pRailAccelerator,railgun',
   'свароч: lhWeldWall,wWeldingTorch',
-  'сервоп: iServoAnkles,servoLegs',
   'сингул: pSingularityCore,wSingularity',
-  'спирал: iHelixRifling,pHelixCoil,wHelix',
+  'спирал: iHelixRifling,wHelix',
   'турель: iSentryPod,wDervish',
   'фазовы: iPhaseRounds,pPhaseShift',
 ];
 
 /** Название предмета совпадает с названием фазы босса — ждёт решения (UNIQUENESS.md) */
-const KNOWN_PHASE_NAMES = ['iMantisBlades', 'railgun'];
+const KNOWN_PHASE_NAMES = ['railgun'];
 
 /** Предметы с одинаковым эффектом «только характеристики» — ждут решения (UNIQUENESS.md) */
-const KNOWN_STAT_TWINS = ['iShoulderMounts + pMirrorPrism'];
+const KNOWN_STAT_TWINS: string[] = [];
 
 /** id, занятый и предметом, и врагом (оружие «Огнемёт» и враг Кочегар) — ждёт решения (UNIQUENESS.md) */
 const KNOWN_SHARED_IDS = ['flamer'];

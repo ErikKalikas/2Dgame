@@ -1,6 +1,9 @@
 import { TAU } from '../core/math';
 import { C } from '../gfx/palette';
-import { spawnShot } from '../game/combat';
+import { dist2 } from '../core/math';
+import { damageEnemy, spawnShot } from '../game/combat';
+import { boltPoints } from '../game/fx';
+import { blocksShots } from '../world/tiles';
 import type { Game } from '../game/game';
 import type { ItemDef } from '../game/items';
 import { finalDamage } from '../game/stats';
@@ -63,14 +66,26 @@ export const PASSIVES: ItemDef[] = [
   },
   {
     id: 'servoLegs', kind: 'passive', quality: 1, tags: ['kinetic'], maxStacks: 3,
-    name: { ru: 'Сервоприводы ног', en: 'Leg Servos' },
-    desc: { ru: 'Скорость +10%, рывок перезаряжается быстрее.', en: 'Speed +10%, dash recharges faster.' },
+    name: { ru: 'Отрывной шаг', en: 'Breakaway Step' },
+    desc: {
+      ru: 'После рывка 1 с скорость +30% (+10% за каждую следующую копию). Рывок перезаряжается на 10% быстрее.',
+      en: 'For 1 s after a dash, speed +30% (+10% per extra copy). Dash recharges 10% faster.',
+    },
     icon: { shape: 'leg', color: C.steel, accent: C.yellow },
     stats: (s, n) => {
-      s.speed *= 1 + 0.1 * n;
-      s.dashCd *= 1 - 0.15 * n;
+      s.dashCd *= 1 - 0.1 * n;
+    },
+    hooks: {
+      // этап 15: раньше повторял «Сервоприводы голеностопа» (постоянная скорость и рывок)
+      onDashEnd(g) {
+        const k = 0.3 + 0.1 * (stacksOf(g, 'servoLegs') - 1);
+        g.player.addBuff('servoPace', 1, (s) => {
+          s.speed *= 1 + k;
+        });
+      },
     },
   },
+
 
   // ---------------------------------------------------------------------------
   // Мутации: заражённые наниты, хромовый рак, разросшаяся биоткань. Сильные, но с изъяном.
@@ -226,7 +241,7 @@ export const PASSIVES: ItemDef[] = [
 
   {
     id: 'pOrbitalShards', kind: 'passive', quality: 2, tags: ['nano', 'kinetic'], maxStacks: 3,
-    name: { ru: 'Орбитальные осколки', en: 'Orbital Shards' },
+    name: { ru: 'Кружащие осколки', en: 'Circling Shards' },
     desc: {
       ru: 'С шансом 20% выстрел выпускает осколок, который кружит вокруг вас и режет врагов. Скорострельность −5%.',
       en: '20% chance per shot to release a shard that circles you, cutting enemies. Fire rate −5%.',
@@ -251,8 +266,8 @@ export const PASSIVES: ItemDef[] = [
     id: 'pBoomerangFrame', kind: 'passive', quality: 2, tags: ['blade', 'kinetic'], maxStacks: 2,
     name: { ru: 'Возвратная рама', en: 'Return Frame' },
     desc: {
-      ru: 'Снаряды — режущие диски, возвращаются бумерангом. Дальность +25%, пробивание +1. Скорострельность −10%.',
-      en: 'Shots become cutting discs that return like a boomerang. Range +25%, pierce +1. Fire rate −10%.',
+      ru: 'Снаряды — режущие диски, возвращаются бумерангом и на обратном пути режут на 60% сильнее. Дальность +25%, пробивание +1. Скорострельность −10%.',
+      en: 'Shots become cutting discs that return like a boomerang and cut 60% harder on the way back. Range +25%, pierce +1. Fire rate −10%.',
     },
     icon: { shape: 'disc', color: C.amber, accent: C.bone },
     stats: (s, n) => {
@@ -262,21 +277,48 @@ export const PASSIVES: ItemDef[] = [
       s.pierce += n;
       s.fireRateMult *= 0.9;
     },
+    hooks: {
+      // этап 15: отличие от «Возвратного магнита» — удар диска на возврате
+      onHit(g, e, hit) {
+        if (!hit.bullet?.returning || hit.bullet.style !== 'disc' || e.dead) return;
+        damageEnemy(g, e, hit.dmg * 0.6, hit.x, hit.y, { silent: true, tag: 'frame' });
+      },
+    },
   },
+
   {
     id: 'pHelixCoil', kind: 'passive', quality: 1, tags: ['electric'], maxStacks: 2,
-    name: { ru: 'Спиральная катушка', en: 'Helix Coil' },
+    name: { ru: 'Индукционная катушка', en: 'Induction Coil' },
     desc: {
-      ru: 'Снаряды закручиваются по дуге. Шанс оглушения +8%, дальность +10%.',
-      en: 'Shots curve along a spiral arc. Stun chance +8%, range +10%.',
+      ru: 'Снаряды несут ток: враги рядом с траекторией (18) получают разряд — 30% урона раз в 0,2 с. Шанс оглушения +8%, дальность +10%.',
+      en: 'Shots carry a current: enemies near the path (18) take a 30% damage zap every 0.2 s. Stun chance +8%, range +10%.',
     },
     icon: { shape: 'coil', color: C.amber, accent: C.red },
     stats: (s, n) => {
-      s.spiral += 1.2 * n;
       s.shock += 0.08 * n;
       s.range *= 1 + 0.1 * n;
     },
+    hooks: {
+      // этап 15: раньше закручивала снаряды по дуге, как «Спиральная нарезка»; теперь — электрический след
+      onVolleyShot(g, b) {
+        const k = 0.3 * stacksOf(g, 'pHelixCoil');
+        const prev = b.step;
+        let zap = 0;
+        b.step = (g, b, dt) => {
+          prev?.(g, b, dt);
+          zap -= dt;
+          if (zap > 0) return;
+          zap = 0.2;
+          for (const e of g.enemies) {
+            if (e.dead || e.spawn > 0 || e.team !== 'foe' || b.hit.has(e) || dist2(e.x, e.y, b.x, b.y) > (18 + e.r) ** 2) continue;
+            damageEnemy(g, e, b.dmg * k, b.x, b.y, { silent: true, source: 'other', tag: 'induction', shock: 0.1 });
+            g.fx.add({ kind: 'bolt', x: 0, y: 0, points: boltPoints(b.x, b.y, e.x, e.y), color: C.yellow, life: 0.08, glow: true });
+          }
+        };
+      },
+    },
   },
+
   {
     id: 'pRailAccelerator', kind: 'passive', quality: 1, tags: ['kinetic'], maxStacks: 2,
     name: { ru: 'Рельсовый ускоритель', en: 'Rail Accelerator' },
@@ -385,17 +427,35 @@ export const PASSIVES: ItemDef[] = [
     id: 'pPhaseShift', kind: 'passive', quality: 3, tags: ['stealth', 'optic'], maxStacks: 1,
     name: { ru: 'Фазовый сдвиг', en: 'Phase Shift' },
     desc: {
-      ru: 'Снаряды проходят сквозь стены и пробивают +1 врага. Урон −10%.',
-      en: 'Shots pass through walls and pierce +1 enemy. Damage −10%.',
+      ru: 'Через 0,1 с после выстрела снаряд скачком переносится на 36 вперёд — даже через стену. Пробивание +1. Урон −10%.',
+      en: '0.1 s after firing, each shot jumps 36 forward — even through a wall. Pierce +1. Damage −10%.',
     },
     icon: { shape: 'cloak', color: C.violet, accent: C.grey },
     stats: (s) => {
-      s.spectral = true;
       s.pierce += 1;
       s.damageMult *= 0.9;
       s.shotColor = C.violet;
     },
+    hooks: {
+      // этап 15: раньше повторял «Фазовые пули» (сквозь стены всегда); теперь — один короткий скачок
+      onVolleyShot(_g, b) {
+        const prev = b.step;
+        let done = false;
+        b.step = (g, b, dt) => {
+          prev?.(g, b, dt);
+          if (done || b.t < 0.1 || b.arc || b.orbitR > 0) return;
+          done = true;
+          const nx = b.bx + Math.cos(b.angle) * 36, ny = b.by + Math.sin(b.angle) * 36;
+          if (blocksShots(g.room.at(nx, ny))) return;
+          g.fx.burst(b.x, b.y, C.violet, 4, 30, 0.2, 1, true);
+          b.bx = b.x = nx;
+          b.by = b.y = ny;
+          g.fx.burst(nx, ny, C.violet, 4, 30, 0.2, 1, true);
+        };
+      },
+    },
   },
+
   {
     id: 'pSeekerOptics', kind: 'passive', quality: 2, tags: ['optic', 'smart'], maxStacks: 3,
     name: { ru: 'Оптика наведения', en: 'Seeker Optics' },
@@ -429,15 +489,22 @@ export const PASSIVES: ItemDef[] = [
     id: 'pMirrorPrism', kind: 'passive', quality: 3, tags: ['optic'], maxStacks: 1,
     name: { ru: 'Зеркальная призма', en: 'Mirror Prism' },
     desc: {
-      ru: 'Каждый выстрел дублируется в обе стороны под прямым углом. Урон −15%.',
-      en: 'Every shot is mirrored to both sides at right angles. Damage −15%.',
+      ru: 'Каждый 4-й залп призма расщепляет: ещё 2 снаряда веером ±15° с уроном 60%.',
+      en: 'Every 4th volley is split by the prism: 2 more shots fanning ±15° at 60% damage.',
     },
     icon: { shape: 'crosshair', color: C.bone, accent: C.amber },
-    stats: (s) => {
-      s.sideShots = true;
-      s.damageMult *= 0.85;
+    hooks: {
+      onShoot(g, angle) {
+        // этап 15: раньше повторяла «Плечевые турели» (залп в стороны); теперь — расщепление вперёд
+        if (g.player.gun.weapon?.mode === 'melee') return;
+        g.mem.prism = ((g.mem.prism ?? 0) + 1) % 4;
+        if (g.mem.prism) return;
+        const s = g.player.stats;
+        for (const d of [-0.26, 0.26]) spawnShot(g, angle + d, s, { dmg: finalDamage(s) * 0.6, color: C.bone, isChild: true });
+      },
     },
   },
+
   {
     id: 'pBurstFirmware', kind: 'passive', quality: 3, tags: ['smart'], maxStacks: 2,
     name: { ru: 'Прошивка очереди', en: 'Burst Firmware' },

@@ -203,7 +203,7 @@ const pt = await ev(async () => {
   const b = P.releasePatch(g);
   return { a: a?.style, b: b?.style, list: P.patchList(g), log: g.logLines.at(-1)?.text.ru };
 });
-check('патчи: рывки, затем обычная стрельба; строка в логе', pt.a === 'dash' && pt.b === 'shot' && pt.list.length === 2 && pt.log?.startsWith('Протокол 3.8'), JSON.stringify(pt));
+check('патчи: рывки, затем обычная стрельба; строка в логе', pt.a === 'dash' && pt.b === 'shot' && pt.list.length === 2 && pt.log?.startsWith('Обновление 3.8'), JSON.stringify(pt));
 // окно повышения уровня (от убийств выше) закрываем
 await ev(() => {
   const app = window.__game;

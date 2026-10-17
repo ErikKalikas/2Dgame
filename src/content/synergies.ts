@@ -173,7 +173,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synSamurai',
     name: { ru: 'Уличный самурай', en: 'Street Samurai' },
-    desc: { ru: 'Термокатана + Выкидные клинки: урон +25%, удар шире, поджог сильнее.', en: 'Thermal Katana + Switch Blades: damage +25%, wider slash, stronger burn.' },
+    desc: { ru: 'Термокатана + Режущий вьюн: урон +25%, удар шире, поджог сильнее.', en: 'Thermal Katana + Cutting Vine: damage +25%, wider slash, stronger burn.' },
     requires: (has) => has('katana') && has('iMantisBlades'),
     stats: (s) => {
       s.damageMult *= 1.25;
@@ -194,7 +194,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synGauss',
     name: { ru: 'Гаусс-пушка', en: 'Gauss Cannon' },
-    desc: { ru: 'Рельсотрон + Конденсаторная рука: пробивание +3, урон +30%.', en: 'Railgun + Capacitor Arm: pierce +3, damage +30%.' },
+    desc: { ru: 'Рельсотрон + Конденсаторный контур: пробивание +3, урон +30%.', en: 'Railgun + Capacitor Circuit: pierce +3, damage +30%.' },
     requires: (has) => has('railgun') && has('iCapacitorArm'),
     stats: (s) => {
       s.pierce += 3;
@@ -242,7 +242,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synDeathRing',
     name: { ru: 'Кольцо смерти', en: 'Ring of Death' },
-    desc: { ru: 'Орбитальный контур + Орбитальные осколки: орбиты поджигают и оглушают.', en: 'Orbital Guard + Orbital Shards: orbits ignite and stun.' },
+    desc: { ru: 'Вихревой контур + Кружащие осколки: кружащие снаряды поджигают и оглушают.', en: 'Vortex Circuit + Circling Shards: circling shots ignite and stun.' },
     requires: (has) => has('iOrbitalGuard') && has('pOrbitalShards'),
     stats: (s) => {
       s.burn += 3;
@@ -273,7 +273,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synDoubleHelix',
     name: { ru: 'Двойная спираль', en: 'Double Helix' },
-    desc: { ru: 'Синус-привод + Спиральная катушка: +1 снаряд, волна шире.', en: 'Sine Drive + Helix Coil: +1 projectile, wider wave.' },
+    desc: { ru: 'Синус-привод + Индукционная катушка: +1 снаряд, волна шире.', en: 'Sine Drive + Induction Coil: +1 projectile, wider wave.' },
     requires: (has) => has('sineDrive') && has('pHelixCoil'),
     stats: (s) => {
       s.count += 1;
@@ -292,7 +292,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synExecutioner',
     name: { ru: 'Палач', en: 'Executioner' },
-    desc: { ru: 'Кора палача + Выкидные клинки: крит +15%, урон крита +100%.', en: 'Execution Cortex + Switch Blades: crit +15%, crit damage +100%.' },
+    desc: { ru: 'Кора палача + Режущий вьюн: крит +15%, урон крита +100%.', en: 'Execution Cortex + Cutting Vine: crit +15%, crit damage +100%.' },
     requires: (has) => has('iExecutionCortex') && has('iMantisBlades'),
     stats: (s) => {
       s.crit += 0.15;
@@ -314,7 +314,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synSawmill',
     name: { ru: 'Пилорама', en: 'Sawmill' },
-    desc: { ru: 'Пилы-спутники «Хоровод» + Орбитальный контур: урон +30%, пилы поджигают.', en: '"Round Dance" Saws + Orbital Guard: damage +30%, saws ignite.' },
+    desc: { ru: 'Пилы-спутники «Хоровод» + Вихревой контур: урон +30%, пилы поджигают.', en: '"Round Dance" Saws + Vortex Circuit: damage +30%, saws ignite.' },
     requires: (has) => has('wOrbitSaws') && has('iOrbitalGuard'),
     stats: (s) => {
       s.damageMult *= 1.3;
@@ -334,7 +334,7 @@ export const SYNERGIES_LIST: SynergyDef[] = [
   {
     id: 'synCyberNinja',
     name: { ru: 'Кибер-ниндзя', en: 'Cyber Ninja' },
-    desc: { ru: 'Мономолекулярная нить + Выкидные клинки: досягаемость +25%, крит +10%.', en: 'Monowire + Switch Blades: reach +25%, crit +10%.' },
+    desc: { ru: 'Мономолекулярная нить + Режущий вьюн: досягаемость +25%, крит +10%.', en: 'Monowire + Cutting Vine: reach +25%, crit +10%.' },
     requires: (has) => has('wMonowire') && has('iMantisBlades'),
     stats: (s) => {
       s.size *= 1.25;

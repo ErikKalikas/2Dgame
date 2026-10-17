@@ -316,8 +316,8 @@ export const IMPLANTS: ItemDef[] = [
   },
   {
     id: 'iMantisBlades', kind: 'implant', slot: 'tentacles', quality: 2, tags: ['blade'],
-    name: { ru: 'Выкидные клинки', en: 'Switch Blades' },
-    desc: { ru: 'Выдвижные клинки 4 раза в секунду режут врагов вплотную (радиус 24) на 80% урона.', en: 'Retractable blades slash adjacent enemies (24 px) 4 times per second for 80% damage.' },
+    name: { ru: 'Режущий вьюн', en: 'Cutting Vine' },
+    desc: { ru: 'Щупальца-лезвия 4 раза в секунду режут врагов вплотную (радиус 24) на 80% урона.', en: 'Bladed tentacles slash adjacent enemies (24 px) 4 times per second for 80% damage.' },
     icon: { shape: 'claw', color: C.steelL, accent: C.red },
     hooks: {
       tick: (g, dt) => {
@@ -337,8 +337,8 @@ export const IMPLANTS: ItemDef[] = [
   },
   {
     id: 'iOrbitalGuard', kind: 'passive', maxStacks: 1, quality: 2, tags: ['kinetic'],
-    name: { ru: 'Орбитальный контур', en: 'Orbital Guard' },
-    desc: { ru: 'Снаряды кружат вокруг вас по расширяющейся орбите. Дальность +60%, пробивание +1.', en: 'Shots circle around you in a widening orbit. Range +60%, pierce +1.' },
+    name: { ru: 'Вихревой контур', en: 'Vortex Circuit' },
+    desc: { ru: 'Снаряды кружат вокруг вас по расширяющемуся кругу. Дальность +60%, пробивание +1.', en: 'Shots circle around you in a widening ring. Range +60%, pierce +1.' },
     icon: { shape: 'disc', color: C.steel, accent: C.amber },
     stats: (s) => {
       s.orbit = Math.max(s.orbit, 16);
@@ -471,7 +471,7 @@ export const IMPLANTS: ItemDef[] = [
   },
   {
     id: 'iCapacitorArm', kind: 'implant', slot: 'reactor', quality: 2, tags: ['electric', 'heavy'],
-    name: { ru: 'Конденсаторная рука', en: 'Capacitor Arm' },
+    name: { ru: 'Конденсаторный контур', en: 'Capacitor Circuit' },
     desc: { ru: 'Каждый 6-й выстрел добавляет крупный разряд: урон ×3, размер ×2.2, пробивает +3.', en: 'Every 6th shot adds a large charge: ×3 damage, ×2.2 size, pierces +3.' },
     icon: { shape: 'battery', color: C.steel, accent: C.yellow },
     hooks: {

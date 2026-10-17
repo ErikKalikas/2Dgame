@@ -1181,8 +1181,8 @@ export const WEAPONS: ItemDef[] = [
     id: 'wOrbitalStrike', kind: 'weapon', quality: 4, tags: ['optic', 'explosive'],
     name: { ru: 'Целеуказатель «Небесный суд»', en: '"Heaven\'s Verdict" Target Designator' },
     desc: {
-      ru: 'Наводит орбитальный удар на ближайшего врага перед вами: двойной взрыв радиусом 34 — сразу и через 0,45 с.',
-      en: 'Calls an orbital strike on the nearest enemy ahead: a double blast of radius 34, now and 0.45 s later.',
+      ru: 'Наводит удар потолочного крана на ближайшего врага перед вами: двойной взрыв радиусом 34 — сразу и через 0,45 с.',
+      en: 'Calls a ceiling-crane strike on the nearest enemy ahead: a double blast of radius 34, now and 0.45 s later.',
     },
     icon: { shape: 'crosshair', color: C.red, accent: C.yellow },
     weapon: {

@@ -211,7 +211,7 @@ export function releasePatch(g: Game): PatchDef | null {
   return def;
 }
 
-/** «Протокол N.M: имя — эффект». N — номер версии (2-й патч забега — 3.x), M — номер стиля */
+/** «Обновление N.M: имя — эффект» (этап 15: не «Протокол» — так называются прошивки наборов и фазы боссов). N — номер версии (2-й патч забега — 3.x), M — номер стиля */
 export function patchVersion(g: Game, def: PatchDef): string {
   return `${g.patches.active.indexOf(def.style) + 2}.${PATCHES.indexOf(def) + 1}`;
 }
@@ -219,8 +219,8 @@ export function patchVersion(g: Game, def: PatchDef): string {
 export function patchLine(g: Game, def: PatchDef): L {
   const v = patchVersion(g, def);
   return {
-    ru: `Протокол ${v}: «${def.name.ru}» для охраны — ${def.short.ru}.`,
-    en: `Protocol ${v}: "${def.name.en}" for security — ${def.short.en}.`,
+    ru: `Обновление ${v}: «${def.name.ru}» для охраны — ${def.short.ru}.`,
+    en: `Update ${v}: "${def.name.en}" for security — ${def.short.en}.`,
   };
 }
 

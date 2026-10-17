@@ -62,7 +62,7 @@ describe('патчи Диспетчера', () => {
     expect(choosePatch(g)).toBe('explosion');
     const def = releasePatch(g)!;
     expect(def.style).toBe('explosion');
-    expect(g.logLines.at(-1)!.text.ru).toBe('Протокол 2.2: «Разнесение строя» для охраны — взрывы −35%.');
+    expect(g.logLines.at(-1)!.text.ru).toBe('Обновление 2.2: «Разнесение строя» для охраны — взрывы −35%.');
     // статистика яруса заново, повторов нет
     for (let i = 0; i < 10; i++) hit(g, e, { source: 'explosion' });
     expect(choosePatch(g)).toBe('shot');
