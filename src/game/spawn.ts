@@ -1,6 +1,7 @@
 import { FLOORS, TILE } from '../config';
 import { ENEMIES } from '../content/enemies';
-import { BOSSES } from '../content/bosses';
+import { MINIBOSS_BY_FLOOR, bossDef, isTwins } from '../content/minibosses';
+import { LOG } from './log';
 import { nearestWalkable } from '../world/level';
 import type { LevelRoom } from '../world/levelgen';
 import { BATTLE } from '../world/roles';
@@ -54,27 +55,20 @@ function enemyPool(floor: number): EnemyDef[] {
 export function populateRoom(g: Game, r: LevelRoom) {
   if (r.cleared) return;
   if (r.role === 'exit') {
-    const def = BOSSES.find((b) => b.id === g.theme.boss) ?? BOSSES[0];
+    // в конце нечётных уровней — мини-босс, чётных — босс яруса (FloorTheme.boss, этап 14а)
+    const def = bossDef(g.theme.boss);
     const c = g.room.roomCenter(r);
-    const p = nearestWalkable(g.room, c.x, c.y - (def.id === 'dispatcher' ? 8 : 30));
-    const hpMult = g.hpMult * (g.hard ? 1.15 : 1);
-    if (def.id === 'twins') {
-      // близнецы — два босса
-      for (const s of [-1, 1]) {
-        const e = new Enemy(def, p.x + s * 60, p.y, hpMult * 0.55);
-        e.mem.twin = s;
-        e.home = r.id;
-        e.spawn = 1.2;
-        g.enemies.push(e);
-      }
-    } else {
-      const e = new Enemy(def, p.x, p.y, hpMult);
-      e.spawn = 1.2;
-      e.home = r.id;
-      g.enemies.push(e);
-    }
-    g.bossIntro = 1.5;
+    spawnBoss(g, def, r, c.x, c.y - (def.id === 'dispatcher' ? 8 : 30));
     return;
+  }
+  if (r.role === 'miniboss') {
+    // мини-босс на локации (14а): кто — по уровню (Боссы#Кто где)
+    const list = MINIBOSS_BY_FLOOR[g.floorNum];
+    if (list) {
+      const c = g.room.roomCenter(r);
+      spawnBoss(g, bossDef(g.rng.pick(list)), r, c.x, c.y - 30);
+      return;
+    }
   }
   if (!BATTLE.has(r.role)) return;
 
@@ -109,6 +103,43 @@ export function populateRoom(g: Game, r: LevelRoom) {
     best.elite = true;
   }
   g.enemies.push(...spawned);
+}
+
+/**
+ * Босс или мини-босс в комнате r (его арена): близнецы — вдвоём. Возвращает появившихся;
+ * пока они появляются, имя показывается крупно (bossIntro)
+ */
+export function spawnBoss(g: Game, def: EnemyDef, r: LevelRoom, x: number, y: number): Enemy[] {
+  const p = nearestWalkable(g.room, x, y);
+  const hpMult = g.hpMult * (g.hard ? 1.15 : 1);
+  const out: Enemy[] = [];
+  if (isTwins(def)) {
+    // близнецы — двое
+    for (const s of [-1, 1]) {
+      const e = new Enemy(def, p.x + s * 60, p.y, hpMult * 0.55);
+      e.mem.twin = s;
+      out.push(e);
+    }
+  } else out.push(new Enemy(def, p.x, p.y, hpMult));
+  for (const e of out) {
+    e.home = r.id;
+    e.spawn = 1.2;
+  }
+  g.enemies.push(...out);
+  g.bossIntro = 1.5;
+  return out;
+}
+
+/**
+ * Мини-босс убит (не в конце уровня — там своя награда): когда пара близнецов повержена целиком —
+ * строка лога и выбор 1 из 2 предметов на месте боя
+ */
+export function minibossKilled(g: Game, e: Enemy) {
+  if (e.home === g.plan.exitId) return;
+  if (g.enemies.some((o) => o !== e && !o.dead && o.def === e.def && o.home === e.home)) return;
+  g.log(LOG.bossDown(e.def.name));
+  const c = e.home >= 0 ? g.room.roomCenter(g.plan.rooms[e.home]) : { x: e.x, y: e.y };
+  placeItems(g, ['implant', g.rng.chance(0.5) ? 'weapon' : 'implant'], c.x, c.y, { choice: true });
 }
 
 /** Награда за зачистку обычной комнаты (как в Isaac — случайная, иногда ничего) */

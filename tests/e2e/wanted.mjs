@@ -105,6 +105,8 @@ const wave = await ev(async () => {
   g.levelTimes[1] = 40;
   g.director.waveT = 0.01;
   g.director.calm = 30;
+  // мини-босс вместо волны — отдельная проверка ниже
+  g.director.minibossSent = true;
   return true;
 });
 await page.waitForTimeout(400);
@@ -123,6 +125,59 @@ const wv2 = await ev(() => {
 });
 check('волна дошла до игрока', wv2.near > 0, JSON.stringify(wv2));
 await page.screenshot({ path: `${out}/wanted-wave.png` });
+
+// --- 14а.4 мини-боссы
+const mb = await ev(() => {
+  const g = window.__game.scene.game;
+  g.wanted.heat = 0;
+  for (let n = 1; n <= 8; n++) {
+    g.startFloor(n);
+    let r = g.plan.rooms.find((x) => x.role === 'miniboss');
+    // комната мини-босса выпадает с шансом 0,35: на последнем уровне без неё назначаем большую боевую
+    if (!r && n === 8) {
+      r = g.plan.rooms.filter((x) => x.role === 'combat').sort((a, b) => b.w * b.h - a.w * a.h)[0];
+      r.role = 'miniboss';
+    }
+    if (!r) continue;
+    g.surv.cameras = [];
+    g.enterRoom(r);
+    const c = g.room.roomCenter(r);
+    g.player.y = c.y + 70;
+    g.snapCamera();
+    return { floor: n, room: r.id };
+  }
+  return null;
+});
+// первая атака у некоторых (рельсотрон Голиафа) — через несколько секунд, пули быстрые: следим в странице
+const mb2 = await ev(async () => {
+  const g = window.__game.scene.game;
+  let shot = false;
+  for (let i = 0; i < 180 && !shot; i++) {
+    await new Promise((r) => setTimeout(r, 50));
+    shot = g.ebullets.some((b) => b.owner?.miniboss);
+  }
+  const m = g.enemies.filter((e) => e.miniboss);
+  return { n: m.length, id: m[0]?.def.id, locked: g.locked, bullets: shot ? 1 : 0, bar: g.boss?.def.name.ru };
+});
+check('комната мини-босса: мини-босс, двери заперты, стреляет', !!mb && mb2.n > 0 && mb2.locked && mb2.bullets > 0, JSON.stringify({ mb, mb2 }));
+await page.screenshot({ path: `${out}/wanted-miniboss.png` });
+const mb3 = await ev(async () => {
+  const g = window.__game.scene.game;
+  for (let i = 0; i < 30; i++) {
+    for (const e of g.enemies.filter((x) => x.miniboss && !x.dead)) {
+      e.mem.invuln = 0;
+      e.spawn = 0;
+      e.hp -= e.maxHp * 0.2;
+      g.checkBossPhase(e);
+      if (e.hp <= 0) g.killEnemy(e, true);
+    }
+    await new Promise((r) => setTimeout(r, 60));
+  }
+  for (const e of g.enemies) g.killEnemy(e, true);
+  await new Promise((r) => setTimeout(r, 300));
+  return { items: g.pickups.filter((k) => k.kind === 'item').length, locked: g.locked, log: g.logLines.map((l) => l.text.ru) };
+});
+check('победа над мини-боссом: выбор из 2 предметов, двери открыты', mb3.items >= 2 && !mb3.locked, JSON.stringify(mb3));
 
 check('нет ошибок в консоли', errors.length === 0, errors.slice(0, 3).join(' | '));
 await browser.close();

@@ -1,6 +1,7 @@
 import { TAU, angleTo } from '../core/math';
 import { makeEBullet, type EBulletOpts } from './bullets';
 import type { Game } from './game';
+import { MINIBOSS_DENSITY } from './status';
 import { markAlert } from './wanted';
 
 // Узоры вражеских пуль. Сложность влияет на скорость, плотность и точность прицеливания.
@@ -27,9 +28,14 @@ export function aim(g: Game, x: number, y: number, extraError = 0): number {
   return angleTo(x, y, g.aimX, g.aimY) + (Math.random() - 0.5) * 2 * err;
 }
 
-/** Количество пуль с поправкой на сложность */
+/** Плотность пуль текущего актёра: у мини-босса ×0,8 (сложность — отдельно, в n) */
+export function actorDensity(g: Game): number {
+  return g.actor?.miniboss ? MINIBOSS_DENSITY : 1;
+}
+
+/** Количество пуль с поправкой на сложность (и мини-босса) */
 export function n(g: Game, count: number): number {
-  return Math.max(1, Math.round(count * g.diff.density));
+  return Math.max(1, Math.round(count * g.diff.density * actorDensity(g)));
 }
 
 export function ring(g: Game, x: number, y: number, count: number, speed: number, offset = 0, o?: EBulletOpts) {

@@ -3,6 +3,7 @@ import { blocksFlyers, walkable } from '../world/tiles';
 import { moveBody } from './collision';
 import type { Enemy } from './enemy';
 import type { Game } from './game';
+import { MINIBOSS_PAUSE } from './status';
 
 // Общие кирпичики поведения врагов. «Игрок» здесь — цель врага (g.aimX/aimY): обычно игрок,
 // но враг может целиться в приманку или союзника, а союзник — во врага (свой-чужой, этап 12б).
@@ -80,7 +81,7 @@ export function every(e: Enemy, g: Game, key: string, period: number, dt: number
   if (e.mem[key] === undefined) e.mem[key] = period * initial;
   e.mem[key] -= dt;
   if (e.mem[key] <= 0) {
-    e.mem[key] += period * g.diff.cooldown;
+    e.mem[key] += period * g.diff.cooldown * (e.miniboss ? MINIBOSS_PAUSE : 1);
     return true;
   }
   return false;

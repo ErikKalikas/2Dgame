@@ -15,7 +15,7 @@ export type Role =
   | 'cache' // схрон: взлом удержанием R, выбор 1 из 2 модулей
   | 'shaft' // сервисная шахта: испытание на уклонение
   | 'market' // барахолка сбойных
-  | 'miniboss' // мини-босс на локации (кого ставить — этап 14а)
+  | 'miniboss' // мини-босс на локации (кто — content/minibosses.ts, этап 14а)
   | 'jammer'; // комната-укрытие с глушилкой: розыск не растёт и снижается (этап 14а)
 
 export interface RoleDef {
@@ -71,7 +71,7 @@ export const TIER_GEN: Record<Tier, TierGen> = {
   spire: { rooms: [9, 11], minFill: 4, fill: { combat: 4, ambush: 1 }, loops: [1, 1] },
 };
 
-/** Шанс мини-босса на локации (с 2-го уровня). Эрик: «по весам» — подстраивается здесь */
+/** Шанс мини-босса на локации (уровни 1–8, с 14а и на 1-м — Страж). Эрик: «по весам» — подстраивается здесь */
 export const MINIBOSS_CHANCE = 0.35;
 
 /** Шанс комнаты-укрытия с глушилкой (уровни 1–8) */
@@ -89,7 +89,7 @@ export function specialRoles(floor: number, rooms: number, rng: RNG): Role[] {
   if (floor >= 5 || (floor >= 2 && rng.chance(0.5))) out.push('elite');
   if (rng.chance(0.6)) out.push('shaft');
   if (floor >= 2) out.push('market');
-  if (floor >= 2 && rng.chance(MINIBOSS_CHANCE)) out.push('miniboss');
+  if (floor <= 8 && rng.chance(MINIBOSS_CHANCE)) out.push('miniboss');
   // глушилка (14а, Эрик): ~1 на уровень, кроме Шпиля
   if (floor <= 8 && rng.chance(JAMMER_CHANCE)) out.push('jammer');
   return out;

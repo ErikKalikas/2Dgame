@@ -21,11 +21,11 @@ import { SLOT_NAME, item, itemsOfKind, type IncomingHit, type ItemDef, type Slot
 import { distToSegment, moveBody } from './collision';
 import { FlowField } from './pathfinding';
 import { Player } from './player';
-import { bossReward, dropLoot, furnishRoom, makePickup, populateRoom, roomClearReward, type Pickup } from './spawn';
+import { bossReward, dropLoot, furnishRoom, makePickup, minibossKilled, populateRoom, roomClearReward, type Pickup } from './spawn';
 import { DropState, enemyDrop } from './drops';
 import { UnstableState, onFloorStart, onLifeLost, updateInstability } from './instability';
 import { updateObjs, type WorldObj } from './objects';
-import { FACE_TURN, STACK_SEEK, tickStacks, updateToss } from './status';
+import { FACE_TURN, STACK_SEEK, bossLike, tickStacks, updateToss } from './status';
 import { asActor, setAim, updateTeams } from './team';
 import { DirectorState, directorFloorStart, updateDirector } from './director';
 import { SurveillanceState, placeCameras, updateSurveillance } from './surveillance';
@@ -281,9 +281,14 @@ export class Game {
     return this.lockedRoom !== null;
   }
 
-  /** Арена текущей комнаты (px, вместе со стенами): по ней боссы считают позиции и узоры */
+  /**
+   * Арена (px, вместе со стенами): по ней боссы считают позиции и узоры. Для босса или мини-босса —
+   * его комната (мини-босс может драться не там, где сейчас игрок), иначе — комната игрока
+   */
   get arena(): { x: number; y: number; w: number; h: number; cx: number; cy: number } {
-    const r = this.zone ?? this.plan.rooms[this.plan.exitId];
+    const a = this.actor;
+    const own = a && bossLike(a) && a.home >= 0 ? this.plan.rooms[a.home] : null;
+    const r = own ?? this.zone ?? this.plan.rooms[this.plan.exitId];
     const x = r.x * TILE, y = r.y * TILE, w = r.w * TILE, h = r.h * TILE;
     return { x, y, w, h, cx: x + w / 2, cy: y + h / 2 };
   }
@@ -421,8 +426,8 @@ export class Game {
       // агрессия (для нестабильности «пока идёт бой»): враг не покидает свою комнату, поэтому он в бою,
       // пока игрок в его комнате; враг из коридора — пока рядом. Преследование — этап 13.4
       e.aggro = e.team === 'foe' && (e.home >= 0 ? e.home === this.zone?.id : !far);
-      // дальние враги спят
-      if (!e.def.boss && far) continue;
+      // дальние враги спят (мини-боссы тоже; босс уровня — нет)
+      if ((!e.def.boss || e.miniboss) && far) continue;
       e.t += dt;
       e.flash = Math.max(0, e.flash - dt);
       if (e.mem.invuln > 0) e.mem.invuln -= dt;
@@ -842,6 +847,7 @@ export class Game {
       p.lives++;
       this.fx.burst(p.x, p.y, C.red, 10, 50, 0.4, 1, true);
     }
+    if (e.miniboss) minibossKilled(this, e);
     p.emit('onKill', this, e);
   }
 
@@ -1089,9 +1095,14 @@ export class Game {
     [this.camX, this.camY] = this.cameraTarget();
   }
 
-  /** Информация о боссе для полосы здоровья */
+  /** Информация о боссе для полосы здоровья: сначала босс или мини-босс комнаты игрока */
   get boss(): Enemy | null {
-    for (const e of this.enemies) if (e.def.boss && !e.dead) return e;
-    return null;
+    let any: Enemy | null = null;
+    for (const e of this.enemies) {
+      if (!e.def.boss || e.dead) continue;
+      if (this.zone && e.home === this.zone.id) return e;
+      if (!any && !e.miniboss) any = e;
+    }
+    return any;
   }
 }

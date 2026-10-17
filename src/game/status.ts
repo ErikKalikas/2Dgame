@@ -9,6 +9,10 @@ export const FRONT_ARC = 0.9;
 /** Скорость поворота взгляда врага (рад/с) */
 export const FACE_TURN = 4;
 
+/** Мини-босс: плотность пуль (узоры через patterns.n) и перерывы между атаками (ai.every) */
+export const MINIBOSS_DENSITY = 0.8;
+export const MINIBOSS_PAUSE = 1.25;
+
 /** Босс или мини-босс: контроль на них слабее или не действует */
 export function bossLike(e: Enemy): boolean {
   return !!e.def.boss || e.miniboss;

@@ -8,6 +8,8 @@ import { walkable } from '../world/tiles';
 import { Enemy, type EnemyDef } from './enemy';
 import type { Game } from './game';
 import { wantedLevel } from './wanted';
+import { MINIBOSS_BY_FLOOR, bossDef } from '../content/minibosses';
+import { spawnBoss } from './spawn';
 
 // Диспетчер-режиссёр (этап 14а, решение Эрика 16): по ступени розыска присылает к Т-417 волны
 // подкреплений через коридоры: 0–1 патруль → 2 усиленный отряд → 3 тяжёлая охрана и турель →
@@ -27,6 +29,9 @@ const PATH_MIN = 14, PATH_MAX = 26;
 const DIST_MIN = 180, DIST_MAX = 380;
 /** Комнаты, где волн нет */
 const SAFE: ReadonlySet<Role> = new Set<Role>(['surgery', 'jammer', 'exit']);
+/** Шанс мини-босса вместо волны охотников (раз за уровень) и где он может появиться */
+export const MINIBOSS_WAVE_CHANCE = 0.3;
+const MINIBOSS_ROOMS: ReadonlySet<Role> = new Set<Role>(['combat', 'ambush', 'elite']);
 /** Дрон-охотник: прочнее обычного дрона и идёт по следу через коридоры */
 export const HUNTER_HP = 1.6;
 
@@ -115,6 +120,11 @@ const heavyish = (d: EnemyDef) => !!d.heavy || (d.value ?? 1) >= 3 || d.id === '
 
 /** Прислать волну к игроку. Возвращает врагов волны (пусто — не нашлось места) */
 export function sendWave(g: Game, kind: WaveKind): Enemy[] {
+  // розыск 4–5: раз за уровень вместо волны может прийти мини-босс (в комнату игрока)
+  if (kind === 'hunters' && !g.director.minibossSent && g.rng.chance(MINIBOSS_WAVE_CHANCE)) {
+    const m = sendMiniboss(g);
+    if (m.length) return m;
+  }
   const at = waveOrigin(g);
   if (!at) return [];
   const f = g.floorNum, lvl = wantedLevel(g);
@@ -157,6 +167,22 @@ export function sendWave(g: Game, kind: WaveKind): Enemy[] {
   return out;
 }
 
+/**
+ * Мини-босс уровня в комнату игрока: только в зачищенную боевую комнату не меньше 22×14 тайлов
+ * (узоры мини-боссов рассчитаны на арену). Комната остаётся зачищенной — двери не запираются
+ */
+export function sendMiniboss(g: Game): Enemy[] {
+  const z = g.zone, list = MINIBOSS_BY_FLOOR[g.floorNum];
+  if (!z || !list || g.locked || !z.cleared || !MINIBOSS_ROOMS.has(z.role) || z.w < 22 || z.h < 14) return [];
+  const c = g.room.roomCenter(z);
+  const out = spawnBoss(g, bossDef(g.rng.pick(list)), z, c.x, g.player.y < c.y ? c.y + 40 : c.y - 40);
+  for (const e of out) e.wave = true;
+  g.director.minibossSent = true;
+  g.director.waves++;
+  g.log(WAVE_LOG.miniboss(out[0].def.name));
+  return out;
+}
+
 /** Ступень 3: турель сбрасывают прямо в комнату игрока (с телеграфом), не ближе 90 px */
 function dropTurret(g: Game): Enemy | null {
   const z = g.zone;
@@ -184,10 +210,11 @@ export function renderDirector(g: Game, ctx: CanvasRenderingContext2D, cx: numbe
   }
 }
 
-export const WAVE_LOG: Record<WaveKind | 'heavyNoTurret', L> = {
+export const WAVE_LOG = {
   patrol: { ru: 'Диспетчер: патруль направлен к Т-417.', en: 'Dispatcher: patrol sent to T-417.' },
   squad: { ru: 'Диспетчер: усиленный отряд направлен к Т-417.', en: 'Dispatcher: reinforced squad sent to T-417.' },
   heavy: { ru: 'Диспетчер: тяжёлая охрана выдвигается. Турель сброшена.', en: 'Dispatcher: heavy guard moving out. Turret dropped.' },
   heavyNoTurret: { ru: 'Диспетчер: тяжёлая охрана выдвигается.', en: 'Dispatcher: heavy guard moving out.' },
   hunters: { ru: 'Диспетчер: дроны-охотники идут по следу.', en: 'Dispatcher: hunter drones on your trail.' },
+  miniboss: (name: L): L => ({ ru: `Диспетчер: в зону Т-417 направлен ${name.ru}.`, en: `Dispatcher: ${name.en} sent to T-417's zone.` }),
 };

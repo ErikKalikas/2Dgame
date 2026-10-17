@@ -6,7 +6,8 @@ import {
 import { angleToPlayer, every, move } from '../game/ai';
 import { Enemy, type EnemyDef } from '../game/enemy';
 import type { Game } from '../game/game';
-import { aim, flower, n, ring, shoot, spread, stream } from '../game/patterns';
+import { actorDensity, aim, flower, n, ring, shoot, spread, stream } from '../game/patterns';
+import { MINIBOSS_PAUSE } from '../game/status';
 import { dispatcherBody } from '../gfx/art/dispatcher';
 import { drawDispatcher, hand, kick, point, raise, reach, reachRel, stepArms } from './dispatcher-rig';
 import { ENEMY_BY_ID } from './enemies';
@@ -97,7 +98,7 @@ export const BOSSES: EnemyDef[] = [
             // ряд пуль поперёк комнаты с проходом возле игрока
             const gap = g.player.x + (Math.random() - 0.5) * 60;
             const A = g.arena;
-            for (let x = A.x + 24; x < A.x + A.w - 24; x += g.hard ? 14 : 18) {
+            for (let x = A.x + 24; x < A.x + A.w - 24; x += (g.hard ? 14 : 18) / actorDensity(g)) {
               if (Math.abs(x - gap) < 26) continue;
               shoot(g, x, A.y + 40, Math.PI / 2, 75, { skin: 'rice', color: 'red' });
             }
@@ -151,7 +152,7 @@ export const BOSSES: EnemyDef[] = [
           }
           if (dashAttack(e, g, dt, 260, true)) {
             ring(g, e.x, e.y, 20, 90, Math.random(), { skin: 'orb' });
-            e.mem.rest = 0.9 * g.diff.cooldown;
+            e.mem.rest = 0.9 * g.diff.cooldown * (e.miniboss ? MINIBOSS_PAUSE : 1);
           }
         },
       },
@@ -332,7 +333,7 @@ export const BOSSES: EnemyDef[] = [
           }
           if (dashAttack(e, g, dt, 300, true)) {
             spread(g, e.x, e.y, aim(g, e.x, e.y), 9, 1.2, 110, { skin: 'small', color: 'amber' });
-            e.mem.rest = 0.8 * g.diff.cooldown;
+            e.mem.rest = 0.8 * g.diff.cooldown * (e.miniboss ? MINIBOSS_PAUSE : 1);
           }
         },
       },
@@ -555,7 +556,7 @@ function twinOrbit(e: Enemy, g: Game, dt: number) {
 
 /** Если второй близнец погиб — оставшийся атакует вдвое чаще */
 function twinRage(e: Enemy, g: Game): number {
-  const other = g.enemies.find((o) => o !== e && o.def.id === 'twins' && !o.dead);
+  const other = g.enemies.find((o) => o !== e && o.def === e.def && !o.dead);
   return other ? 1 : 0.55;
 }
 

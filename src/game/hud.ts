@@ -218,7 +218,7 @@ function renderBossBar(g: Game, r: Renderer) {
   const boss = g.boss;
   if (!boss || boss.spawn > 0) return;
   // для близнецов — суммарное здоровье
-  const all = g.enemies.filter((e) => e.def.boss && !e.dead);
+  const all = g.enemies.filter((e) => e.def === boss.def && e.home === boss.home && !e.dead);
   const hp = all.reduce((s, e) => s + Math.max(0, e.hp), 0);
   const max = all.reduce((s, e) => s + e.maxHp, 0) || 1;
   const x = 60, w = VIEW_W - 120, y = VIEW_H - 14;

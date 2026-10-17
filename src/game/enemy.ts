@@ -35,6 +35,8 @@ export interface EnemyDef {
   /** Не двигается от отдачи */
   heavy?: boolean;
   boss?: boolean;
+  /** Мини-босс (этап 14а): старый босс с половиной HP и двумя фазами (content/minibosses.ts) */
+  miniboss?: boolean;
   phases?: BossPhase[];
   /** Киборг роняет модули и оружие, робот — прошивки (этап 12) */
   kind?: 'cyborg' | 'robot';
@@ -163,6 +165,7 @@ export class Enemy {
     this.y = y;
     this.r = def.r;
     this.hp = this.maxHp = Math.round(def.hp * hpMult);
+    this.miniboss = !!def.miniboss;
     this.frames = def.frames();
   }
 

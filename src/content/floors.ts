@@ -9,7 +9,7 @@ export interface FloorTheme {
   tierName: L;
   /** Название конкретного уровня (подбиом) */
   name: L;
-  /** Босс в конце уровня (id из bosses.ts) */
+  /** Босс в конце уровня (id из bosses.ts или minibosses.ts — этап 14а) */
   boss: string;
   /** Босс яруса (true) или мини-босс (false) */
   tierBoss: boolean;
@@ -53,21 +53,21 @@ const SPIRE: L = { ru: 'Шпиль', en: 'The Spire' };
 // Боссы временные (из первой версии), пока не сделаны боссы ярусов — см. заметки «Мир и районы».
 export const FLOOR_THEMES: FloorTheme[] = [
   {
-    tier: 'sump', tierName: SUMP, name: { ru: 'Свалка', en: 'Scrapyard' }, boss: 'sentinel', tierBoss: false,
+    tier: 'sump', tierName: SUMP, name: { ru: 'Свалка', en: 'Scrapyard' }, boss: 'mbArachna', tierBoss: false,
     floorA: '#14110d', floorB: '#17130e', line: '#0a0806', wall: '#1d1812', wallTop: '#2b241b',
     accent: '#4f3006', lamp: '184,122,12', dark: 0.58,
     floorHi: '#1f1a13', face: '#211b14', faceD: '#15110c', pitC: '#0b0805',
     shade: '10,7,3', glow: '150,105,25', variant: 0, flicker: 0.35, pools: 2,
   },
   {
-    tier: 'sump', tierName: SUMP, name: { ru: 'Коллектор', en: 'Collector' }, boss: 'arachna', tierBoss: true,
+    tier: 'sump', tierName: SUMP, name: { ru: 'Коллектор', en: 'Collector' }, boss: 'sentinel', tierBoss: true,
     floorA: '#121313', floorB: '#151616', line: '#09090a', wall: '#1b1a19', wallTop: '#292726',
     accent: '#4f3006', lamp: '170,120,40', dark: 0.62,
     floorHi: '#1c1d1c', face: '#201f1d', faceD: '#141312', pitC: '#090a09',
     shade: '4,6,6', glow: '130,110,40', variant: 1, flicker: 0.3, pools: 2,
   },
   {
-    tier: 'foundry', tierName: FOUNDRY, name: { ru: 'Сборочная линия', en: 'Assembly Line' }, boss: 'hive', tierBoss: false,
+    tier: 'foundry', tierName: FOUNDRY, name: { ru: 'Сборочная линия', en: 'Assembly Line' }, boss: 'mbHive', tierBoss: false,
     floorA: '#16161b', floorB: '#19191f', line: '#0c0c10', wall: '#202027', wallTop: '#30303a',
     accent: '#b87a0c', lamp: '255,170,90', dark: 0.52,
     floorHi: '#212129', face: '#26262e', faceD: '#18181e', pitC: '#0b0b0e',
@@ -81,7 +81,7 @@ export const FLOOR_THEMES: FloorTheme[] = [
     shade: '9,3,2', glow: '255,80,30', variant: 1, flicker: 0.15, pools: 1,
   },
   {
-    tier: 'hab', tierName: HAB, name: { ru: 'Капсульные блоки', en: 'Capsule Blocks' }, boss: 'twins', tierBoss: false,
+    tier: 'hab', tierName: HAB, name: { ru: 'Капсульные блоки', en: 'Capsule Blocks' }, boss: 'mbTwins', tierBoss: false,
     floorA: '#161617', floorB: '#19191a', line: '#0c0c0d', wall: '#212124', wallTop: '#323236',
     accent: '#a3161f', lamp: '220,200,170', dark: 0.5,
     floorHi: '#202022', face: '#29292c', faceD: '#1a1a1c', pitC: '#0a0a0b',
@@ -95,7 +95,7 @@ export const FLOOR_THEMES: FloorTheme[] = [
     shade: '7,3,5', glow: '255,60,50', variant: 1, flicker: 0.25, pools: 1,
   },
   {
-    tier: 'transit', tierName: TRANSIT, name: { ru: 'Грузовые пути', en: 'Freight Lines' }, boss: 'sentinel', tierBoss: false,
+    tier: 'transit', tierName: TRANSIT, name: { ru: 'Грузовые пути', en: 'Freight Lines' }, boss: 'mbGunship', tierBoss: false,
     floorA: '#111216', floorB: '#131419', line: '#08090c', wall: '#1a1b21', wallTop: '#282a32',
     accent: '#ffcc33', lamp: '255,204,120', dark: 0.58,
     floorHi: '#1a1b21', face: '#1f2027', faceD: '#121318', pitC: '#060709',
